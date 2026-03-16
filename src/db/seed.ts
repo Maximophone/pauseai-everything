@@ -1,0 +1,166 @@
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
+import { fieldDefinitions } from "./schema/field-definitions";
+
+const connectionString = process.env.DATABASE_URL!;
+const client = postgres(connectionString);
+const db = drizzle(client);
+
+const defaultFields = [
+  {
+    name: "lifecycle_stage",
+    label: "Lifecycle Stage",
+    fieldType: "select",
+    options: ["joined", "onboarding", "active", "highly_active", "dormant", "churned"],
+    required: true,
+    sortOrder: 1,
+  },
+  {
+    name: "contact_types",
+    label: "Contact Types",
+    fieldType: "multiselect",
+    options: ["member", "politician", "journalist", "coalition_partner", "donor"],
+    required: false,
+    sortOrder: 2,
+  },
+  {
+    name: "country",
+    label: "Country",
+    fieldType: "text",
+    required: false,
+    sortOrder: 3,
+  },
+  {
+    name: "chapter",
+    label: "Chapter",
+    fieldType: "text",
+    required: false,
+    sortOrder: 4,
+  },
+  {
+    name: "skills",
+    label: "Skills",
+    fieldType: "multiselect",
+    options: ["policy", "communications", "design", "development", "research", "organizing", "lobbying", "social_media", "writing", "translation"],
+    required: false,
+    sortOrder: 5,
+  },
+  {
+    name: "hours_committed",
+    label: "Hours Committed / Week",
+    fieldType: "number",
+    required: false,
+    sortOrder: 6,
+  },
+  {
+    name: "motivation_level",
+    label: "Motivation Level",
+    fieldType: "select",
+    options: ["low", "medium", "high"],
+    required: false,
+    sortOrder: 7,
+  },
+  {
+    name: "source",
+    label: "Source",
+    fieldType: "select",
+    options: ["website_join_form", "event", "referral", "social_media", "protest", "manual_entry", "other"],
+    required: false,
+    sortOrder: 8,
+  },
+  {
+    name: "notes",
+    label: "Notes",
+    fieldType: "text",
+    required: false,
+    sortOrder: 9,
+  },
+  {
+    name: "phone",
+    label: "Phone",
+    fieldType: "text",
+    required: false,
+    sortOrder: 10,
+  },
+  {
+    name: "discord_handle",
+    label: "Discord Handle",
+    fieldType: "text",
+    required: false,
+    sortOrder: 11,
+  },
+  // Politician-specific fields
+  {
+    name: "government_level",
+    label: "Level of Government",
+    fieldType: "select",
+    options: ["local", "regional", "national", "eu", "international"],
+    required: false,
+    sortOrder: 20,
+  },
+  {
+    name: "party",
+    label: "Political Party",
+    fieldType: "text",
+    required: false,
+    sortOrder: 21,
+  },
+  {
+    name: "ai_policy_position",
+    label: "AI Policy Position",
+    fieldType: "select",
+    options: ["unknown", "skeptical", "neutral", "cautious", "supportive", "publicly_endorsed"],
+    required: false,
+    sortOrder: 22,
+  },
+  {
+    name: "relationship_stage",
+    label: "Relationship Stage",
+    fieldType: "select",
+    options: ["cold", "contacted", "met", "warm", "supportive", "publicly_endorsed"],
+    required: false,
+    sortOrder: 23,
+  },
+  // Journalist-specific fields
+  {
+    name: "outlet",
+    label: "Media Outlet",
+    fieldType: "text",
+    required: false,
+    sortOrder: 30,
+  },
+  {
+    name: "beat",
+    label: "Beat / Focus Area",
+    fieldType: "text",
+    required: false,
+    sortOrder: 31,
+  },
+  // Donor-specific fields
+  {
+    name: "total_donated",
+    label: "Total Donated",
+    fieldType: "number",
+    required: false,
+    sortOrder: 40,
+  },
+];
+
+async function seed() {
+  console.log("Seeding field definitions...");
+
+  for (const field of defaultFields) {
+    await db
+      .insert(fieldDefinitions)
+      .values(field)
+      .onConflictDoNothing({ target: fieldDefinitions.name });
+  }
+
+  console.log(`Seeded ${defaultFields.length} field definitions.`);
+  await client.end();
+}
+
+seed().catch((err) => {
+  console.error("Seed failed:", err);
+  process.exit(1);
+});
