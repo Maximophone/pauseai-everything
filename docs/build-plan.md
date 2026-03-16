@@ -22,10 +22,13 @@
 ### Phase 1: Scaffold & data layer
 
 - [x] Create GitHub repo
-- [ ] Initialize Next.js project with TypeScript
-- [ ] Set up Tailwind CSS + shadcn/ui
-- [ ] Set up Drizzle ORM + Postgres (local dev with Docker)
-- [ ] Define schema: `field_definitions`, `contacts`, `users`
+- [x] Initialize Next.js project with TypeScript + Tailwind CSS
+- [x] Set up Drizzle ORM + Postgres schema
+- [x] Set up Vitest testing infrastructure
+- [x] Define schema: `contacts`, `field_definitions`, `interactions`, `users`, `tags`, `emails`
+- [ ] Set up shadcn/ui components
+- [ ] Set up Postgres for local dev (Docker)
+- [ ] Run initial Drizzle migration
 - [ ] Seed default field definitions (lifecycle_stage, country, contact_types, skills, etc.)
 - [ ] Basic app layout (sidebar nav, header, content area)
 - [ ] NextAuth.js with Google OAuth
@@ -102,6 +105,28 @@
 - [ ] Recent activity feed
 - [ ] Campaign performance stats
 - [ ] CSV export from any view
+
+## Testing strategy
+
+Every phase ships with tests. The core data layer and API must be robust.
+
+**Unit tests (Vitest):**
+- Data validation logic (field type validation, required fields, JSONB schema enforcement)
+- Segment query builder → SQL translation
+- Business logic (lifecycle transitions, deduplication, routing)
+
+**Integration tests (Vitest + real Postgres):**
+- API endpoints: CRUD operations, error cases, auth checks
+- Webhook handlers: Tally intake, Mailersend events
+- Background jobs: campaign sending, churn detection
+
+**Test infrastructure:**
+- Test database spun up via Docker (separate from dev DB)
+- Database reset between test suites
+- Factory functions for creating test contacts, interactions, etc.
+- API test helpers for authenticated requests
+
+**Rule:** No API endpoint or background job ships without tests covering happy path + key error cases.
 
 ## What "done" looks like per phase
 

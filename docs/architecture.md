@@ -44,11 +44,11 @@ A custom-built platform for PauseAI Global that starts as a CRM and grows into t
 | Framework | Next.js (App Router) | Best AI coding support, huge ecosystem, handles both UI and API |
 | Language | TypeScript | Type safety, good DX, well-supported by AI tools |
 | Database | PostgreSQL | Relational data (contacts, interactions, stages), great for complex queries/segments, scales easily to 100k+ records |
-| Job queue | graphile-worker or pgboss | Postgres-backed — no extra infrastructure. Handles scheduled jobs, background tasks, batch operations |
-| ORM | Drizzle or Prisma | TBD — Drizzle is lighter and closer to SQL, Prisma has better DX for rapid prototyping |
+| Job queue | graphile-worker | Postgres-backed — no extra infrastructure. More mature, better cron support than pgboss |
+| ORM | Drizzle | Lighter and closer to SQL, better JSONB support than Prisma |
 | Auth | NextAuth.js (Auth.js) | Simple, 5-10 admin users. Can start with email magic links or Google OAuth |
 | Email sending | Mailersend API | Already in use, has good API for bulk/transactional email |
-| Hosting | Railway or Render | Supports web process + worker process + cron from one repo. Postgres included. Simple git-push deploys |
+| Hosting | Railway | Web + worker + Postgres from one repo, git-push deploys, good DX |
 | Form intake | Tally webhooks | Already in use for join forms |
 
 ## Architecture: Web + Worker
@@ -319,11 +319,15 @@ Estimated cost at launch: ~$10–20/month (well within budget).
 - AI features (natural language querying, smart segmentation — planned but not v1)
 - Notion sync (just hyperlinks for now)
 
+## Resolved decisions
+
+- [x] ORM: **Drizzle** — better JSONB support, closer to SQL
+- [x] Hosting: **Railway** — web + worker + Postgres, git-push deploys
+- [x] Job queue: **graphile-worker** — more mature, better cron, lighter than pgboss
+- [x] Testing: **Vitest** — fast, works with TypeScript, good DX
+
 ## Open questions
 
-- [ ] ORM choice: Drizzle vs Prisma?
-- [ ] Hosting: Railway vs Render? (Leaning Railway for simplicity)
-- [ ] Job queue: graphile-worker vs pgboss?
 - [ ] Email template authoring: build a simple editor or use Mailersend's template system?
 - [ ] How to handle Mailersend webhooks (delivery/open/click tracking back into our system)?
 - [ ] Do we want real-time features (e.g., live dashboard updates)? Probably not v1.
