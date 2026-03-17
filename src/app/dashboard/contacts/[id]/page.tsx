@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import { getContact, listFieldDefinitions } from "@/lib/contacts";
 import { ContactDetailForm } from "@/components/contact-detail-form";
+import { InteractionTimeline } from "@/components/interaction-timeline";
+import { ContactTags } from "@/components/contact-tags";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowLeftIcon } from "lucide-react";
@@ -42,7 +44,24 @@ export default async function ContactDetailPage({
           )}
         </div>
       </div>
-      <ContactDetailForm contact={JSON.parse(JSON.stringify(contact))} fieldDefinitions={JSON.parse(JSON.stringify(fields))} />
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Left column: form + tags */}
+        <div className="lg:col-span-1 space-y-6">
+          <ContactDetailForm
+            contact={JSON.parse(JSON.stringify(contact))}
+            fieldDefinitions={JSON.parse(JSON.stringify(fields))}
+          />
+          <div className="border-t pt-6">
+            <ContactTags contactId={contact.id} />
+          </div>
+        </div>
+
+        {/* Right column: interactions timeline */}
+        <div className="lg:col-span-2">
+          <InteractionTimeline contactId={contact.id} />
+        </div>
+      </div>
     </div>
   );
 }

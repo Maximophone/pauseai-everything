@@ -1,11 +1,20 @@
-export default function TagsPage() {
+import { listTags } from "@/lib/tags";
+import { TagsManager } from "@/components/tags-manager";
+
+export default async function TagsPage() {
+  const tags = await listTags();
+
   return (
     <div>
-      <h2 className="text-2xl font-bold tracking-tight">Tags</h2>
-      <p className="text-muted-foreground mt-1">Manage contact tags and categories.</p>
-      <div className="mt-6 rounded-lg border p-12 text-center text-muted-foreground">
-        Coming soon.
+      <div>
+        <h2 className="text-2xl font-bold tracking-tight">Tags</h2>
+        <p className="text-muted-foreground mt-1">
+          Create and manage tags for organizing contacts.
+        </p>
+      </div>
+      <div className="mt-6">
+        <TagsManager initialTags={JSON.parse(JSON.stringify(tags))} />
       </div>
     </div>
-  )
+  );
 }
