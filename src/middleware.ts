@@ -1,14 +1,21 @@
-import { auth } from "@/lib/auth";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
-export default auth((req) => {
-  const isLoggedIn = !!req.auth;
+export function middleware(req: NextRequest) {
+  // In development, skip auth entirely
+  if (process.env.NODE_ENV === "development" && process.env.DEV_BYPASS_AUTH === "true") {
+    return NextResponse.next();
+  }
+
+  // Check for NextAuth session cookie (JWT-based)
+  // The actual session validation happens in server components/API routes
+  // Middleware just does a lightweight redirect check
+  const sessionCookie =
+    req.cookies.get("__Secure-authjs.session-token") ??
+    req.cookies.get("authjs.session-token");
+  const isLoggedIn = !!sessionCookie;
+
   const isOnDashboard = req.nextUrl.pathname.startsWith("/dashboard");
   const isOnLogin = req.nextUrl.pathname === "/login";
-  const isApiAuth = req.nextUrl.pathname.startsWith("/api/auth");
-
-  // Always allow auth API routes
-  if (isApiAuth) return NextResponse.next();
 
   // Redirect logged-in users away from login page
   if (isOnLogin && isLoggedIn) {
@@ -21,7 +28,7 @@ export default auth((req) => {
   }
 
   return NextResponse.next();
-});
+}
 
 export const config = {
   matcher: ["/dashboard/:path*", "/login"],

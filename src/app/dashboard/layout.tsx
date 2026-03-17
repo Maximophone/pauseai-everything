@@ -14,16 +14,26 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
-  const session = await auth()
+  const devBypass = process.env.NODE_ENV === "development" && process.env.DEV_BYPASS_AUTH === "true";
 
-  if (!session?.user) {
-    redirect("/login")
-  }
+  let user = {
+    name: "Dev User",
+    email: "dev@pauseai.info",
+    avatar: "",
+  };
 
-  const user = {
-    name: session.user.name ?? "User",
-    email: session.user.email ?? "",
-    avatar: session.user.image ?? "",
+  if (!devBypass) {
+    const session = await auth()
+
+    if (!session?.user) {
+      redirect("/login")
+    }
+
+    user = {
+      name: session.user.name ?? "User",
+      email: session.user.email ?? "",
+      avatar: session.user.image ?? "",
+    };
   }
 
   return (

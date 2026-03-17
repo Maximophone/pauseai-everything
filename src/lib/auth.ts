@@ -8,6 +8,7 @@ import {
   sessions,
   verificationTokens,
 } from "@/db/schema/users";
+import { eq } from "drizzle-orm";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: DrizzleAdapter(db, {
@@ -16,14 +17,28 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     sessionsTable: sessions,
     verificationTokensTable: verificationTokens,
   }),
+  session: {
+    strategy: "jwt",
+  },
   providers: [Google],
   callbacks: {
-    async session({ session, user }) {
-      // Add isAdmin to the session so the client can check it
+    async jwt({ token, user }) {
+      if (user) {
+        token.id = user.id;
+        // Fetch isAdmin from DB on first sign-in
+        const [dbUser] = await db
+          .select({ isAdmin: users.isAdmin })
+          .from(users)
+          .where(eq(users.id, user.id!));
+        token.isAdmin = dbUser?.isAdmin ?? false;
+      }
+      return token;
+    },
+    async session({ session, token }) {
       if (session.user) {
-        session.user.id = user.id;
+        session.user.id = token.id as string;
         // @ts-expect-error - extending session type
-        session.user.isAdmin = (user as typeof users.$inferSelect).isAdmin;
+        session.user.isAdmin = token.isAdmin as boolean;
       }
       return session;
     },

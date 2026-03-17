@@ -99,6 +99,23 @@ function getCellEditor(field: FieldDefinition): Partial<ColDef> {
   return {};
 }
 
+function NameCellRenderer(params: { data: FlatContact; value: string }) {
+  const router = useRouter();
+  if (!params.data) return params.value;
+  return (
+    <a
+      href={`/dashboard/contacts/${params.data.id}`}
+      onClick={(e) => {
+        e.preventDefault();
+        router.push(`/dashboard/contacts/${params.data.id}`);
+      }}
+      className="text-blue-600 underline cursor-pointer"
+    >
+      {params.value}
+    </a>
+  );
+}
+
 export function ContactsTable({
   initialContacts,
   fieldDefinitions,
@@ -115,6 +132,11 @@ export function ContactsTable({
   );
   const [search, setSearch] = useState("");
 
+  // Sync rowData when server re-renders with new initialContacts
+  useEffect(() => {
+    setRowData(initialContacts.map(flattenContact));
+  }, [initialContacts]);
+
   const fieldNames = useMemo(
     () => fieldDefinitions.map((f) => f.name),
     [fieldDefinitions]
@@ -124,18 +146,16 @@ export function ContactsTable({
   const columnDefs = useMemo<ColDef[]>(() => {
     const coreCols: ColDef[] = [
       {
-        field: "firstName",
-        headerName: "First Name",
-        editable: true,
+        headerName: "Name",
         pinned: "left",
-        width: 140,
-      },
-      {
-        field: "lastName",
-        headerName: "Last Name",
-        editable: true,
-        pinned: "left",
-        width: 140,
+        width: 200,
+        editable: false,
+        valueGetter: (params: { data: FlatContact }) => {
+          const first = params.data?.firstName ?? "";
+          const last = params.data?.lastName ?? "";
+          return `${first} ${last}`.trim() || "Unnamed";
+        },
+        cellRenderer: NameCellRenderer,
       },
       {
         field: "email",
@@ -205,14 +225,6 @@ export function ContactsTable({
     [fieldNames]
   );
 
-  // Double-click row to navigate to detail page
-  const onRowDoubleClicked = useCallback(
-    (event: { data: FlatContact }) => {
-      router.push(`/dashboard/contacts/${event.data.id}`);
-    },
-    [router]
-  );
-
   const onGridReady = useCallback((event: GridReadyEvent) => {
     gridRef.current = event.api;
   }, []);
@@ -252,7 +264,6 @@ export function ContactsTable({
           columnDefs={columnDefs}
           defaultColDef={defaultColDef}
           onCellValueChanged={onCellValueChanged}
-          onRowDoubleClicked={onRowDoubleClicked}
           onGridReady={onGridReady}
           rowSelection="multiple"
           animateRows
