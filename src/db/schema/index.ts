@@ -5,3 +5,5 @@ export * from "./field-definitions";
 export * from "./tags";
 export * from "./emails";
 export * from "./api-keys";
+export * from "./segments";
+export * from "./campaigns";
