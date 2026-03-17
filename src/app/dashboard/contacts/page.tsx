@@ -1,13 +1,31 @@
-export default function ContactsPage() {
+import { listContacts, listFieldDefinitions } from "@/lib/contacts";
+import { ContactsTable } from "@/components/contacts-table";
+import { AddContactButton } from "@/components/add-contact-button";
+
+export default async function ContactsPage() {
+  const [contactsResult, fields] = await Promise.all([
+    listContacts({ pageSize: 200 }),
+    listFieldDefinitions(),
+  ]);
+
   return (
     <div>
-      <h2 className="text-2xl font-bold tracking-tight">Contacts</h2>
-      <p className="text-muted-foreground mt-1">
-        Manage your volunteers, stakeholders, and network.
-      </p>
-      <div className="mt-6 rounded-lg border p-12 text-center text-muted-foreground">
-        AG Grid contacts table will go here.
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">Contacts</h2>
+          <p className="text-muted-foreground mt-1">
+            Manage your volunteers, stakeholders, and network.
+          </p>
+        </div>
+        <AddContactButton />
+      </div>
+      <div className="mt-4">
+        <ContactsTable
+          initialContacts={JSON.parse(JSON.stringify(contactsResult.contacts))}
+          fieldDefinitions={JSON.parse(JSON.stringify(fields))}
+          total={contactsResult.total}
+        />
       </div>
     </div>
-  )
+  );
 }
