@@ -25,13 +25,38 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-        // Fetch isAdmin from DB on first sign-in
-        const [dbUser] = await db
-          .select({ isAdmin: users.isAdmin })
-          .from(users)
-          .where(eq(users.id, user.id!));
-        token.isAdmin = dbUser?.isAdmin ?? false;
       }
+
+      // Always refresh admin status from DB + ADMIN_EMAILS env var
+      if (token.id) {
+        const adminEmails = (process.env.ADMIN_EMAILS ?? "")
+          .split(",")
+          .map((e) => e.trim().toLowerCase())
+          .filter(Boolean);
+
+        const [dbUser] = await db
+          .select({ isAdmin: users.isAdmin, email: users.email })
+          .from(users)
+          .where(eq(users.id, token.id as string));
+
+        if (dbUser) {
+          const isEnvAdmin = dbUser.email
+            ? adminEmails.includes(dbUser.email.toLowerCase())
+            : false;
+
+          if (isEnvAdmin && !dbUser.isAdmin) {
+            // Auto-promote configured admin emails
+            await db
+              .update(users)
+              .set({ isAdmin: true })
+              .where(eq(users.id, token.id as string));
+            token.isAdmin = true;
+          } else {
+            token.isAdmin = dbUser.isAdmin;
+          }
+        }
+      }
+
       return token;
     },
     async session({ session, token }) {

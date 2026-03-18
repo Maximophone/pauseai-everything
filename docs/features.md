@@ -262,6 +262,38 @@ GET    /api/auth/...              — NextAuth.js routes
 
 ---
 
+## Ideas / Backlog
+
+Captured ideas for future consideration. Not prioritized yet.
+
+### AI Email Butler (inbound email parsing)
+
+**Concept:** The system receives emails (via BCC or a dedicated inbox like `crm@pauseai.info`) and an AI parses them to automatically log interactions and manage contacts.
+
+**How it would work:**
+1. User sends an email to a contact and adds the CRM address as BCC
+2. System receives the inbound email (via Mailersend inbound routing or a dedicated mail receiver)
+3. AI parses the email to extract: who it was sent to, what it's about, sentiment, action items
+4. System matches the recipient against existing contacts (by email address)
+5. If the contact exists → log an interaction (type: email, with parsed summary + full body)
+6. If the contact is new → create the contact with whatever info can be extracted, and **send a reply email back to the user** asking for clarifications: "I noticed you emailed someone@example.com who isn't in the CRM yet. Can you tell me more about them? What's their role, which chapter are they in?" etc.
+7. The user replies to that clarification email, and the AI parses the reply to fill in the contact details
+
+**What makes this powerful:**
+- Zero-friction interaction logging — just BCC the CRM, done
+- The system becomes a proactive assistant ("butler") that follows up with you
+- Over time it learns patterns: "You often email people from X organization, should I tag them automatically?"
+- Could extend to forwarding entire email threads for bulk parsing
+
+**Technical considerations:**
+- Mailersend supports inbound routing (parse incoming emails via webhook)
+- Need an LLM call (Claude API) for parsing — extract structured data from unstructured email
+- Clarification flow needs a stateful email conversation (track pending questions per user)
+- Privacy: emails may contain sensitive info — need clear data handling policy
+- Rate limiting on AI calls to control costs
+
+---
+
 ## Open questions
 
 - [ ] AG Grid Community vs other table libraries — need to verify license compatibility and feature set

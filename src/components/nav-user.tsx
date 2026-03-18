@@ -21,6 +21,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { ChevronsUpDownIcon, LogOutIcon } from "lucide-react"
+import { signOut } from "next-auth/react"
 
 export function NavUser({
   user,
@@ -80,21 +81,14 @@ export function NavUser({
               </DropdownMenuLabel>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <form
-              action="/api/auth/signout"
-              method="POST"
+            <DropdownMenuItem
+              onClick={() => {
+                signOut({ callbackUrl: "/login" })
+              }}
             >
-              <DropdownMenuItem
-                onSelect={(e) => {
-                  e.preventDefault()
-                  const form = (e.target as HTMLElement).closest("form")
-                  form?.requestSubmit()
-                }}
-              >
-                <LogOutIcon />
-                Sign out
-              </DropdownMenuItem>
-            </form>
+              <LogOutIcon />
+              Sign out
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>

@@ -39,11 +39,18 @@ export async function updateCampaign(
     fromEmail: string;
     segmentId: string;
     status: string;
+    scheduledAt: string | Date | null;
   }>
 ) {
+  // Convert scheduledAt string to Date for Drizzle
+  const setData: Record<string, unknown> = { ...data, updatedAt: new Date() };
+  if (typeof setData.scheduledAt === "string") {
+    setData.scheduledAt = new Date(setData.scheduledAt as string);
+  }
+
   const [updated] = await db
     .update(campaigns)
-    .set({ ...data, updatedAt: new Date() })
+    .set(setData as typeof campaigns.$inferInsert)
     .where(eq(campaigns.id, id))
     .returning();
   return updated ?? null;

@@ -37,6 +37,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cron-parser": "^5.5.0",
+    "dotenv": "^17.3.1",
     "drizzle-orm": "^0.45.1",
     "graphile-worker": "^0.16.6",
     "lucide-react": "^0.577.0",

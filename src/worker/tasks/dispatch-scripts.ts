@@ -2,7 +2,7 @@ import type { Task } from "graphile-worker";
 import { db } from "@/db";
 import { scripts } from "@/db/schema/scripts";
 import { eq } from "drizzle-orm";
-import { parseExpression } from "cron-parser";
+import { CronExpressionParser } from "cron-parser";
 
 /**
  * Runs every minute. Checks all enabled scripts with a cron schedule,
@@ -21,7 +21,7 @@ export const dispatchScriptsTask: Task = async (_payload, helpers) => {
   let dispatched = 0;
   for (const script of scheduled) {
     try {
-      const interval = parseExpression(script.cronSchedule!, { utc: true });
+      const interval = CronExpressionParser.parse(script.cronSchedule!);
       const prev = interval.prev().toDate();
 
       // Check if the previous occurrence was within the last 90 seconds
