@@ -294,6 +294,45 @@ Captured ideas for future consideration. Not prioritized yet.
 
 ---
 
+### AI System Pilot (autonomous CRM agent)
+
+**Concept:** An AI agent (powered by Claude) that can autonomously pilot the entire CRM system via the API — planning and executing complex multi-step operations on behalf of a human operator.
+
+**How it would work:**
+1. Admin gives the AI a high-level goal in natural language: "Find all volunteers in Germany who haven't been contacted in 6 months and send them a re-engagement email"
+2. The AI translates this into a sequence of API calls:
+   - `POST /api/segments/preview` — find matching contacts
+   - `POST /api/campaigns` — create the campaign
+   - `POST /api/campaigns/:id/send` — trigger the send
+3. The AI reports back with what it did, what decisions it made, and asks for confirmation before irreversible actions (sending emails, deleting data)
+
+**Broader capabilities:**
+- Answering questions: "How many active members do we have in France? Show me the trend over the last 3 months."
+- Writing and running scripts: "Write a script that tags anyone who's attended 3+ events as 'core-activist'"
+- Proactive suggestions: "I notice 200 contacts have been dormant for 90 days — want me to draft a re-engagement campaign?"
+- Bulk data operations: "Import this CSV, deduplicate against existing contacts, and add the 'conference-2026' tag to all new ones"
+
+**Technical approach:**
+- Build on the Claude API using tool use — each API endpoint becomes a tool the agent can call
+- The existing API key system already provides the auth layer the agent needs
+- The script engine provides an alternative execution path for complex operations
+- Use Claude's extended thinking for multi-step planning before execution
+
+**What makes this powerful:**
+- The full API surface is already built — the agent is just an intelligent layer on top
+- No new data model needed — the agent reads and writes via the same endpoints as any other client
+- Could run as a chat UI within the dashboard, or be triggered via email/Slack commands
+- Dramatically lowers the barrier for non-technical staff to do complex CRM operations
+
+**Technical considerations:**
+- Tool use schema for each API endpoint (can be auto-generated from the route handlers)
+- Confirmation flow for destructive or bulk operations
+- Rate limiting on Claude API calls
+- Logging all AI actions with full reasoning for auditability
+- Sandboxing: the agent should only have the permissions of the user who invoked it
+
+---
+
 ## Open questions
 
 - [ ] AG Grid Community vs other table libraries — need to verify license compatibility and feature set

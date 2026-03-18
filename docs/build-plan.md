@@ -1,6 +1,6 @@
 # PauseAI Everything App — Build Plan
 
-> Living document. Last updated: 2026-03-15.
+> Living document. Last updated: 2026-03-18.
 
 ## Tech decisions
 
@@ -11,122 +11,136 @@
 | ORM | Drizzle | Close to SQL, good JSONB support (Prisma's is limited) |
 | Database | PostgreSQL | Relational + JSONB, scales easily |
 | Job queue | graphile-worker | Postgres-backed, mature, good cron support |
-| UI components | shadcn/ui | Composable, unstyled primitives, works with Tailwind |
+| UI components | shadcn/ui + @base-ui/react | Composable, unstyled primitives, works with Tailwind |
 | Table | AG Grid Community | Inline editing, filtering, bulk paste, free |
-| Auth | NextAuth.js / Auth.js | Simple, supports Google OAuth + magic links |
+| Auth | NextAuth.js / Auth.js v5 | Simple, supports Google OAuth |
 | Email | Mailersend API | Already in use |
 | Hosting | Railway | Web + worker + Postgres, git-push deploys |
 
 ## Build phases
 
-### Phase 1: Scaffold & data layer
+### Phase 1: Scaffold & data layer ✅
 
 - [x] Create GitHub repo
 - [x] Initialize Next.js project with TypeScript + Tailwind CSS
 - [x] Set up Drizzle ORM + Postgres schema
 - [x] Set up Vitest testing infrastructure
-- [x] Define schema: `contacts`, `field_definitions`, `interactions`, `users`, `tags`, `emails`
-- [ ] Set up shadcn/ui components
-- [ ] Set up Postgres for local dev (Docker)
-- [ ] Run initial Drizzle migration
-- [ ] Seed default field definitions (lifecycle_stage, country, contact_types, skills, etc.)
-- [ ] Basic app layout (sidebar nav, header, content area)
-- [ ] NextAuth.js with Google OAuth
+- [x] Define schema: `contacts`, `field_definitions`, `interactions`, `users`, `tags`, `emails`, `segments`, `campaigns`, `scripts`, `script_runs`, `automation_rules`
+- [x] Set up shadcn/ui + @base-ui/react components
+- [x] Docker Compose for local Postgres
+- [x] Drizzle push (schema sync, no migration files needed for dev)
+- [x] Basic app layout (sidebar nav, header, content area)
+- [x] NextAuth.js with Google OAuth
 
-### Phase 2: Contacts CRUD
+### Phase 2: Contacts CRUD ✅
 
-- [ ] API: `GET/POST/PUT/DELETE /api/contacts`
-- [ ] API: `GET/POST/PUT/DELETE /api/fields`
-- [ ] Contacts table view with AG Grid (columns from field_definitions)
-- [ ] Inline cell editing in table
-- [ ] Contact detail page with dynamic form
-- [ ] Search (name, email)
-- [ ] Filtering by any field
+- [x] API: `GET/POST/PUT/DELETE /api/contacts`
+- [x] API: `GET/POST/PUT/DELETE /api/fields`
+- [x] Contacts table view with AG Grid (columns from field_definitions)
+- [x] Inline cell editing in table
+- [x] Contact detail page with dynamic form
+- [x] Search (name, email, any field)
+- [x] Filtering by any field
 
-### Phase 3: Interactions & tags
+### Phase 3: Interactions & tags ✅
 
-- [ ] Schema: `interactions`, `tags`, `contact_tags`
-- [ ] API: interactions CRUD
-- [ ] API: tags CRUD + assign/remove from contacts
-- [ ] Interaction timeline on contact detail page
-- [ ] "Log interaction" form (type, notes, date)
-- [ ] Tag management UI
-- [ ] Bulk tag actions in table view
+- [x] Schema: `interactions`, `tags`, `contact_tags`
+- [x] API: interactions CRUD
+- [x] API: tags CRUD + assign/remove from contacts
+- [x] Interaction timeline on contact detail page
+- [x] "Log interaction" form (type, notes, date)
+- [x] Tag management UI
+- [x] Bulk tag actions in table view
+- [x] Tags column in contacts table
 
-### Phase 4: Intake & import
+### Phase 4: Intake & import ✅
 
-- [ ] Tally webhook endpoint (`POST /api/webhooks/tally`)
-- [ ] Contact creation + routing logic (country → chapter)
-- [ ] CSV import: upload, column mapping, preview, import
-- [ ] Quick-add modal (minimal form: name + email)
+- [x] Tally webhook endpoint (`POST /api/webhooks/tally`)
+- [x] CSV import: upload, column mapping, preview, import
+- [x] Quick-add modal (minimal form: name + email)
 
-### Phase 5: User management & permissions
+### Phase 5: User management & permissions ✅
 
-- [ ] Schema: roles on users table
-- [ ] Invite user flow (admin sends invite email)
-- [ ] Role-based access control middleware
-- [ ] User management admin page
-- [ ] API key generation for machine-to-machine access
+- [x] `is_admin` boolean on users table
+- [x] Admin invite flow
+- [x] Role-based access control (admin vs non-admin) on all API endpoints
+- [x] User management admin page (Settings > Users)
+- [x] API key generation for machine-to-machine access (Settings > API Keys)
+- [x] `ADMIN_EMAILS` env var auto-promotes emails to admin on first sign-in
 
-### Phase 6: Field management UI
+### Phase 6: Field management UI ✅
 
-- [ ] Admin page: list all field definitions
-- [ ] Create/edit/delete fields
-- [ ] Reorder fields (drag & drop or sort order)
-- [ ] Manage select/multi_select options
-- [ ] Set applies_to (contact type scoping)
+- [x] Admin page: list all field definitions (Settings > Fields)
+- [x] Create/edit/delete fields
+- [x] Reorder fields (sort order)
+- [x] Manage select/multi_select options
+- [x] Field types: text, number, date, email, url, select, multiselect, boolean
 
-### Phase 7: Segmentation & email
+### Phase 7: Segmentation & email ✅
 
-- [ ] Schema: `segments`, `campaigns`, `campaign_recipients`, `email_templates`
-- [ ] Segment query builder UI
-- [ ] Segment preview (count + sample contacts)
-- [ ] Save/load segments
-- [ ] Mailersend integration: send single email, send batch
-- [ ] Broadcast email: select segment → compose → preview → send
-- [ ] Mailersend webhook endpoint (delivery tracking)
-- [ ] Email history on contact timeline
+- [x] Schema: `segments`, `campaigns`, `emails`
+- [x] Segment query builder UI (AND/OR, all field types, tags)
+- [x] Segment preview (count + sample contacts)
+- [x] Save/load segments
+- [x] Mailersend integration: send single email, send batch
+- [x] Broadcast email: select segment → compose → send now or schedule
+- [x] Campaign scheduling (save `scheduledAt`, worker dispatches at the right time)
+- [x] Preview email (send test to any address)
+- [x] Campaign detail view with sent email list
+- [x] Inline campaign editing
+- [x] Email history on contact timeline (via `emails` table)
 
-### Phase 8: Background jobs & automations
+### Phase 8: Background jobs & automations ✅
 
-- [ ] Set up graphile-worker
-- [ ] Worker process configuration (separate from web)
-- [ ] Job: send campaign batch (chunk contacts, send via Mailersend)
-- [ ] Job: process Tally submission
-- [ ] Cron: daily drip campaign advancement
-- [ ] Cron: churn detection (flag dormant contacts)
-- [ ] Automation rules engine (if/then rules, admin-configurable)
+- [x] graphile-worker set up (Postgres-backed job queue)
+- [x] Separate worker process (`src/worker/index.ts`)
+- [x] Job: `send_campaign` — sends campaign to segment contacts via Mailersend
+- [x] Job: `dispatch_campaigns` (cron: every minute) — enqueues scheduled campaigns
+- [x] Job: `detect_churn` (cron: daily 6am UTC) — flags dormant contacts
+- [x] Job: `run_script` — executes user-defined JS in a VM sandbox
+- [x] Job: `dispatch_scripts` (cron: every minute) — enqueues scripts on their cron schedule
+- [x] Script engine with `ctx` SDK (contacts.find/update, tags, email.send, interactions.create)
+- [x] Script editor UI with CodeMirror, cron presets, run history, templates
+- [x] Automation rules engine (if/then rules, runs on schedule)
+- [x] Deployed to Railway (web + worker + Postgres)
 
-### Phase 9: Dashboard & reporting
+### Phase 9: Dashboard & reporting 🔲
 
-- [ ] Dashboard page with overview cards
-- [ ] Contacts by stage (funnel view)
-- [ ] Intake trend chart
-- [ ] Recent activity feed
-- [ ] Campaign performance stats
-- [ ] CSV export from any view
+- [ ] Dashboard page with overview stats cards
+  - Total contacts / new this month / active / dormant
+  - Contacts by lifecycle stage (funnel view)
+  - Contacts by country (top N)
+- [ ] Intake trend chart (new contacts over time)
+- [ ] Recent activity feed (latest interactions, campaign sends)
+- [ ] Campaign performance metrics (open rate, click rate, bounces)
+- [ ] CSV export from contacts table and any segment view
+- [ ] Mailersend webhook tracking (delivery/open/click events → `emails` table status updates)
+
+---
 
 ## Testing strategy
 
 Every phase ships with tests. The core data layer and API must be robust.
 
 **Unit tests (Vitest):**
-- Data validation logic (field type validation, required fields, JSONB schema enforcement)
-- Segment query builder → SQL translation
-- Business logic (lifecycle transitions, deduplication, routing)
+- Data validation logic
+- Segment query builder → SQL translation ✅
+- Script engine sandbox ✅
+- Business logic (lifecycle transitions, deduplication)
 
-**Integration tests (Vitest + real Postgres):**
+**Integration tests (Vitest + real Postgres):** ⚠️ Not yet implemented
 - API endpoints: CRUD operations, error cases, auth checks
 - Webhook handlers: Tally intake, Mailersend events
 - Background jobs: campaign sending, churn detection
 
-**Test infrastructure:**
-- Test database spun up via Docker (separate from dev DB)
-- Database reset between test suites
-- Factory functions for creating test contacts, interactions, etc.
+**Test infrastructure needed:**
+- Test database with reset between suites
+- Factory functions for test data
 - API test helpers for authenticated requests
 
 **Rule:** No API endpoint or background job ships without tests covering happy path + key error cases.
+
+---
 
 ## What "done" looks like per phase
 
@@ -134,4 +148,4 @@ Every phase ships with tests. The core data layer and API must be robust.
 - **After Phase 4:** New joiners flow in automatically. You can import your Airtable data. The system is live.
 - **After Phase 5:** Team can log in with their own accounts. Permissions enforced.
 - **After Phase 7:** You can send targeted emails to segments. Full Airtable+Mailersend replacement.
-- **After Phase 9:** You have visibility into how the org is doing. Full v1.
+- **After Phase 9:** You have visibility into how the org is doing. Full v1. ← *we are here*
