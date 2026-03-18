@@ -1,4 +1,5 @@
 import { listContacts, listFieldDefinitions } from "@/lib/contacts";
+import { getTagsForContacts } from "@/lib/tags";
 import { ContactsTable } from "@/components/contacts-table";
 import { AddContactButton } from "@/components/add-contact-button";
 
@@ -7,6 +8,9 @@ export default async function ContactsPage() {
     listContacts({ pageSize: 200 }),
     listFieldDefinitions(),
   ]);
+
+  const contactIds = contactsResult.contacts.map((c) => c.id);
+  const tagsMap = await getTagsForContacts(contactIds);
 
   return (
     <div>
@@ -24,6 +28,7 @@ export default async function ContactsPage() {
           initialContacts={JSON.parse(JSON.stringify(contactsResult.contacts))}
           fieldDefinitions={JSON.parse(JSON.stringify(fields))}
           total={contactsResult.total}
+          initialTagsMap={tagsMap}
         />
       </div>
     </div>

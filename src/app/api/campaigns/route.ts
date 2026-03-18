@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
   if (adminError) return adminError;
 
   const body = await request.json();
-  const { name, subject, body: emailBody, fromName, fromEmail, segmentId } = body;
+  const { name, subject, body: emailBody, fromName, fromEmail, segmentId, scheduledAt } = body;
 
   if (!name || !subject || !emailBody) {
     return NextResponse.json(
@@ -32,6 +32,7 @@ export async function POST(request: NextRequest) {
     fromName,
     fromEmail,
     segmentId,
+    scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
     createdBy: authResult.userId,
   });
 

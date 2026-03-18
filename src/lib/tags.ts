@@ -61,6 +61,32 @@ export async function removeTagFromContact(contactId: string, tagId: string) {
     );
 }
 
+/**
+ * Fetch tags for multiple contacts at once (batch query).
+ * Returns a map of contactId → tag names.
+ */
+export async function getTagsForContacts(
+  contactIds: string[]
+): Promise<Record<string, string[]>> {
+  if (contactIds.length === 0) return {};
+
+  const result = await db
+    .select({
+      contactId: contactTags.contactId,
+      tagName: tags.name,
+    })
+    .from(contactTags)
+    .innerJoin(tags, eq(contactTags.tagId, tags.id))
+    .where(sql`${contactTags.contactId} IN (${sql.join(contactIds.map(id => sql`${id}`), sql`, `)})`);
+
+  const map: Record<string, string[]> = {};
+  for (const row of result) {
+    if (!map[row.contactId]) map[row.contactId] = [];
+    map[row.contactId].push(row.tagName);
+  }
+  return map;
+}
+
 export async function getContactCountByTag(tagId: string) {
   const [result] = await db
     .select({ count: sql<number>`count(*)` })

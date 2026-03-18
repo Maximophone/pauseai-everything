@@ -17,6 +17,7 @@ export const campaigns = pgTable("campaigns", {
   clickedCount: integer("clicked_count").default(0),
   bouncedCount: integer("bounced_count").default(0),
   createdBy: text("created_by").references(() => users.id, { onDelete: "set null" }),
+  scheduledAt: timestamp("scheduled_at"),
   sentAt: timestamp("sent_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

@@ -2,7 +2,7 @@ import { db } from "@/db";
 import { campaigns } from "@/db/schema/campaigns";
 import { contacts } from "@/db/schema/contacts";
 import { emails } from "@/db/schema/emails";
-import { eq, asc, desc } from "drizzle-orm";
+import { eq, asc, desc, sql } from "drizzle-orm";
 import { getSegment, getSegmentContactIds } from "./segments";
 import { sendEmail, renderTemplate } from "./mailersend";
 
@@ -22,6 +22,7 @@ export async function createCampaign(data: {
   fromName?: string;
   fromEmail?: string;
   segmentId?: string;
+  scheduledAt?: Date | null;
   createdBy?: string;
 }) {
   const [campaign] = await db.insert(campaigns).values(data).returning();
@@ -149,4 +150,62 @@ export async function sendCampaign(campaignId: string) {
     .where(eq(campaigns.id, campaignId));
 
   return { sentCount, bouncedCount, totalContacts: contactIds.length };
+}
+
+/**
+ * Get all emails sent for a campaign, with contact info.
+ */
+export async function getCampaignEmails(campaignId: string) {
+  const result = await db
+    .select({
+      id: emails.id,
+      contactId: emails.contactId,
+      toAddress: emails.toAddress,
+      subject: emails.subject,
+      status: emails.status,
+      mailersendId: emails.mailersendId,
+      createdAt: emails.createdAt,
+      contactFirstName: contacts.firstName,
+      contactLastName: contacts.lastName,
+    })
+    .from(emails)
+    .leftJoin(contacts, eq(emails.contactId, contacts.id))
+    .where(sql`${emails.metadata} @> ${JSON.stringify({ campaignId })}::jsonb`)
+    .orderBy(desc(emails.createdAt));
+
+  return result;
+}
+
+/**
+ * Send a single preview email for a campaign to a test address.
+ */
+export async function sendPreviewEmail(
+  campaignId: string,
+  toEmail: string
+) {
+  const campaign = await getCampaign(campaignId);
+  if (!campaign) throw new Error("Campaign not found");
+
+  const fromEmail = campaign.fromEmail || process.env.MAILERSEND_FROM_EMAIL || "noreply@pauseai.info";
+  const fromName = campaign.fromName || "PauseAI";
+
+  // Use placeholder merge data for preview
+  const mergeData: Record<string, unknown> = {
+    firstName: "Preview",
+    lastName: "User",
+    email: toEmail,
+  };
+
+  const renderedSubject = renderTemplate(`[PREVIEW] ${campaign.subject}`, mergeData);
+  const renderedBody = renderTemplate(campaign.body, mergeData);
+
+  const result = await sendEmail({
+    to: [{ email: toEmail }],
+    from: { email: fromEmail, name: fromName },
+    subject: renderedSubject,
+    html: renderedBody,
+    tags: [`preview:${campaignId}`],
+  });
+
+  return result;
 }

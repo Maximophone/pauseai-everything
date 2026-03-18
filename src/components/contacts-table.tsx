@@ -120,22 +120,26 @@ export function ContactsTable({
   initialContacts,
   fieldDefinitions,
   total,
+  initialTagsMap = {},
 }: {
   initialContacts: Contact[];
   fieldDefinitions: FieldDefinition[];
   total: number;
+  initialTagsMap?: Record<string, string[]>;
 }) {
   const router = useRouter();
   const gridRef = useRef<GridApi | null>(null);
+  const [tagsMap, setTagsMap] = useState<Record<string, string[]>>(initialTagsMap);
   const [rowData, setRowData] = useState<FlatContact[]>(
-    initialContacts.map(flattenContact)
+    initialContacts.map((c) => ({ ...flattenContact(c), _tags: initialTagsMap[c.id] || [] }))
   );
   const [search, setSearch] = useState("");
 
   // Sync rowData when server re-renders with new initialContacts
   useEffect(() => {
-    setRowData(initialContacts.map(flattenContact));
-  }, [initialContacts]);
+    setRowData(initialContacts.map((c) => ({ ...flattenContact(c), _tags: initialTagsMap[c.id] || [] })));
+    setTagsMap(initialTagsMap);
+  }, [initialContacts, initialTagsMap]);
 
   const fieldNames = useMemo(
     () => fieldDefinitions.map((f) => f.name),
@@ -162,6 +166,30 @@ export function ContactsTable({
         headerName: "Email",
         editable: true,
         width: 220,
+      },
+      {
+        field: "_tags",
+        headerName: "Tags",
+        editable: false,
+        width: 180,
+        valueFormatter: (params: { value: unknown }) =>
+          Array.isArray(params.value) ? params.value.join(", ") : "",
+        cellRenderer: (params: { value: unknown }) => {
+          const tagList = Array.isArray(params.value) ? params.value : [];
+          if (tagList.length === 0) return null;
+          return (
+            <div className="flex gap-1 flex-wrap items-center h-full">
+              {tagList.map((tag: string) => (
+                <span
+                  key={tag}
+                  className="inline-flex items-center rounded-full bg-primary/10 text-primary px-2 py-0.5 text-xs font-medium"
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          );
+        },
       },
     ];
 
@@ -238,7 +266,15 @@ export function ContactsTable({
 
       const res = await fetch(`/api/contacts?${params}`);
       const data = await res.json();
-      setRowData(data.contacts.map(flattenContact));
+      // Fetch tags for these contacts
+      const ids = data.contacts.map((c: Contact) => c.id);
+      let newTagsMap: Record<string, string[]> = {};
+      if (ids.length > 0) {
+        const tagsRes = await fetch(`/api/contacts/tags?ids=${ids.join(",")}`);
+        if (tagsRes.ok) newTagsMap = await tagsRes.json();
+      }
+      setTagsMap(newTagsMap);
+      setRowData(data.contacts.map((c: Contact) => ({ ...flattenContact(c), _tags: newTagsMap[c.id] || [] })));
     }, 300);
 
     return () => clearTimeout(timer);
