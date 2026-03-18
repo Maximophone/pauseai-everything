@@ -23,6 +23,7 @@ import {
   ShieldIcon,
   WebhookIcon,
   FilterIcon,
+  ZapIcon,
 } from "lucide-react"
 
 const navItems = [
@@ -56,6 +57,11 @@ const navItems = [
       title: "Segments",
       url: "/dashboard/segments",
       icon: (<FilterIcon />),
+    },
+    {
+      title: "Automations",
+      url: "/dashboard/automations",
+      icon: (<ZapIcon />),
     },
     {
       title: "Email",
