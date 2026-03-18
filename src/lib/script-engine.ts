@@ -173,7 +173,7 @@ function buildContext(logs: string[], counters: { emails: number; affected: Set<
         const result = await sendEmail({
           to: [{ email: params.to }],
           from: {
-            email: params.fromEmail || process.env.DEFAULT_FROM_EMAIL || "noreply@pauseai.info",
+            email: params.fromEmail || process.env.MAILERSEND_FROM_EMAIL || "noreply@pauseai.info",
             name: params.fromName || "PauseAI",
           },
           subject: params.subject,
@@ -183,7 +183,7 @@ function buildContext(logs: string[], counters: { emails: number; affected: Set<
         // Log in emails table
         await db.insert(emails).values({
           toAddress: params.to,
-          fromAddress: params.fromEmail || "noreply@pauseai.info",
+          fromAddress: params.fromEmail || process.env.MAILERSEND_FROM_EMAIL || "noreply@pauseai.info",
           direction: "outbound",
           subject: params.subject,
           body: params.html,

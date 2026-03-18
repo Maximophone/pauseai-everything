@@ -16,6 +16,9 @@ import {
   ChevronDownIcon,
   ChevronUpIcon,
   CalendarIcon,
+  PencilIcon,
+  SaveIcon,
+  XIcon,
 } from "lucide-react";
 
 type Segment = {
@@ -74,15 +77,76 @@ const emailStatusColors: Record<string, string> = {
 function CampaignDetail({
   campaign,
   segments,
+  onUpdated,
 }: {
   campaign: Campaign;
   segments: Segment[];
+  onUpdated: () => void;
 }) {
   const [emailList, setEmailList] = useState<CampaignEmail[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [previewEmail, setPreviewEmail] = useState("");
   const [sendingPreview, setSendingPreview] = useState(false);
   const [previewResult, setPreviewResult] = useState<string | null>(null);
+
+  // Edit state
+  const [editing, setEditing] = useState(false);
+  const [editName, setEditName] = useState(campaign.name);
+  const [editSubject, setEditSubject] = useState(campaign.subject);
+  const [editBody, setEditBody] = useState(campaign.body);
+  const [editFromName, setEditFromName] = useState(campaign.fromName || "PauseAI");
+  const [editFromEmail, setEditFromEmail] = useState(campaign.fromEmail || "");
+  const [editSegmentId, setEditSegmentId] = useState(campaign.segmentId || "");
+  const [editScheduledAt, setEditScheduledAt] = useState(
+    campaign.scheduledAt ? campaign.scheduledAt.slice(0, 16) : ""
+  );
+  const [saving, setSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  function startEditing() {
+    setEditName(campaign.name);
+    setEditSubject(campaign.subject);
+    setEditBody(campaign.body);
+    setEditFromName(campaign.fromName || "PauseAI");
+    setEditFromEmail(campaign.fromEmail || "");
+    setEditSegmentId(campaign.segmentId || "");
+    setEditScheduledAt(campaign.scheduledAt ? campaign.scheduledAt.slice(0, 16) : "");
+    setEditError(null);
+    setEditing(true);
+  }
+
+  async function saveEdits() {
+    if (!editName.trim() || !editSubject.trim() || !editBody.trim()) return;
+    setSaving(true);
+    setEditError(null);
+
+    const res = await fetch(`/api/campaigns/${campaign.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: editName.trim(),
+        subject: editSubject.trim(),
+        body: editBody.trim(),
+        fromName: editFromName.trim() || null,
+        fromEmail: editFromEmail.trim() || null,
+        segmentId: editSegmentId || null,
+        scheduledAt: editScheduledAt || null,
+      }),
+    });
+
+    if (res.ok) {
+      setEditing(false);
+      onUpdated();
+    } else {
+      const text = await res.text();
+      try {
+        setEditError(JSON.parse(text).error || "Save failed.");
+      } catch {
+        setEditError(`Save failed (${res.status}).`);
+      }
+    }
+    setSaving(false);
+  }
 
   async function loadEmails() {
     if (emailList !== null) {
@@ -124,6 +188,111 @@ function CampaignDetail({
 
   const segName = segments.find((s) => s.id === campaign.segmentId)?.name;
 
+  // ─── Edit form ──────────────────────────────────
+  if (editing) {
+    return (
+      <div className="mt-2 pl-7 space-y-3 text-sm">
+        {editError && (
+          <div className="rounded-md bg-destructive/10 text-destructive px-3 py-1.5 text-xs">
+            {editError}
+          </div>
+        )}
+
+        <div>
+          <label className="text-xs font-medium text-muted-foreground">Campaign Name</label>
+          <Input
+            value={editName}
+            onChange={(e) => setEditName(e.target.value)}
+            className="mt-1"
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs font-medium text-muted-foreground">From Name</label>
+            <Input
+              value={editFromName}
+              onChange={(e) => setEditFromName(e.target.value)}
+              className="mt-1"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground">From Email</label>
+            <Input
+              value={editFromEmail}
+              onChange={(e) => setEditFromEmail(e.target.value)}
+              placeholder="leave empty for default"
+              className="mt-1"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs font-medium text-muted-foreground">Audience (Segment)</label>
+            <select
+              value={editSegmentId}
+              onChange={(e) => setEditSegmentId(e.target.value)}
+              className="mt-1 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              <option value="">All contacts</option>
+              {segments.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground">Schedule (optional)</label>
+            <Input
+              type="datetime-local"
+              value={editScheduledAt}
+              onChange={(e) => setEditScheduledAt(e.target.value)}
+              className="mt-1"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="text-xs font-medium text-muted-foreground">Subject</label>
+          <Input
+            value={editSubject}
+            onChange={(e) => setEditSubject(e.target.value)}
+            className="mt-1"
+          />
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Use {"{{fieldName}}"} for merge fields
+          </p>
+        </div>
+
+        <div>
+          <label className="text-xs font-medium text-muted-foreground">Body (HTML)</label>
+          <textarea
+            value={editBody}
+            onChange={(e) => setEditBody(e.target.value)}
+            rows={8}
+            className="mt-1 flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring font-mono"
+          />
+        </div>
+
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            onClick={saveEdits}
+            disabled={saving || !editName.trim() || !editSubject.trim() || !editBody.trim()}
+          >
+            <SaveIcon className="mr-1 h-3 w-3" />
+            {saving ? "Saving..." : "Save Changes"}
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>
+            <XIcon className="mr-1 h-3 w-3" />
+            Cancel
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── Read-only detail view ──────────────────────
   return (
     <div className="mt-2 pl-7 space-y-3 text-sm">
       <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs text-muted-foreground max-w-lg">
@@ -148,28 +317,35 @@ function CampaignDetail({
         <span className="font-mono">{campaign.subject}</span>
       </div>
 
-      {/* Send preview */}
+      {/* Edit + Send preview for drafts */}
       {campaign.status === "draft" && (
-        <div className="flex items-center gap-2">
-          <Input
-            value={previewEmail}
-            onChange={(e) => setPreviewEmail(e.target.value)}
-            placeholder="Send preview to email..."
-            className="w-56 h-8 text-xs"
-          />
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={handleSendPreview}
-            disabled={sendingPreview || !previewEmail.trim()}
-            className="h-8 text-xs"
-          >
-            <EyeIcon className="mr-1 h-3 w-3" />
-            {sendingPreview ? "Sending..." : "Send Preview"}
+        <div className="space-y-2">
+          <Button size="sm" variant="outline" onClick={startEditing} className="h-8 text-xs">
+            <PencilIcon className="mr-1 h-3 w-3" />
+            Edit Campaign
           </Button>
-          {previewResult && (
-            <span className="text-xs text-muted-foreground">{previewResult}</span>
-          )}
+
+          <div className="flex items-center gap-2">
+            <Input
+              value={previewEmail}
+              onChange={(e) => setPreviewEmail(e.target.value)}
+              placeholder="Send preview to email..."
+              className="w-56 h-8 text-xs"
+            />
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleSendPreview}
+              disabled={sendingPreview || !previewEmail.trim()}
+              className="h-8 text-xs"
+            >
+              <EyeIcon className="mr-1 h-3 w-3" />
+              {sendingPreview ? "Sending..." : "Send Preview"}
+            </Button>
+            {previewResult && (
+              <span className="text-xs text-muted-foreground">{previewResult}</span>
+            )}
+          </div>
         </div>
       )}
 
@@ -527,15 +703,17 @@ export function CampaignManager({
 
                 <div className="flex items-center gap-1">
                   {campaign.status === "draft" && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => handleSend(campaign.id)}
-                      disabled={sending === campaign.id}
-                      title="Send campaign now"
-                    >
-                      <SendIcon className="h-4 w-4" />
-                    </Button>
+                    <>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleSend(campaign.id)}
+                        disabled={sending === campaign.id}
+                        title="Send campaign now"
+                      >
+                        <SendIcon className="h-4 w-4" />
+                      </Button>
+                    </>
                   )}
                   <Button
                     size="sm"
@@ -550,7 +728,7 @@ export function CampaignManager({
 
               {/* Expanded detail */}
               {expandedId === campaign.id && (
-                <CampaignDetail campaign={campaign} segments={segments} />
+                <CampaignDetail campaign={campaign} segments={segments} onUpdated={refetch} />
               )}
             </div>
           ))}
