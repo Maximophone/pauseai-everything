@@ -8,3 +8,4 @@ export * from "./api-keys";
 export * from "./segments";
 export * from "./campaigns";
 export * from "./automation-rules";
+export * from "./scripts";

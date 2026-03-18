@@ -2,7 +2,8 @@ import { run, TaskList, parseCronItems } from "graphile-worker";
 
 import { sendCampaignTask } from "./tasks/send-campaign";
 import { detectChurnTask } from "./tasks/detect-churn";
-import { runAutomationsTask } from "./tasks/run-automations";
+import { runScriptTask } from "./tasks/run-script";
+import { dispatchScriptsTask } from "./tasks/dispatch-scripts";
 
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) {
@@ -12,14 +13,15 @@ if (!DATABASE_URL) {
 const taskList: TaskList = {
   send_campaign: sendCampaignTask,
   detect_churn: detectChurnTask,
-  run_automations: runAutomationsTask,
+  run_script: runScriptTask,
+  dispatch_scripts: dispatchScriptsTask,
 };
 
 const cronItems = parseCronItems([
   // Every day at 6am UTC — detect dormant contacts
   { task: "detect_churn", pattern: "0 6 * * *", identifier: "daily_churn_detection" },
-  // Every hour — run automation rules
-  { task: "run_automations", pattern: "0 * * * *", identifier: "hourly_automations" },
+  // Every minute — check for scheduled scripts to run
+  { task: "dispatch_scripts", pattern: "* * * * *", identifier: "script_dispatcher" },
 ]);
 
 async function main() {

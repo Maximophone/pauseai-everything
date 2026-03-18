@@ -1,24 +1,19 @@
-import { listAutomationRules } from "@/lib/automations";
-import { listFieldDefinitions } from "@/lib/contacts";
-import { AutomationsManager } from "@/components/automations-manager";
+import { listScripts } from "@/lib/scripts";
+import { ScriptsManager } from "@/components/scripts-manager";
 
 export default async function AutomationsPage() {
-  const [rules, fieldDefinitions] = await Promise.all([
-    listAutomationRules(),
-    listFieldDefinitions(),
-  ]);
+  const scripts = await listScripts();
 
   return (
     <div>
       <h2 className="text-2xl font-bold tracking-tight">Automations</h2>
       <p className="text-muted-foreground mt-1">
-        Create if/then rules that automatically update contacts. Active rules
-        run every hour via the background worker.
+        Write JavaScript scripts to automate contact management. Scripts can run
+        on a schedule or on demand.
       </p>
       <div className="mt-6">
-        <AutomationsManager
-          initialRules={JSON.parse(JSON.stringify(rules))}
-          fieldDefinitions={JSON.parse(JSON.stringify(fieldDefinitions))}
+        <ScriptsManager
+          initialScripts={JSON.parse(JSON.stringify(scripts))}
         />
       </div>
     </div>
