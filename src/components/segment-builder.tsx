@@ -310,8 +310,13 @@ export function SegmentBuilder({
     if (res.ok) {
       setPreview(await res.json());
     } else {
-      const data = await res.json();
-      setError(data.error || "Preview failed.");
+      const text = await res.text();
+      try {
+        const data = JSON.parse(text);
+        setError(data.error || "Preview failed.");
+      } catch {
+        setError(`Preview failed (${res.status}).`);
+      }
     }
     setPreviewing(false);
   }
@@ -345,8 +350,13 @@ export function SegmentBuilder({
         setSelectedSegmentId(saved.id);
       }
     } else {
-      const data = await res.json();
-      setError(data.error || "Save failed.");
+      const text = await res.text();
+      try {
+        const data = JSON.parse(text);
+        setError(data.error || "Save failed.");
+      } catch {
+        setError(`Save failed (${res.status}).`);
+      }
     }
     setSaving(false);
   }

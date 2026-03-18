@@ -33,7 +33,7 @@ export async function checkAuth(request: NextRequest): Promise<AuthResult> {
     process.env.NODE_ENV === "development" &&
     process.env.DEV_BYPASS_AUTH === "true"
   ) {
-    return { authenticated: true, userId: "dev-user", isAdmin: true };
+    return { authenticated: true, userId: undefined, isAdmin: true };
   }
 
   // Check session auth
