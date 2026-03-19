@@ -56,6 +56,13 @@ type CampaignEmail = {
   contactLastName: string | null;
 };
 
+type Recipient = {
+  id: string;
+  email: string | null;
+  firstName: string | null;
+  lastName: string | null;
+};
+
 const statusIcons: Record<string, React.ReactNode> = {
   draft: <ClockIcon className="h-4 w-4 text-muted-foreground" />,
   scheduled: <CalendarIcon className="h-4 w-4 text-blue-500" />,
@@ -84,7 +91,9 @@ function CampaignDetail({
   onUpdated: () => void;
 }) {
   const [emailList, setEmailList] = useState<CampaignEmail[] | null>(null);
+  const [recipientList, setRecipientList] = useState<{ count: number; recipients: Recipient[] } | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingRecipients, setLoadingRecipients] = useState(false);
   const [previewEmail, setPreviewEmail] = useState("");
   const [sendingPreview, setSendingPreview] = useState(false);
   const [previewResult, setPreviewResult] = useState<string | null>(null);
@@ -159,6 +168,19 @@ function CampaignDetail({
       setEmailList(await res.json());
     }
     setLoading(false);
+  }
+
+  async function loadRecipients() {
+    if (recipientList !== null) {
+      setRecipientList(null);
+      return;
+    }
+    setLoadingRecipients(true);
+    const res = await fetch(`/api/campaigns/${campaign.id}/recipients`);
+    if (res.ok) {
+      setRecipientList(await res.json());
+    }
+    setLoadingRecipients(false);
   }
 
   async function handleSendPreview() {
@@ -307,7 +329,13 @@ function CampaignDetail({
         {campaign.status === "sent" && (
           <>
             <div>Sent: <span className="text-foreground">{campaign.sentCount}</span></div>
+            <div>Delivered: <span className="text-foreground">{campaign.deliveredCount}</span></div>
+            <div>Opened: <span className="text-foreground">{campaign.openedCount}</span></div>
+            <div>Clicked: <span className="text-foreground">{campaign.clickedCount}</span></div>
             <div>Bounced: <span className="text-foreground">{campaign.bouncedCount}</span></div>
+            {(campaign.deliveredCount ?? 0) > 0 && (
+              <div>Open Rate: <span className="text-foreground">{(((campaign.openedCount ?? 0) / (campaign.deliveredCount ?? 1)) * 100).toFixed(1)}%</span></div>
+            )}
           </>
         )}
       </div>
@@ -317,7 +345,7 @@ function CampaignDetail({
         <span className="font-mono">{campaign.subject}</span>
       </div>
 
-      {/* Edit + Send preview for drafts */}
+      {/* Edit + Send preview + Recipients for drafts */}
       {campaign.status === "draft" && (
         <div className="space-y-2">
           <Button size="sm" variant="outline" onClick={startEditing} className="h-8 text-xs">
@@ -344,6 +372,50 @@ function CampaignDetail({
             </Button>
             {previewResult && (
               <span className="text-xs text-muted-foreground">{previewResult}</span>
+            )}
+          </div>
+
+          {/* Recipient preview for draft */}
+          <div>
+            <Button variant="ghost" size="sm" onClick={loadRecipients} className="text-xs h-7">
+              {recipientList !== null ? (
+                <ChevronUpIcon className="mr-1 h-3 w-3" />
+              ) : (
+                <ChevronDownIcon className="mr-1 h-3 w-3" />
+              )}
+              {loadingRecipients ? "Loading..." : recipientList !== null ? "Hide recipients" : "Show recipients"}
+              {recipientList !== null && (
+                <span className="ml-1 text-muted-foreground">({recipientList.count})</span>
+              )}
+            </Button>
+
+            {recipientList !== null && recipientList.recipients.length > 0 && (
+              <div className="mt-2 rounded border divide-y max-h-64 overflow-y-auto">
+                {recipientList.recipients.map((r) => (
+                  <div
+                    key={r.id}
+                    className="flex items-center justify-between px-3 py-1.5 text-xs"
+                  >
+                    <div>
+                      <span className="font-medium">
+                        {[r.firstName, r.lastName].filter(Boolean).join(" ") || "Unnamed"}
+                      </span>
+                      <span className="ml-2 text-muted-foreground">
+                        {r.email || "No email"}
+                      </span>
+                    </div>
+                    {!r.email && (
+                      <span className="rounded-full px-2 py-0.5 text-xs font-medium text-orange-600 bg-orange-50">
+                        No email
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {recipientList !== null && recipientList.recipients.length === 0 && (
+              <p className="text-xs text-muted-foreground mt-1">No matching contacts in this segment.</p>
             )}
           </div>
         </div>
@@ -684,7 +756,8 @@ export function CampaignManager({
                     </div>
                     {campaign.status === "sent" && (
                       <div className="text-xs text-muted-foreground mt-0.5">
-                        Sent: {campaign.sentCount} | Bounced: {campaign.bouncedCount}
+                        Sent: {campaign.sentCount} · Delivered: {campaign.deliveredCount} · Opened: {campaign.openedCount} · Clicked: {campaign.clickedCount}
+                        {(campaign.bouncedCount ?? 0) > 0 && <> · Bounced: {campaign.bouncedCount}</>}
                         {campaign.sentAt && (
                           <span className="ml-2">
                             on {new Date(campaign.sentAt).toLocaleDateString()}

@@ -11,6 +11,7 @@ import {
   type GridApi,
 } from "ag-grid-community";
 import { useRouter } from "next/navigation";
+import { Download } from "lucide-react";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -257,6 +258,12 @@ export function ContactsTable({
     gridRef.current = event.api;
   }, []);
 
+  const exportCsv = useCallback(() => {
+    gridRef.current?.exportDataAsCsv({
+      fileName: `pauseai-contacts-${new Date().toISOString().slice(0, 10)}.csv`,
+    });
+  }, []);
+
   // Search: refetch from server
   useEffect(() => {
     const timer = setTimeout(async () => {
@@ -290,8 +297,17 @@ export function ContactsTable({
           onChange={(e) => setSearch(e.target.value)}
           className="rounded-md border px-3 py-2 text-sm w-72 focus:outline-none focus:ring-2 focus:ring-primary"
         />
-        <div className="text-sm text-muted-foreground">
-          {total} contact{total !== 1 ? "s" : ""}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={exportCsv}
+            className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-muted transition-colors"
+          >
+            <Download className="h-4 w-4" />
+            Export CSV
+          </button>
+          <span className="text-sm text-muted-foreground">
+            {total} contact{total !== 1 ? "s" : ""}
+          </span>
         </div>
       </div>
       <div className="ag-theme-alpine" style={{ height: "calc(100vh - 260px)", width: "100%" }}>
