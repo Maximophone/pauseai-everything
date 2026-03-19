@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkAuth, requireAdmin } from "@/lib/api-auth";
 import { getAutomationRule, updateAutomationRule, deleteAutomationRule } from "@/lib/automations";
+import { validateBody, stripNulls } from "@/lib/api-validate";
+import { UpdateAutomationInput } from "@/lib/schemas";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -25,8 +27,10 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
   const { id } = await context.params;
   const body = await request.json();
+  const parsed = validateBody(UpdateAutomationInput, body);
+  if (!parsed.success) return parsed.error;
 
-  const updated = await updateAutomationRule(id, body);
+  const updated = await updateAutomationRule(id, stripNulls(parsed.data));
   if (!updated) {
     return NextResponse.json({ error: "Rule not found." }, { status: 404 });
   }

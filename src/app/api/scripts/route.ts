@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkAuth, requireAdmin } from "@/lib/api-auth";
 import { listScripts, createScript } from "@/lib/scripts";
+import { validateBody } from "@/lib/api-validate";
+import { CreateScriptInput } from "@/lib/schemas";
 
 export async function GET(request: NextRequest) {
   const authResult = await checkAuth(request);
@@ -17,17 +19,14 @@ export async function POST(request: NextRequest) {
   if (adminError) return adminError;
 
   const body = await request.json();
-  const { name, description, code, cronSchedule } = body;
-
-  if (!name?.trim()) {
-    return NextResponse.json({ error: "Name is required." }, { status: 400 });
-  }
+  const parsed = validateBody(CreateScriptInput, body);
+  if (!parsed.success) return parsed.error;
 
   const script = await createScript({
-    name: name.trim(),
-    description: description?.trim() || null,
-    code: code || "",
-    cronSchedule: cronSchedule?.trim() || null,
+    name: parsed.data.name,
+    description: parsed.data.description ?? undefined,
+    code: parsed.data.code,
+    cronSchedule: parsed.data.cronSchedule ?? null,
   });
 
   return NextResponse.json(script, { status: 201 });

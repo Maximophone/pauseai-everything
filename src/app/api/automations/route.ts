@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkAuth, requireAdmin } from "@/lib/api-auth";
 import { listAutomationRules, createAutomationRule } from "@/lib/automations";
+import { validateBody } from "@/lib/api-validate";
+import { CreateAutomationInput } from "@/lib/schemas";
 
 export async function GET(request: NextRequest) {
   const authResult = await checkAuth(request);
@@ -17,15 +19,13 @@ export async function POST(request: NextRequest) {
   if (adminError) return adminError;
 
   const body = await request.json();
-  const { name, description, config } = body;
+  const parsed = validateBody(CreateAutomationInput, body);
+  if (!parsed.success) return parsed.error;
 
-  if (!name || !config || !config.conditions || !config.actions) {
-    return NextResponse.json(
-      { error: "name and config (with conditions and actions) are required." },
-      { status: 400 }
-    );
-  }
-
-  const rule = await createAutomationRule({ name, description, config });
+  const rule = await createAutomationRule({
+    name: parsed.data.name,
+    description: parsed.data.description ?? undefined,
+    config: parsed.data.config,
+  });
   return NextResponse.json(rule, { status: 201 });
 }

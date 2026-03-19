@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTagsForContact, addTagToContact, removeTagFromContact } from "@/lib/tags";
 import { getContact } from "@/lib/contacts";
+import { validateBody } from "@/lib/api-validate";
+import { ContactTagInput } from "@/lib/schemas";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -27,12 +29,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: "Contact not found." }, { status: 404 });
   }
 
-  const { tagId } = body;
-  if (!tagId) {
-    return NextResponse.json({ error: "tagId is required." }, { status: 400 });
-  }
+  const parsed = validateBody(ContactTagInput, body);
+  if (!parsed.success) return parsed.error;
 
-  await addTagToContact(id, tagId);
+  await addTagToContact(id, parsed.data.tagId);
   const updatedTags = await getTagsForContact(id);
   return NextResponse.json(updatedTags);
 }
@@ -42,12 +42,10 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
   const { id } = await context.params;
   const body = await request.json();
 
-  const { tagId } = body;
-  if (!tagId) {
-    return NextResponse.json({ error: "tagId is required." }, { status: 400 });
-  }
+  const parsed = validateBody(ContactTagInput, body);
+  if (!parsed.success) return parsed.error;
 
-  await removeTagFromContact(id, tagId);
+  await removeTagFromContact(id, parsed.data.tagId);
   const updatedTags = await getTagsForContact(id);
   return NextResponse.json(updatedTags);
 }

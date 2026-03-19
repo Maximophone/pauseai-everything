@@ -4,6 +4,8 @@ import {
   createContact,
   validateCustomFields,
 } from "@/lib/contacts";
+import { validateBody } from "@/lib/api-validate";
+import { CreateContactInput } from "@/lib/schemas";
 
 // GET /api/contacts — list contacts with search, pagination, sorting
 export async function GET(request: NextRequest) {
@@ -24,15 +26,10 @@ export async function GET(request: NextRequest) {
 // POST /api/contacts — create a contact
 export async function POST(request: NextRequest) {
   const body = await request.json();
+  const parsed = validateBody(CreateContactInput, body);
+  if (!parsed.success) return parsed.error;
 
-  const { email, firstName, lastName, customFields = {} } = body;
-
-  if (!email && !firstName && !lastName) {
-    return NextResponse.json(
-      { error: "At least one of email, firstName, or lastName is required." },
-      { status: 400 }
-    );
-  }
+  const { email, firstName, lastName, customFields } = parsed.data;
 
   // Validate custom fields if provided
   if (Object.keys(customFields).length > 0) {
@@ -47,9 +44,9 @@ export async function POST(request: NextRequest) {
 
   try {
     const contact = await createContact({
-      email,
-      firstName,
-      lastName,
+      email: email ?? undefined,
+      firstName: firstName ?? undefined,
+      lastName: lastName ?? undefined,
       customFields,
     });
     return NextResponse.json(contact, { status: 201 });

@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   listInteractionsByContact,
   createInteraction,
-  INTERACTION_TYPES,
 } from "@/lib/interactions";
 import { getContact } from "@/lib/contacts";
+import { validateBody } from "@/lib/api-validate";
+import { CreateInteractionInput } from "@/lib/schemas";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -36,29 +37,16 @@ export async function POST(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: "Contact not found." }, { status: 404 });
   }
 
-  const { type, subject, body: interactionBody, occurredAt, metadata } = body;
-
-  if (!type) {
-    return NextResponse.json(
-      { error: "type is required." },
-      { status: 400 }
-    );
-  }
-
-  if (!INTERACTION_TYPES.includes(type)) {
-    return NextResponse.json(
-      { error: `type must be one of: ${INTERACTION_TYPES.join(", ")}` },
-      { status: 400 }
-    );
-  }
+  const parsed = validateBody(CreateInteractionInput, body);
+  if (!parsed.success) return parsed.error;
 
   const interaction = await createInteraction({
     contactId,
-    type,
-    subject: subject || null,
-    body: interactionBody || null,
-    occurredAt: occurredAt ? new Date(occurredAt) : new Date(),
-    metadata: metadata || {},
+    type: parsed.data.type,
+    subject: parsed.data.subject || null,
+    body: parsed.data.body || null,
+    occurredAt: parsed.data.occurredAt ? new Date(parsed.data.occurredAt) : new Date(),
+    metadata: parsed.data.metadata,
   });
 
   return NextResponse.json(interaction, { status: 201 });

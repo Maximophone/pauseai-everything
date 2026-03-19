@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createApiKey, listApiKeys } from "@/lib/users";
 import { checkAuth, requireAdmin } from "@/lib/api-auth";
+import { validateBody } from "@/lib/api-validate";
+import { CreateApiKeyInput } from "@/lib/schemas";
 
 // GET /api/api-keys — list API keys (admin only)
 export async function GET(request: NextRequest) {
@@ -31,13 +33,10 @@ export async function POST(request: NextRequest) {
   if (adminError) return adminError;
 
   const body = await request.json();
-  const { name } = body;
+  const parsed = validateBody(CreateApiKeyInput, body);
+  if (!parsed.success) return parsed.error;
 
-  if (!name) {
-    return NextResponse.json({ error: "name is required." }, { status: 400 });
-  }
-
-  const result = await createApiKey(authResult.userId!, name);
+  const result = await createApiKey(authResult.userId!, parsed.data.name);
 
   return NextResponse.json(
     {

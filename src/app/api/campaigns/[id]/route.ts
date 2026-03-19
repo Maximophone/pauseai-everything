@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkAuth, requireAdmin } from "@/lib/api-auth";
 import { getCampaign, updateCampaign, deleteCampaign } from "@/lib/campaigns";
+import { validateBody, stripNulls } from "@/lib/api-validate";
+import { UpdateCampaignInput } from "@/lib/schemas";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -24,8 +26,10 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
   const { id } = await context.params;
   const body = await request.json();
+  const parsed = validateBody(UpdateCampaignInput, body);
+  if (!parsed.success) return parsed.error;
 
-  const updated = await updateCampaign(id, body);
+  const updated = await updateCampaign(id, stripNulls(parsed.data));
   if (!updated) {
     return NextResponse.json({ error: "Campaign not found." }, { status: 404 });
   }

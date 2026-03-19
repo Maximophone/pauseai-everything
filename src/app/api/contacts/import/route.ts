@@ -2,47 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { contacts } from "@/db/schema/contacts";
 import { eq } from "drizzle-orm";
+import { validateBody } from "@/lib/api-validate";
+import { ImportContactsInput } from "@/lib/schemas";
 
-/**
- * POST /api/contacts/import
- *
- * Expects JSON body:
- * {
- *   "rows": [ { "col1": "val1", "col2": "val2", ... }, ... ],
- *   "mapping": {
- *     "col1": "_email",       // maps CSV column to email
- *     "col2": "_firstName",   // maps to firstName
- *     "col3": "_lastName",    // maps to lastName
- *     "col4": "country",      // maps to customFields.country
- *     "col5": null             // skip this column
- *   },
- *   "skipDuplicates": true    // skip rows where email already exists
- * }
- */
-
-type ImportRequest = {
-  rows: Record<string, string>[];
-  mapping: Record<string, string | null>;
-  skipDuplicates?: boolean;
-};
-
+// POST /api/contacts/import
 export async function POST(request: NextRequest) {
-  const body: ImportRequest = await request.json();
-  const { rows, mapping, skipDuplicates = true } = body;
+  const body = await request.json();
+  const parsed = validateBody(ImportContactsInput, body);
+  if (!parsed.success) return parsed.error;
 
-  if (!rows || !Array.isArray(rows) || rows.length === 0) {
-    return NextResponse.json(
-      { error: "No rows to import." },
-      { status: 400 }
-    );
-  }
-
-  if (!mapping || Object.keys(mapping).length === 0) {
-    return NextResponse.json(
-      { error: "Column mapping is required." },
-      { status: 400 }
-    );
-  }
+  const rows = parsed.data.rows as Record<string, string>[];
+  const mapping = parsed.data.mapping as Record<string, string>;
+  const skipDuplicates = parsed.data.skipDuplicates;
 
   let created = 0;
   let updated = 0;

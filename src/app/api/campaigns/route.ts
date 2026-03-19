@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkAuth, requireAdmin } from "@/lib/api-auth";
 import { listCampaigns, createCampaign } from "@/lib/campaigns";
+import { validateBody } from "@/lib/api-validate";
+import { CreateCampaignInput } from "@/lib/schemas";
 
 export async function GET(request: NextRequest) {
   const authResult = await checkAuth(request);
@@ -16,23 +18,17 @@ export async function POST(request: NextRequest) {
   if (adminError) return adminError;
 
   const body = await request.json();
-  const { name, subject, body: emailBody, fromName, fromEmail, segmentId, scheduledAt } = body;
-
-  if (!name || !subject || !emailBody) {
-    return NextResponse.json(
-      { error: "name, subject, and body are required." },
-      { status: 400 }
-    );
-  }
+  const parsed = validateBody(CreateCampaignInput, body);
+  if (!parsed.success) return parsed.error;
 
   const campaign = await createCampaign({
-    name,
-    subject,
-    body: emailBody,
-    fromName,
-    fromEmail,
-    segmentId,
-    scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
+    name: parsed.data.name,
+    subject: parsed.data.subject,
+    body: parsed.data.body,
+    fromName: parsed.data.fromName ?? undefined,
+    fromEmail: parsed.data.fromEmail ?? undefined,
+    segmentId: parsed.data.segmentId ?? undefined,
+    scheduledAt: parsed.data.scheduledAt ? new Date(parsed.data.scheduledAt) : null,
     createdBy: authResult.userId,
   });
 

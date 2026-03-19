@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkAuth, requireAdmin } from "@/lib/api-auth";
 import { getSegment, updateSegment, deleteSegment } from "@/lib/segments";
+import { validateBody, stripNulls } from "@/lib/api-validate";
+import { UpdateSegmentInput } from "@/lib/schemas";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -24,8 +26,10 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
   const { id } = await context.params;
   const body = await request.json();
+  const parsed = validateBody(UpdateSegmentInput, body);
+  if (!parsed.success) return parsed.error;
 
-  const updated = await updateSegment(id, body);
+  const updated = await updateSegment(id, stripNulls(parsed.data));
   if (!updated) {
     return NextResponse.json({ error: "Segment not found." }, { status: 404 });
   }

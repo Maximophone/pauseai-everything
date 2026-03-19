@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkAuth, requireAdmin } from "@/lib/api-auth";
 import { getScript, updateScript, deleteScript } from "@/lib/scripts";
+import { validateBody, stripNulls } from "@/lib/api-validate";
+import { UpdateScriptInput } from "@/lib/schemas";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -24,16 +26,10 @@ export async function PUT(request: NextRequest, context: Context) {
 
   const { id } = await context.params;
   const body = await request.json();
-  const { name, description, code, cronSchedule, enabled } = body;
+  const parsed = validateBody(UpdateScriptInput, body);
+  if (!parsed.success) return parsed.error;
 
-  const data: Record<string, unknown> = {};
-  if (name !== undefined) data.name = name.trim();
-  if (description !== undefined) data.description = description?.trim() || null;
-  if (code !== undefined) data.code = code;
-  if (cronSchedule !== undefined) data.cronSchedule = cronSchedule?.trim() || null;
-  if (enabled !== undefined) data.enabled = enabled;
-
-  const updated = await updateScript(id, data);
+  const updated = await updateScript(id, stripNulls(parsed.data));
   if (!updated) {
     return NextResponse.json({ error: "Script not found" }, { status: 404 });
   }

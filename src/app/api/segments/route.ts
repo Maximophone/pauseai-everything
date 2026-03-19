@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkAuth, requireAdmin } from "@/lib/api-auth";
 import { listSegments, createSegment } from "@/lib/segments";
+import { validateBody } from "@/lib/api-validate";
+import { CreateSegmentInput } from "@/lib/schemas";
 
 export async function GET(request: NextRequest) {
   const authResult = await checkAuth(request);
@@ -16,26 +18,13 @@ export async function POST(request: NextRequest) {
   if (adminError) return adminError;
 
   const body = await request.json();
-  const { name, description, filter } = body;
-
-  if (!name || !filter || !filter.conditions) {
-    return NextResponse.json(
-      { error: "name and filter (with conditions) are required." },
-      { status: 400 }
-    );
-  }
-
-  if (!["all", "any"].includes(filter.match)) {
-    return NextResponse.json(
-      { error: 'filter.match must be "all" or "any".' },
-      { status: 400 }
-    );
-  }
+  const parsed = validateBody(CreateSegmentInput, body);
+  if (!parsed.success) return parsed.error;
 
   const segment = await createSegment({
-    name,
-    description,
-    filter,
+    name: parsed.data.name,
+    description: parsed.data.description ?? undefined,
+    filter: parsed.data.filter,
     createdBy: authResult.userId,
   });
 

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkAuth, requireAdmin } from "@/lib/api-auth";
 import { sendPreviewEmail } from "@/lib/campaigns";
+import { validateBody } from "@/lib/api-validate";
+import { CampaignPreviewInput } from "@/lib/schemas";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -11,14 +13,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
   const { id } = await context.params;
   const body = await request.json();
-  const { email } = body;
-
-  if (!email) {
-    return NextResponse.json({ error: "email is required." }, { status: 400 });
-  }
+  const parsed = validateBody(CampaignPreviewInput, body);
+  if (!parsed.success) return parsed.error;
 
   try {
-    const result = await sendPreviewEmail(id, email);
+    const result = await sendPreviewEmail(id, parsed.data.email);
     return NextResponse.json(result);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";

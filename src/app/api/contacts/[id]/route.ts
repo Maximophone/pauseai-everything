@@ -5,6 +5,8 @@ import {
   deleteContact,
   validateCustomFields,
 } from "@/lib/contacts";
+import { validateBody } from "@/lib/api-validate";
+import { UpdateContactInput } from "@/lib/schemas";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -30,12 +32,12 @@ export async function PUT(
 ) {
   const { id } = await context.params;
   const body = await request.json();
-
-  const { email, firstName, lastName, customFields } = body;
+  const parsed = validateBody(UpdateContactInput, body);
+  if (!parsed.success) return parsed.error;
 
   // Validate custom fields if provided
-  if (customFields && Object.keys(customFields).length > 0) {
-    const validation = await validateCustomFields(customFields);
+  if (parsed.data.customFields && Object.keys(parsed.data.customFields).length > 0) {
+    const validation = await validateCustomFields(parsed.data.customFields);
     if (!validation.valid) {
       return NextResponse.json(
         { error: "Validation failed.", details: validation.errors },
@@ -45,10 +47,10 @@ export async function PUT(
   }
 
   const updated = await updateContact(id, {
-    ...(email !== undefined && { email }),
-    ...(firstName !== undefined && { firstName }),
-    ...(lastName !== undefined && { lastName }),
-    ...(customFields !== undefined && { customFields }),
+    ...(parsed.data.email !== undefined && { email: parsed.data.email }),
+    ...(parsed.data.firstName !== undefined && { firstName: parsed.data.firstName }),
+    ...(parsed.data.lastName !== undefined && { lastName: parsed.data.lastName }),
+    ...(parsed.data.customFields !== undefined && { customFields: parsed.data.customFields }),
   });
 
   if (!updated) {
