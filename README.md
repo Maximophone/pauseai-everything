@@ -140,12 +140,15 @@ npm run db:generate   # Generate Drizzle migration files
 npm run db:migrate    # Apply migration files
 npm run db:studio     # Open Drizzle Studio (DB browser)
 npm run db:seed       # Seed with sample data
+
+npm run docs:api      # Regenerate docs/api-reference.md from Zod schemas
 ```
 
 ## Documentation
 
 | Doc | What's in it |
 |-----|-------------|
+| [docs/api-reference.md](docs/api-reference.md) | Full REST API reference — all endpoints, request/response shapes, auth levels (auto-generated) |
 | [docs/development.md](docs/development.md) | Full local setup, env vars, database, tips |
 | [docs/architecture.md](docs/architecture.md) | System design, data model, key patterns |
 | [docs/deployment.md](docs/deployment.md) | Railway deployment, env vars, how to deploy each service |
