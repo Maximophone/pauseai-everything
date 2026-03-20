@@ -68,6 +68,7 @@ type Recipient = {
   email: string | null;
   firstName: string | null;
   lastName: string | null;
+  unsubscribed?: boolean;
 };
 
 const statusIcons: Record<string, React.ReactNode> = {
@@ -100,7 +101,7 @@ function CampaignDetail({
   onUpdated: () => void;
 }) {
   const [emailList, setEmailList] = useState<CampaignEmail[] | null>(null);
-  const [recipientList, setRecipientList] = useState<{ count: number; recipients: Recipient[] } | null>(null);
+  const [recipientList, setRecipientList] = useState<{ count: number; activeCount: number; unsubscribedCount: number; recipients: Recipient[] } | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingRecipients, setLoadingRecipients] = useState(false);
   const [previewEmail, setPreviewEmail] = useState("");
@@ -420,7 +421,11 @@ function CampaignDetail({
               )}
               {loadingRecipients ? "Loading..." : recipientList !== null ? "Hide recipients" : "Show recipients"}
               {recipientList !== null && (
-                <span className="ml-1 text-muted-foreground">({recipientList.count})</span>
+                <span className="ml-1 text-muted-foreground">
+                  ({recipientList.activeCount} active{recipientList.unsubscribedCount > 0 && (
+                    <>, {recipientList.unsubscribedCount} unsubscribed</>
+                  )})
+                </span>
               )}
             </Button>
 
@@ -429,7 +434,9 @@ function CampaignDetail({
                 {recipientList.recipients.map((r) => (
                   <div
                     key={r.id}
-                    className="flex items-center justify-between px-3 py-1.5 text-xs"
+                    className={`flex items-center justify-between px-3 py-1.5 text-xs ${
+                      r.unsubscribed ? "opacity-60" : ""
+                    }`}
                   >
                     <div>
                       <span className="font-medium">
@@ -439,11 +446,18 @@ function CampaignDetail({
                         {r.email || "No email"}
                       </span>
                     </div>
-                    {!r.email && (
-                      <span className="rounded-full px-2 py-0.5 text-xs font-medium text-orange-600 bg-orange-50">
-                        No email
-                      </span>
-                    )}
+                    <div className="flex gap-1">
+                      {r.unsubscribed && (
+                        <span className="rounded-full px-2 py-0.5 text-xs font-medium text-red-600 bg-red-50">
+                          Unsubscribed
+                        </span>
+                      )}
+                      {!r.email && (
+                        <span className="rounded-full px-2 py-0.5 text-xs font-medium text-orange-600 bg-orange-50">
+                          No email
+                        </span>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
