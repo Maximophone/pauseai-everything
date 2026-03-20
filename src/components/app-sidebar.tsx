@@ -99,6 +99,10 @@ const navItems = [
           title: "Webhooks",
           url: "/dashboard/settings/webhooks",
         },
+        {
+          title: "Email Categories",
+          url: "/dashboard/settings/email-categories",
+        },
       ],
     },
   ]

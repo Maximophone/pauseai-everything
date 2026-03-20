@@ -51,6 +51,7 @@ export async function PUT(
     ...(parsed.data.firstName !== undefined && { firstName: parsed.data.firstName }),
     ...(parsed.data.lastName !== undefined && { lastName: parsed.data.lastName }),
     ...(parsed.data.customFields !== undefined && { customFields: parsed.data.customFields }),
+    ...(parsed.data.communicationPreferences !== undefined && { communicationPreferences: parsed.data.communicationPreferences }),
   });
 
   if (!updated) {

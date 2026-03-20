@@ -31,6 +31,7 @@ type Contact = {
   firstName: string | null;
   lastName: string | null;
   customFields: Record<string, unknown>;
+  communicationPreferences: Record<string, boolean>;
   createdAt: string;
   updatedAt: string;
 };
@@ -47,8 +48,8 @@ type FlatContact = {
 
 // Flatten customFields into top-level for AG Grid
 function flattenContact(contact: Contact): FlatContact {
-  const { customFields, ...rest } = contact;
-  return { ...rest, ...customFields };
+  const { customFields, communicationPreferences, ...rest } = contact;
+  return { ...rest, ...customFields, _commPrefs: communicationPreferences || {} };
 }
 
 // Reconstruct contact from flat row
@@ -186,6 +187,44 @@ export function ContactsTable({
                   className="inline-flex items-center rounded-full bg-primary/10 text-primary px-2 py-0.5 text-xs font-medium"
                 >
                   {tag}
+                </span>
+              ))}
+            </div>
+          );
+        },
+      },
+      {
+        field: "_commPrefs",
+        headerName: "Subscriptions",
+        editable: false,
+        width: 160,
+        valueGetter: (params: { data: FlatContact }) => {
+          const prefs = (params.data?._commPrefs || {}) as Record<string, boolean>;
+          const optOuts = Object.entries(prefs)
+            .filter(([, v]) => v === false)
+            .map(([k]) => k);
+          return optOuts.length > 0 ? optOuts : null;
+        },
+        valueFormatter: (params: { value: unknown }) => {
+          const optOuts = params.value as string[] | null;
+          if (!optOuts || optOuts.length === 0) return "All subscribed";
+          return `Opted out: ${optOuts.join(", ")}`;
+        },
+        cellRenderer: (params: { value: unknown }) => {
+          const optOuts = params.value as string[] | null;
+          if (!optOuts || optOuts.length === 0) {
+            return (
+              <span className="text-xs text-green-600">All subscribed</span>
+            );
+          }
+          return (
+            <div className="flex gap-1 flex-wrap items-center h-full">
+              {optOuts.map((name: string) => (
+                <span
+                  key={name}
+                  className="inline-flex items-center rounded-full bg-orange-50 text-orange-600 px-2 py-0.5 text-xs font-medium"
+                >
+                  {name}
                 </span>
               ))}
             </div>

@@ -3,6 +3,7 @@ import { getContact, listFieldDefinitions } from "@/lib/contacts";
 import { ContactDetailForm } from "@/components/contact-detail-form";
 import { InteractionTimeline } from "@/components/interaction-timeline";
 import { ContactTags } from "@/components/contact-tags";
+import { ContactPreferences } from "@/components/contact-preferences";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowLeftIcon } from "lucide-react";
@@ -54,6 +55,14 @@ export default async function ContactDetailPage({
           />
           <div className="border-t pt-6">
             <ContactTags contactId={contact.id} />
+          </div>
+          <div className="border-t pt-6">
+            <ContactPreferences
+              contactId={contact.id}
+              initialPreferences={
+                (contact.communicationPreferences as Record<string, boolean>) || {}
+              }
+            />
           </div>
         </div>
 
