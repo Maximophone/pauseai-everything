@@ -11,3 +11,4 @@ export * from "./api-keys";
 export * from "./users";
 export * from "./communication-categories";
 export * from "./unsubscribe";
+export * from "./connections";

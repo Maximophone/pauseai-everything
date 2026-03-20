@@ -24,6 +24,7 @@ import {
   WebhookIcon,
   FilterIcon,
   ZapIcon,
+  PlugIcon,
 } from "lucide-react"
 
 const allNavItems = [
@@ -103,6 +104,10 @@ const allNavItems = [
         {
           title: "Email Categories",
           url: "/dashboard/settings/email-categories",
+        },
+        {
+          title: "Connections",
+          url: "/dashboard/settings/connections",
         },
       ],
     },

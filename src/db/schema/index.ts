@@ -11,3 +11,4 @@ export * from "./automation-rules";
 export * from "./scripts";
 export * from "./communication-categories";
 export * from "./app-settings";
+export * from "./connections";

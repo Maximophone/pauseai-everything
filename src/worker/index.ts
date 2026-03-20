@@ -6,6 +6,8 @@ import { detectChurnTask } from "./tasks/detect-churn";
 import { runScriptTask } from "./tasks/run-script";
 import { dispatchScriptsTask } from "./tasks/dispatch-scripts";
 import { dispatchCampaignsTask } from "./tasks/dispatch-campaigns";
+import { runSyncTask } from "./tasks/run-sync";
+import { dispatchSyncsTask } from "./tasks/dispatch-syncs";
 
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) {
@@ -18,6 +20,8 @@ const taskList: TaskList = {
   run_script: runScriptTask,
   dispatch_scripts: dispatchScriptsTask,
   dispatch_campaigns: dispatchCampaignsTask,
+  run_sync: runSyncTask,
+  dispatch_syncs: dispatchSyncsTask,
 };
 
 const cronItems = parseCronItems([
@@ -27,6 +31,8 @@ const cronItems = parseCronItems([
   { task: "dispatch_scripts", match: "* * * * *", identifier: "script_dispatcher" },
   // Every minute — check for scheduled campaigns to send
   { task: "dispatch_campaigns", match: "* * * * *", identifier: "campaign_dispatcher" },
+  // Every minute — check for scheduled syncs to run
+  { task: "dispatch_syncs", match: "* * * * *", identifier: "sync_dispatcher" },
 ]);
 
 async function main() {
