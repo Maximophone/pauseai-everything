@@ -141,6 +141,9 @@ export function AppSidebar({
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={user} />
+        <div className="px-3 pb-2 text-[10px] text-muted-foreground/60 group-data-[collapsible=icon]:hidden">
+          {process.env.NEXT_PUBLIC_GIT_SHA}
+        </div>
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

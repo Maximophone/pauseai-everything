@@ -77,6 +77,9 @@ export default async function LoginPage({
         <p className="text-center text-xs text-muted-foreground">
           Access is invite-only. Contact an administrator if you need access.
         </p>
+        <p className="text-center text-[10px] text-muted-foreground/50">
+          {process.env.NEXT_PUBLIC_GIT_SHA}
+        </p>
       </div>
     </div>
   );
