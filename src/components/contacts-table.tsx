@@ -121,16 +121,24 @@ function NameCellRenderer(params: { data: FlatContact; value: string }) {
   );
 }
 
+type Category = {
+  id: string;
+  name: string;
+  label: string;
+};
+
 export function ContactsTable({
   initialContacts,
   fieldDefinitions,
   total,
   initialTagsMap = {},
+  categories = [],
 }: {
   initialContacts: Contact[];
   fieldDefinitions: FieldDefinition[];
   total: number;
   initialTagsMap?: Record<string, string[]>;
+  categories?: Category[];
 }) {
   const router = useRouter();
   const canEdit = useHasRole("member");
@@ -216,61 +224,61 @@ export function ContactsTable({
         field: "_commPrefs",
         headerName: "Subscriptions",
         editable: false,
-        width: 180,
+        width: Math.max(180, categories.length * 90),
         valueGetter: (params: { data: FlatContact }) => {
-          const prefs = (params.data?._commPrefs || {}) as Record<string, "subscribed" | "unsubscribed">;
-          const entries = Object.entries(prefs);
-          const subscribed = entries.filter(([, v]) => v === "subscribed").map(([k]) => k);
-          const unsubscribed = entries.filter(([, v]) => v === "unsubscribed").map(([k]) => k);
-          return { subscribed, unsubscribed, total: entries.length };
+          return (params.data?._commPrefs || {}) as Record<string, "subscribed" | "unsubscribed">;
         },
         valueFormatter: (params: { value: unknown }) => {
-          const val = params.value as { subscribed: string[]; unsubscribed: string[]; total: number } | null;
-          if (!val || val.total === 0) return "No preferences";
-          if (val.unsubscribed.length > 0) return `Opted out: ${val.unsubscribed.join(", ")}`;
-          return `Subscribed (${val.subscribed.length})`;
+          const prefs = (params.value || {}) as Record<string, "subscribed" | "unsubscribed">;
+          return categories
+            .map((c) => {
+              const s = prefs[c.name];
+              return s ? `${c.label}: ${s}` : "";
+            })
+            .filter(Boolean)
+            .join(", ") || "";
         },
         cellRenderer: (params: { value: unknown; data: FlatContact; eGridCell: HTMLElement }) => {
-          const val = params.value as { subscribed: string[]; unsubscribed: string[]; total: number } | null;
+          const prefs = (params.value || {}) as Record<string, "subscribed" | "unsubscribed">;
           const handleClick = () => {
             if (!canEdit || !params.eGridCell) return;
             const rect = params.eGridCell.getBoundingClientRect();
             setEditingSubsFor({ contactId: params.data.id, rect });
           };
-          const content = (() => {
-            if (!val || val.total === 0) {
-              return (
-                <span className="text-xs text-gray-400">
-                  {canEdit ? "Click to set" : "No preferences"}
-                </span>
-              );
-            }
-            if (val.unsubscribed.length > 0) {
-              return (
-                <div className="flex gap-1 flex-wrap items-center h-full">
-                  {val.unsubscribed.map((name: string) => (
-                    <span
-                      key={name}
-                      className="inline-flex items-center rounded-full bg-orange-50 text-orange-600 px-2 py-0.5 text-xs font-medium"
-                    >
-                      {name}
-                    </span>
-                  ))}
-                </div>
-              );
-            }
-            return (
-              <span className="text-xs text-green-600">
-                Subscribed ({val.subscribed.length})
-              </span>
-            );
-          })();
+
+          if (categories.length === 0) {
+            return <span className="text-xs text-gray-400">No categories</span>;
+          }
+
+          const hasAnyPref = categories.some((c) => prefs[c.name]);
+
           return (
             <div
-              className={`h-full flex items-center ${canEdit ? "cursor-pointer" : ""}`}
+              className={`flex gap-1 flex-wrap items-center h-full ${canEdit ? "cursor-pointer" : ""}`}
               onClick={handleClick}
             >
-              {content}
+              {!hasAnyPref ? (
+                <span className="text-xs text-gray-400">
+                  {canEdit ? "Click to set" : "—"}
+                </span>
+              ) : (
+                categories.map((cat) => {
+                  const status = prefs[cat.name];
+                  if (!status) return null; // neutral — don't show
+                  return (
+                    <span
+                      key={cat.name}
+                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                        status === "subscribed"
+                          ? "bg-green-50 text-green-700"
+                          : "bg-red-50 text-red-600"
+                      }`}
+                    >
+                      {cat.label}
+                    </span>
+                  );
+                })
+              )}
             </div>
           );
         },
@@ -306,7 +314,7 @@ export function ContactsTable({
     ];
 
     return [...coreCols, ...customCols, ...metaCols];
-  }, [fieldDefinitions, canEdit]);
+  }, [fieldDefinitions, canEdit, categories]);
 
   const defaultColDef = useMemo<ColDef>(
     () => ({
