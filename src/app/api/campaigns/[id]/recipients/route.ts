@@ -68,31 +68,43 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
   const rawRecipients = await query;
 
-  // Add unsubscribed flag and remove communicationPreferences from response
+  // Add subscription status and remove communicationPreferences from response
   const recipients = rawRecipients.map((r) => {
     const prefs = (r.communicationPreferences as Record<string, "subscribed" | "unsubscribed">) || {};
-    const unsubscribed = categoryName ? prefs[categoryName] !== "subscribed" : false;
+    let subscriptionStatus: "subscribed" | "not_subscribed" | "unsubscribed" = "subscribed";
+    if (categoryName) {
+      const pref = prefs[categoryName];
+      if (pref === "subscribed") {
+        subscriptionStatus = "subscribed";
+      } else if (pref === "unsubscribed") {
+        subscriptionStatus = "unsubscribed";
+      } else {
+        subscriptionStatus = "not_subscribed";
+      }
+    }
     return {
       id: r.id,
       email: r.email,
       firstName: r.firstName,
       lastName: r.lastName,
-      unsubscribed,
+      subscriptionStatus,
+      // Keep boolean for backwards compat
+      unsubscribed: subscriptionStatus !== "subscribed",
     };
   });
 
-  // Sort: unsubscribed contacts at the bottom
-  recipients.sort((a, b) => {
-    if (a.unsubscribed !== b.unsubscribed) return a.unsubscribed ? 1 : -1;
-    return 0;
-  });
+  // Sort: subscribed first, then not subscribed, then unsubscribed
+  const statusOrder = { subscribed: 0, not_subscribed: 1, unsubscribed: 2 };
+  recipients.sort((a, b) => statusOrder[a.subscriptionStatus] - statusOrder[b.subscriptionStatus]);
 
-  const activeCount = recipients.filter((r) => !r.unsubscribed).length;
-  const unsubscribedCount = recipients.filter((r) => r.unsubscribed).length;
+  const activeCount = recipients.filter((r) => r.subscriptionStatus === "subscribed").length;
+  const notSubscribedCount = recipients.filter((r) => r.subscriptionStatus === "not_subscribed").length;
+  const unsubscribedCount = recipients.filter((r) => r.subscriptionStatus === "unsubscribed").length;
 
   return NextResponse.json({
     count: recipients.length,
     activeCount,
+    notSubscribedCount,
     unsubscribedCount,
     recipients,
   });

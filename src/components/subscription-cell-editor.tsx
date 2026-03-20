@@ -145,14 +145,14 @@ export function SubscriptionCellEditor({
                   ? "Subscribed"
                   : state === "unsubscribed"
                   ? "Unsubscribed"
-                  : "Neutral"}
+                  : "Not subscribed"}
               </span>
             </button>
           );
         })}
       </div>
       <div className="mt-2 pt-2 border-t text-xs text-muted-foreground">
-        Click to cycle: neutral → subscribed → unsubscribed
+        Click to cycle: not subscribed → subscribed → unsubscribed
       </div>
     </div>
   );

@@ -70,6 +70,7 @@ type Recipient = {
   firstName: string | null;
   lastName: string | null;
   unsubscribed?: boolean;
+  subscriptionStatus?: "subscribed" | "not_subscribed" | "unsubscribed";
 };
 
 const statusIcons: Record<string, React.ReactNode> = {
@@ -103,7 +104,7 @@ function CampaignDetail({
 }) {
   const isAdmin = useHasRole("admin");
   const [emailList, setEmailList] = useState<CampaignEmail[] | null>(null);
-  const [recipientList, setRecipientList] = useState<{ count: number; activeCount: number; unsubscribedCount: number; recipients: Recipient[] } | null>(null);
+  const [recipientList, setRecipientList] = useState<{ count: number; activeCount: number; notSubscribedCount: number; unsubscribedCount: number; recipients: Recipient[] } | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingRecipients, setLoadingRecipients] = useState(false);
   const [previewEmail, setPreviewEmail] = useState("");
@@ -426,7 +427,11 @@ function CampaignDetail({
               {loadingRecipients ? "Loading..." : recipientList !== null ? "Hide recipients" : "Show recipients"}
               {recipientList !== null && (
                 <span className="ml-1 text-muted-foreground">
-                  ({recipientList.activeCount} active{recipientList.unsubscribedCount > 0 && (
+                  ({recipientList.activeCount} subscribed
+                  {recipientList.notSubscribedCount > 0 && (
+                    <>, {recipientList.notSubscribedCount} not subscribed</>
+                  )}
+                  {recipientList.unsubscribedCount > 0 && (
                     <>, {recipientList.unsubscribedCount} unsubscribed</>
                   )})
                 </span>
@@ -439,7 +444,7 @@ function CampaignDetail({
                   <div
                     key={r.id}
                     className={`flex items-center justify-between px-3 py-1.5 text-xs ${
-                      r.unsubscribed ? "opacity-60" : ""
+                      r.subscriptionStatus !== "subscribed" ? "opacity-60" : ""
                     }`}
                   >
                     <div>
@@ -451,7 +456,12 @@ function CampaignDetail({
                       </span>
                     </div>
                     <div className="flex gap-1">
-                      {r.unsubscribed && (
+                      {r.subscriptionStatus === "not_subscribed" && (
+                        <span className="rounded-full px-2 py-0.5 text-xs font-medium text-gray-500 bg-gray-100">
+                          Not subscribed
+                        </span>
+                      )}
+                      {r.subscriptionStatus === "unsubscribed" && (
                         <span className="rounded-full px-2 py-0.5 text-xs font-medium text-red-600 bg-red-50">
                           Unsubscribed
                         </span>

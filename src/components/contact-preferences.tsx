@@ -125,7 +125,7 @@ export function ContactPreferences({
                   ? "Unsubscribed"
                   : status === "subscribed"
                     ? "Subscribed"
-                    : "No preference"}
+                    : "Not subscribed"}
               </span>
             </button>
           );
