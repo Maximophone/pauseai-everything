@@ -63,9 +63,12 @@ Update a contact (partial update). No auth required
   "email": string (email) | null?,
   "firstName": string | null?,
   "lastName": string | null?,
-  "customFields": Record<string, string>?
+  "customFields": Record<string, string>?,
+  "communicationPreferences": Record<string, boolean>?
 }
 ```
+
+`communicationPreferences` maps category names to opt-in/out status. Example: `{ "newsletter": true, "events": false }`. Missing keys default to opted-in.
 
 **Response:** Contact
 
@@ -395,9 +398,12 @@ Create a campaign. **Auth: Admin**
   "fromName": string | null?,
   "fromEmail": string (email) | null?,
   "segmentId": string (uuid) | null?,
+  "categoryId": string (uuid) | null?,
   "scheduledAt": string (datetime) | null?
 }
 ```
+
+`categoryId` links the campaign to a communication category. When set, the campaign respects contact opt-out preferences, and `{{unsubscribe}}` merge variables resolve to a working unsubscribe URL. When `null`, the campaign is transactional (no unsubscribe, no preference filtering).
 
 **Response:** Campaign (201)
 
@@ -424,6 +430,7 @@ Update a campaign. **Auth: Admin**
   "fromName": string | null?,
   "fromEmail": string (email) | null?,
   "segmentId": string (uuid) | null?,
+  "categoryId": string (uuid) | null?,
   "scheduledAt": string (datetime) | null?
 }
 ```
@@ -462,6 +469,22 @@ Send a preview email for a campaign. **Auth: Admin**
 **Response:** { success: true }
 
 **Errors:** `400 validation/send error`
+
+### `GET /api/campaigns/:id/recipients`
+
+Preview who would receive this campaign based on its segment and category. Contacts who opted out of the campaign's category are included but flagged. **Auth: Session**
+
+**Response:**
+```
+{
+  "count": number,
+  "activeCount": number,
+  "unsubscribedCount": number,
+  "recipients": [
+    { "id": string, "email": string, "firstName": string, "lastName": string, "unsubscribed": boolean }
+  ]
+}
+```
 
 ### `GET /api/campaigns/:id/emails`
 
@@ -703,7 +726,9 @@ Revoke an API key. **Auth: Admin**
 
 ### `POST /api/webhooks/mailersend`
 
-Receive MailerSend delivery events (sent, delivered, bounced, opened, clicked). No auth required
+Receive MailerSend delivery events (sent, delivered, bounced, opened, clicked, unsubscribed). No auth required
+
+When an `activity.unsubscribed` event is received, the system looks up the campaign's category and sets that category to `false` in the contact's `communicationPreferences`.
 
 **Response:** { ok: true }
 
@@ -714,6 +739,125 @@ Receive Tally form submissions, creates/updates contacts and logs interactions. 
 **Response:** { status: "created"|"updated", contactId }
 
 **Errors:** `400 invalid JSON / no email`
+
+## Communication Categories
+
+### `GET /api/communication-categories`
+
+List all email categories. **Auth: Session**
+
+**Response:** Category[]
+
+### `POST /api/communication-categories`
+
+Create a new email category. **Auth: Admin**
+
+**Request body** (`CreateCategoryInput`):
+```
+{
+  "name": string (slug, lowercase, hyphens allowed),
+  "label": string,
+  "description": string?,
+  "sortOrder": number?
+}
+```
+
+**Response:** Category (201)
+
+**Errors:** `400 validation`, `409 duplicate name`
+
+### `GET /api/communication-categories/:id`
+
+Get a single category. **Auth: Session**
+
+**Response:** Category
+
+**Errors:** `404 not found`
+
+### `PUT /api/communication-categories/:id`
+
+Update a category. **Auth: Admin**
+
+**Request body** (`UpdateCategoryInput`):
+```
+{
+  "label": string?,
+  "description": string?,
+  "sortOrder": number?
+}
+```
+
+**Response:** Category
+
+**Errors:** `404 not found`
+
+### `DELETE /api/communication-categories/:id`
+
+Delete a category. **Auth: Admin**
+
+**Response:** { success: true }
+
+**Errors:** `404 not found`
+
+## Unsubscribe (Public)
+
+### `POST /api/unsubscribe`
+
+Process an unsubscribe request. Authenticated by HMAC token (no session required). **Auth: None (token-authenticated)**
+
+**Request body** (`UnsubscribeInput`):
+```
+{
+  "contactId": string (uuid),
+  "category": string,
+  "token": string (hex HMAC),
+  "preferences": Record<string, boolean>?
+}
+```
+
+If `preferences` is provided, all specified categories are updated. Otherwise, only the specified `category` is set to `false` (one-click unsubscribe).
+
+**Response:** { success: true }
+
+**Errors:** `400 validation`, `403 invalid token`, `404 contact not found`
+
+### `GET /api/unsubscribe/preferences?contact=:id&token=:token&category=:name`
+
+Get a contact's subscription status for all categories. Authenticated by HMAC token. **Auth: None (token-authenticated)**
+
+**Response:**
+```
+{
+  "categories": [
+    { "name": string, "label": string, "description": string, "subscribed": boolean }
+  ]
+}
+```
+
+**Errors:** `400 missing params`, `403 invalid token`
+
+## Settings
+
+### `GET /api/settings`
+
+Get all app-level settings as key-value pairs. **Auth: Session**
+
+**Response:** Record<string, string>
+
+### `PUT /api/settings`
+
+Update one or more settings (upsert). **Auth: Admin**
+
+**Request body:** `Record<string, string>`
+
+Example:
+```
+{
+  "mailersend_list_unsubscribe_enabled": "true"
+}
+```
+
+**Response:** Record<string, string> (all settings after update)
 
 ## Appendix: Segment Filter Schema
 

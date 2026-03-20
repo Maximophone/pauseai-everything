@@ -1,6 +1,6 @@
 # PauseAI Everything App — Architecture
 
-> Living document. Last updated: 2026-03-18.
+> Living document. Last updated: 2026-03-20.
 
 ## Vision
 
@@ -29,6 +29,7 @@ A custom-built platform for PauseAI Global that starts as a CRM and grows into t
 - Interaction history
 - Segments and tags
 - Email campaign orchestration (compose, target, schedule, track)
+- Communication preferences and unsubscribe management
 - Background jobs and automations (JavaScript scripts with cron scheduling)
 
 **External services:**
@@ -106,6 +107,8 @@ Two processes from the same codebase, sharing the same Postgres database.
 | `scripts` | User-defined JS automation scripts |
 | `script_runs` | Script execution history |
 | `automation_rules` | Simple if/then automation rules |
+| `communication_categories` | Email categories (newsletter, events, etc.) |
+| `app_settings` | Key-value store for app-level settings |
 
 ### NextAuth tables
 
@@ -281,15 +284,27 @@ PUT    /api/scripts/:id           update script
 POST   /api/scripts/:id/run       run now (enqueues job)
 GET    /api/scripts/:id/runs      run history
 
+# Communication Categories
+GET    /api/communication-categories       list categories
+POST   /api/communication-categories       create category (admin)
+PUT    /api/communication-categories/:id   update category (admin)
+DELETE /api/communication-categories/:id   delete category (admin)
+
+# Unsubscribe (public, token-authenticated)
+POST   /api/unsubscribe                    process unsubscribe
+GET    /api/unsubscribe/preferences         get preferences for a contact
+
 # Settings
 GET    /api/fields                list field definitions
 GET    /api/tags                  list tags
 GET    /api/users                 list users (admin only)
 GET    /api/api-keys              list API keys (admin only)
+GET    /api/settings              get app settings
+PUT    /api/settings              update app settings (admin only)
 
 # Inbound webhooks
 POST   /api/webhooks/tally        Tally form submission intake
-POST   /api/webhooks/mailersend   Mailersend delivery/tracking events
+POST   /api/webhooks/mailersend   Mailersend delivery/tracking/unsubscribe events
 ```
 
 ## Worker jobs
@@ -321,10 +336,32 @@ See [deployment.md](deployment.md) for the full deploy guide.
 - **Tags vs fields:** Tags are lightweight labels (many-to-many, fast to add/remove). Fields are structured data with types and validation.
 - **Worker dispatch pattern:** Static cron tasks (dispatch_campaigns, dispatch_scripts) run every minute and dynamically enqueue work. This means adding/editing scripts or campaigns doesn't require restarting the worker.
 
+## Communication preferences & unsubscribe
+
+Contacts can opt out of specific email categories while still receiving others.
+
+**Data model:**
+- `communication_categories` table: admin-managed email types (newsletter, events, action-alerts)
+- `contacts.communication_preferences`: JSONB column mapping category names to boolean (`{ "newsletter": true, "events": false }`). Missing key = opted-in. Explicit `false` = opted-out.
+- `campaigns.category_id`: FK to communication_categories. `null` = transactional (no unsubscribe, no filtering)
+- `app_settings`: key-value store for app-level settings (e.g. `mailersend_list_unsubscribe_enabled`)
+
+**Unsubscribe flow:**
+1. Campaign has a category → send flow filters opted-out contacts and generates per-contact unsubscribe URLs
+2. Unsubscribe URL uses a stateless HMAC-SHA256 token (no expiry): `HMAC(contactId:categoryName, UNSUBSCRIBE_SECRET)`
+3. `{{unsubscribe}}` merge variable in email body resolves to the unsubscribe URL
+4. Public `/unsubscribe` page validates the token, shows a preference center with all categories
+5. `POST /api/unsubscribe` updates the contact's `communicationPreferences`
+6. Mailersend `activity.unsubscribed` webhook also updates preferences automatically
+
+**RFC 8058 List-Unsubscribe header:**
+- Mailersend's `list_unsubscribe` API parameter adds native `List-Unsubscribe` headers
+- Requires Mailersend Professional+ plan — configurable via a UI toggle in Settings > Email Categories
+- When disabled, the in-body `{{unsubscribe}}` link still works on all plans
+
 ## What's not in v1
 
 - Email template rich-text editor (using string interpolation for now)
-- Mailersend open/click tracking (webhook endpoint exists, processing not wired)
 - Dashboard analytics (Phase 9 — planned next)
 - Discord integration
 - AI-powered features (planned — see features.md)

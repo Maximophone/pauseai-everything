@@ -1,6 +1,6 @@
 # PauseAI Everything App — Features
 
-> Living document. Last updated: 2026-03-15.
+> Living document. Last updated: 2026-03-20.
 
 ## Milestone 1: Core CRM (launch target)
 
@@ -196,6 +196,41 @@ GET    /api/auth/...              — NextAuth.js routes
 - Save segments with a name
 - Preview: show count + sample contacts before using
 - Segments available as campaign targets
+
+### 2.1b Communication preferences & unsubscribe ✅
+
+**Email categories (admin-managed):**
+- Admin UI at Settings > Email Categories to create/edit/delete categories
+- Default categories seeded: newsletter, events, action-alerts
+- Each category has a slug name, display label, and description
+
+**Per-contact preferences:**
+- Each contact has a `communicationPreferences` JSONB field: `{ "newsletter": true, "events": false }`
+- Missing key = opted-in. Explicit `false` = opted-out
+- Visible on contact detail page as toggle switches
+- Subscription status column in contacts table (shows "All subscribed" or lists opted-out categories)
+
+**Campaign category assignment:**
+- Campaigns can be assigned a category (or left as "transactional" with no category)
+- Categorized campaigns filter out opted-out contacts at send time
+- Campaign recipient preview shows "Unsubscribed" badge for opted-out contacts with active/unsubscribed count breakdown
+
+**Unsubscribe system:**
+- Stateless HMAC-SHA256 tokens: `HMAC(contactId:categoryName, UNSUBSCRIBE_SECRET)` — tokens never expire
+- `{{unsubscribe}}` merge variable available in campaign email body, resolves to a signed unsubscribe URL
+- Public `/unsubscribe` page: validates token, auto-unsubscribes on load (one-click), shows preference center for all categories
+- API endpoints: `POST /api/unsubscribe` (token-authenticated), `GET /api/unsubscribe/preferences`
+- Mailersend `activity.unsubscribed` webhook automatically updates contact preferences
+
+**RFC 8058 List-Unsubscribe header:**
+- Optional: controlled by a UI toggle in Settings > Email Categories
+- Requires Mailersend Professional+ plan — disabled by default to avoid API errors on lower plans
+- When enabled, Mailersend adds native `List-Unsubscribe` and `List-Unsubscribe-Post` headers
+
+**App settings:**
+- `app_settings` table: simple key-value store for app-level configuration
+- API: `GET/PUT /api/settings` (admin-only for writes)
+- Currently used for the RFC 8058 toggle; designed to support future settings
 
 ### 2.2 Broadcast email
 - Select a segment or saved filter as audience

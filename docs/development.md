@@ -1,6 +1,6 @@
 # Development Guide
 
-> Last updated: 2026-03-18.
+> Last updated: 2026-03-20.
 
 ## Prerequisites
 
@@ -48,6 +48,8 @@ Edit `.env`:
 | `MAILERSEND_API_KEY` | Mailersend API key | [Mailersend dashboard](https://app.mailersend.com) |
 | `MAILERSEND_FROM_EMAIL` | Default sender email | A verified Mailersend sender |
 | `ADMIN_EMAILS` | Comma-separated emails auto-promoted to admin | e.g. `you@example.com` |
+| `UNSUBSCRIBE_SECRET` | HMAC secret for unsubscribe tokens | `openssl rand -hex 32` |
+| `NEXT_PUBLIC_APP_URL` | Public URL for unsubscribe links | `http://localhost:3000` |
 | `DEV_BYPASS_AUTH` | Set to `true` to skip Google login in dev | Dev only |
 
 **`DEV_BYPASS_AUTH=true` is the recommended dev setup.** It skips the Google OAuth flow entirely — you're automatically logged in as "Dev User" with full admin access. The bypass only activates when `NODE_ENV=development`, so it's completely safe to leave it in your `.env` file.
@@ -212,6 +214,8 @@ All table definitions are in `src/db/schema/`:
 | `emails.ts` | `emails` |
 | `scripts.ts` | `scripts`, `script_runs` |
 | `automations.ts` | `automation_rules` |
+| `communication-categories.ts` | `communication_categories` |
+| `app-settings.ts` | `app_settings` (key-value store) |
 | `users.ts` | `user`, `account`, `session`, `verificationToken` (NextAuth tables) |
 | `index.ts` | Re-exports all schemas |
 

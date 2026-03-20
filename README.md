@@ -13,9 +13,10 @@ A Next.js web app + background worker that replaces Airtable + manual email work
 
 - **Contacts** — spreadsheet-style table with inline editing, custom fields, tags, interaction history
 - **Segments** — visual query builder to define dynamic audiences (e.g. "active members in France")
-- **Campaigns** — compose and send broadcast emails to segments via Mailersend; schedule for later
+- **Campaigns** — compose and send broadcast emails to segments via Mailersend; schedule for later; assign email categories for preference-based filtering
+- **Communication preferences** — contacts can opt in/out of email categories (newsletter, events, etc.); public unsubscribe page with preference center; HMAC-signed unsubscribe links; `{{unsubscribe}}` merge variable for in-body links
 - **Scripts** — write JavaScript automation scripts that run on a schedule or on demand (e.g. flag dormant contacts, bulk-update fields)
-- **Settings** — manage custom fields, users, API keys
+- **Settings** — manage custom fields, users, API keys, email categories, app-level settings
 
 ## Tech stack
 
@@ -97,7 +98,7 @@ pauseai-everything/
 │   │   │   ├── email/          # Campaigns
 │   │   │   ├── segments/       # Segment builder
 │   │   │   ├── automations/    # Script editor (JS automation)
-│   │   │   └── settings/       # Fields, users, API keys
+│   │   │   └── settings/       # Fields, users, API keys, email categories
 │   │   ├── api/                # API route handlers
 │   │   │   ├── contacts/
 │   │   │   ├── campaigns/
@@ -107,8 +108,12 @@ pauseai-everything/
 │   │   │   ├── fields/
 │   │   │   ├── users/
 │   │   │   ├── api-keys/
+│   │   │   ├── communication-categories/
+│   │   │   ├── settings/
+│   │   │   ├── unsubscribe/
 │   │   │   └── webhooks/
-│   │   └── login/
+│   │   ├── login/
+│   │   └── unsubscribe/        # Public unsubscribe preference center
 │   ├── components/             # React components
 │   ├── db/
 │   │   └── schema/             # Drizzle table definitions

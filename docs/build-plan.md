@@ -1,6 +1,6 @@
 # PauseAI Everything App — Build Plan
 
-> Living document. Last updated: 2026-03-18.
+> Living document. Last updated: 2026-03-20.
 
 ## Tech decisions
 
@@ -104,6 +104,27 @@
 - [x] Automation rules engine (if/then rules, runs on schedule)
 - [x] Deployed to Railway (web + worker + Postgres)
 
+### Phase 8b: Communication preferences & unsubscribe ✅
+
+- [x] Schema: `communication_categories` table, `app_settings` table
+- [x] Schema: `contacts.communication_preferences` JSONB column
+- [x] Schema: `campaigns.category_id` FK to communication_categories
+- [x] Seed default categories (newsletter, events, action-alerts)
+- [x] HMAC-SHA256 stateless unsubscribe tokens (`src/lib/unsubscribe-tokens.ts`)
+- [x] Communication categories CRUD (lib + API + Zod schemas)
+- [x] Campaign send flow: filter opted-out contacts, generate unsubscribe URLs
+- [x] `{{unsubscribe}}` merge variable in campaign email bodies
+- [x] Campaign UI: category dropdown in create/edit forms
+- [x] Campaign recipients preview: show "Unsubscribed" badge for opted-out contacts
+- [x] Public unsubscribe page (`/unsubscribe`) with preference center
+- [x] Public unsubscribe API (`POST /api/unsubscribe`, `GET /api/unsubscribe/preferences`)
+- [x] Mailersend webhook: handle `activity.unsubscribed` → update contact preferences
+- [x] Per-contact subscription status in contact detail page
+- [x] Subscription status column in contacts table
+- [x] Admin UI for managing email categories (Settings > Email Categories)
+- [x] App settings system with UI toggle for RFC 8058 List-Unsubscribe header
+- [x] Unsubscribe token tests
+
 ### Phase 9: Dashboard & reporting 🔲
 
 - [ ] Dashboard page with overview stats cards
@@ -148,4 +169,5 @@ Every phase ships with tests. The core data layer and API must be robust.
 - **After Phase 4:** New joiners flow in automatically. You can import your Airtable data. The system is live.
 - **After Phase 5:** Team can log in with their own accounts. Permissions enforced.
 - **After Phase 7:** You can send targeted emails to segments. Full Airtable+Mailersend replacement.
-- **After Phase 9:** You have visibility into how the org is doing. Full v1. ← *we are here*
+- **After Phase 8b:** Contacts can manage their email subscriptions. Compliant unsubscribe system. ← *we are here*
+- **After Phase 9:** You have visibility into how the org is doing. Full v1.

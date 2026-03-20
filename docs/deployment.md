@@ -1,6 +1,6 @@
 # Deployment Guide
 
-> Last updated: 2026-03-18.
+> Last updated: 2026-03-20.
 
 ## Overview
 
@@ -111,6 +111,8 @@ railway up --detach --service worker
 | `MAILERSEND_API_KEY` | Mailersend API key for sending emails | Yes |
 | `MAILERSEND_FROM_EMAIL` | Default "from" email address | Yes |
 | `ADMIN_EMAILS` | Comma-separated emails auto-promoted to admin on sign-in | Recommended |
+| `UNSUBSCRIBE_SECRET` | HMAC secret for unsubscribe tokens (`openssl rand -hex 32`) | Yes |
+| `NEXT_PUBLIC_APP_URL` | Public URL used in unsubscribe links | Yes |
 | `NODE_ENV` | Must be `production` | Yes |
 | `DEV_BYPASS_AUTH` | Must be `false` in production (bypass only works when NODE_ENV=development) | No |
 
@@ -121,6 +123,8 @@ railway up --detach --service worker
 | `DATABASE_URL` | PostgreSQL connection (same as web) | Yes |
 | `MAILERSEND_API_KEY` | Needed for sending campaign emails | Yes |
 | `MAILERSEND_FROM_EMAIL` | Default "from" email address | Yes |
+| `UNSUBSCRIBE_SECRET` | Same value as web — needed for unsubscribe URL generation during campaign sends | Yes |
+| `NEXT_PUBLIC_APP_URL` | Same value as web — used in unsubscribe URLs | Yes |
 | `NODE_ENV` | `production` | Yes |
 
 ### Setting variables
