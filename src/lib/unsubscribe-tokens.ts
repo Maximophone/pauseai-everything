@@ -1,6 +1,8 @@
 import { createHmac, timingSafeEqual } from "crypto";
 
-const UNSUBSCRIBE_SECRET = process.env.UNSUBSCRIBE_SECRET || "";
+function getSecret(): string {
+  return process.env.UNSUBSCRIBE_SECRET || "";
+}
 
 /**
  * Generate a stateless HMAC-SHA256 token for unsubscribe links.
@@ -10,10 +12,11 @@ export function generateUnsubscribeToken(
   contactId: string,
   categoryName: string
 ): string {
-  if (!UNSUBSCRIBE_SECRET) {
+  const secret = getSecret();
+  if (!secret) {
     throw new Error("UNSUBSCRIBE_SECRET is not configured");
   }
-  const hmac = createHmac("sha256", UNSUBSCRIBE_SECRET);
+  const hmac = createHmac("sha256", secret);
   hmac.update(`${contactId}:${categoryName}`);
   return hmac.digest("hex");
 }
@@ -26,7 +29,7 @@ export function verifyUnsubscribeToken(
   categoryName: string,
   token: string
 ): boolean {
-  if (!UNSUBSCRIBE_SECRET) return false;
+  if (!getSecret()) return false;
 
   try {
     const expected = generateUnsubscribeToken(contactId, categoryName);
