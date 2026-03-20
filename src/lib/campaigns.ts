@@ -132,26 +132,29 @@ export async function sendCampaign(campaignId: string) {
       }
     }
 
+    // Build unsubscribe URL if campaign has a category
+    let listUnsubscribe: string | undefined;
+    let unsubscribeUrl = "";
+    if (categoryName) {
+      try {
+        unsubscribeUrl = buildUnsubscribeUrl(contact.id, categoryName);
+        listUnsubscribe = unsubscribeUrl;
+      } catch {
+        // UNSUBSCRIBE_SECRET not configured — send without unsubscribe
+      }
+    }
+
     // Merge template fields
     const mergeData: Record<string, unknown> = {
       firstName: contact.firstName || "",
       lastName: contact.lastName || "",
       email: contact.email,
+      unsubscribe: unsubscribeUrl,
       ...((contact.customFields as Record<string, unknown>) || {}),
     };
 
     const renderedSubject = renderTemplate(campaign.subject, mergeData);
     const renderedBody = renderTemplate(campaign.body, mergeData);
-
-    // Build unsubscribe URL if campaign has a category
-    let listUnsubscribe: string | undefined;
-    if (categoryName) {
-      try {
-        listUnsubscribe = buildUnsubscribeUrl(contact.id, categoryName);
-      } catch {
-        // UNSUBSCRIBE_SECRET not configured — send without unsubscribe
-      }
-    }
 
     const result = await sendEmail({
       to: [{ email: contact.email, name: contact.firstName || undefined }],
@@ -232,10 +235,12 @@ export async function sendPreviewEmail(
   const fromName = campaign.fromName || "PauseAI";
 
   // Use placeholder merge data for preview
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
   const mergeData: Record<string, unknown> = {
     firstName: "Preview",
     lastName: "User",
     email: toEmail,
+    unsubscribe: `${appUrl}/unsubscribe?preview=true`,
   };
 
   const renderedSubject = renderTemplate(`[PREVIEW] ${campaign.subject}`, mergeData);

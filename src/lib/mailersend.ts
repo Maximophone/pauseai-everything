@@ -34,7 +34,7 @@ export async function sendEmail(params: EmailParams): Promise<MailersendResponse
   };
 
   if (params.listUnsubscribe) {
-    body.settings = { list_unsubscribe: params.listUnsubscribe };
+    body.list_unsubscribe = params.listUnsubscribe;
   }
 
   const res = await fetch(`${MAILERSEND_BASE}/email`, {

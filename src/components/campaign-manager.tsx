@@ -324,6 +324,10 @@ function CampaignDetail({
             rows={8}
             className="mt-1 flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring font-mono"
           />
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Use <code className="bg-muted px-1 rounded">{"{{unsubscribe}}"}</code> for an unsubscribe link, e.g.{" "}
+            <code className="bg-muted px-1 rounded">{'<a href="{{unsubscribe}}">Unsubscribe</a>'}</code>
+          </p>
         </div>
 
         <div className="flex gap-2">
@@ -761,6 +765,10 @@ export function CampaignManager({
               rows={8}
               className="mt-1 flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring font-mono"
             />
+            <p className="text-xs text-muted-foreground mt-1">
+              Use <code className="bg-muted px-1 rounded">{"{{unsubscribe}}"}</code> to insert an unsubscribe link, e.g.{" "}
+              <code className="bg-muted px-1 rounded">{'<a href="{{unsubscribe}}">Unsubscribe</a>'}</code>
+            </p>
           </div>
 
           <div className="flex gap-2">
