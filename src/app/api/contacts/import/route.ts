@@ -4,9 +4,13 @@ import { contacts } from "@/db/schema/contacts";
 import { eq } from "drizzle-orm";
 import { validateBody } from "@/lib/api-validate";
 import { ImportContactsInput } from "@/lib/schemas";
+import { checkAuth, requireAdmin } from "@/lib/api-auth";
 
 // POST /api/contacts/import
 export async function POST(request: NextRequest) {
+  const authResult = await checkAuth(request);
+  const authError = requireAdmin(authResult);
+  if (authError) return authError;
   const body = await request.json();
   const parsed = validateBody(ImportContactsInput, body);
   if (!parsed.success) return parsed.error;

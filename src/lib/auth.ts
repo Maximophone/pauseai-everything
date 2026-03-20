@@ -9,6 +9,7 @@ import {
   verificationTokens,
 } from "@/db/schema/users";
 import { eq } from "drizzle-orm";
+import type { UserRole } from "@/db/schema/users";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: DrizzleAdapter(db, {
@@ -44,7 +45,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.id = user.id;
       }
 
-      // Always refresh admin status from DB + ADMIN_EMAILS env var
+      // Always refresh role from DB + ADMIN_EMAILS env var
       if (token.id) {
         const adminEmails = (process.env.ADMIN_EMAILS ?? "")
           .split(",")
@@ -52,7 +53,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           .filter(Boolean);
 
         const [dbUser] = await db
-          .select({ isAdmin: users.isAdmin, email: users.email })
+          .select({ role: users.role, email: users.email })
           .from(users)
           .where(eq(users.id, token.id as string));
 
@@ -61,15 +62,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             ? adminEmails.includes(dbUser.email.toLowerCase())
             : false;
 
-          if (isEnvAdmin && !dbUser.isAdmin) {
+          if (isEnvAdmin && dbUser.role !== "admin") {
             // Auto-promote configured admin emails
             await db
               .update(users)
-              .set({ isAdmin: true })
+              .set({ role: "admin" })
               .where(eq(users.id, token.id as string));
-            token.isAdmin = true;
+            token.role = "admin";
           } else {
-            token.isAdmin = dbUser.isAdmin;
+            token.role = dbUser.role;
           }
         }
       }
@@ -80,7 +81,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (session.user) {
         session.user.id = token.id as string;
         // @ts-expect-error - extending session type
-        session.user.isAdmin = token.isAdmin as boolean;
+        session.user.role = (token.role as UserRole) || "viewer";
       }
       return session;
     },

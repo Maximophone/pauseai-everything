@@ -2,11 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { updateTag, deleteTag } from "@/lib/tags";
 import { validateBody, stripNulls } from "@/lib/api-validate";
 import { UpdateTagInput } from "@/lib/schemas";
+import { checkAuth, requireMember, requireAdmin } from "@/lib/api-auth";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
 // PUT /api/tags/:id
 export async function PUT(request: NextRequest, context: RouteContext) {
+  const authResult = await checkAuth(request);
+  const authError = requireMember(authResult);
+  if (authError) return authError;
   const { id } = await context.params;
   const body = await request.json();
   const parsed = validateBody(UpdateTagInput, body);
@@ -20,7 +24,10 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 }
 
 // DELETE /api/tags/:id
-export async function DELETE(_request: NextRequest, context: RouteContext) {
+export async function DELETE(request: NextRequest, context: RouteContext) {
+  const authResult = await checkAuth(request);
+  const authError = requireAdmin(authResult);
+  if (authError) return authError;
   const { id } = await context.params;
   const deleted = await deleteTag(id);
   if (!deleted) {

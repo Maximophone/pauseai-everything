@@ -1,10 +1,10 @@
 import { db } from "@/db";
 import { users } from "@/db/schema/users";
-import { accounts } from "@/db/schema/users";
 import { apiKeys } from "@/db/schema/api-keys";
 import { eq } from "drizzle-orm";
 import { createHash, randomBytes } from "crypto";
 import { sendEmail } from "@/lib/mailersend";
+import type { UserRole } from "@/db/schema/users";
 
 // ── Users ──────────────────────────────────────────────────
 
@@ -26,7 +26,7 @@ export async function getUserByEmail(email: string) {
  * Invite a new user by email. Creates a user record (so they can sign in)
  * and optionally sends an invitation email via Mailersend.
  */
-export async function inviteUser(email: string, invitedByName?: string) {
+export async function inviteUser(email: string, role: UserRole = "viewer", invitedByName?: string) {
   const normalizedEmail = email.toLowerCase().trim();
 
   // Check if user already exists
@@ -40,7 +40,7 @@ export async function inviteUser(email: string, invitedByName?: string) {
     .insert(users)
     .values({
       email: normalizedEmail,
-      isAdmin: false,
+      role,
     })
     .returning();
 
@@ -91,10 +91,10 @@ export async function deleteUser(id: string) {
   return deleted || null;
 }
 
-export async function updateUserRole(id: string, isAdmin: boolean) {
+export async function updateUserRole(id: string, role: UserRole) {
   const [user] = await db
     .update(users)
-    .set({ isAdmin })
+    .set({ role })
     .where(eq(users.id, id))
     .returning();
   return user;

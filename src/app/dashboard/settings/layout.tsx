@@ -12,10 +12,10 @@ export default async function SettingsLayout({
 
   if (!devBypass) {
     const session = await auth();
-    // @ts-expect-error - isAdmin is added in auth callbacks
-    const isAdmin = session?.user?.isAdmin ?? false;
+    // @ts-expect-error - role is added in auth callbacks
+    const role = session?.user?.role ?? "viewer";
 
-    if (!isAdmin) {
+    if (role !== "admin") {
       redirect("/dashboard");
     }
   }

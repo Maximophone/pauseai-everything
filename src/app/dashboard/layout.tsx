@@ -9,6 +9,7 @@ import { TooltipProvider } from "@/components/ui/tooltip"
 import { auth } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import { SessionProvider } from "@/components/session-provider"
+import type { UserRole } from "@/db/schema/users"
 
 export default async function DashboardLayout({
   children,
@@ -21,7 +22,7 @@ export default async function DashboardLayout({
     name: "Dev User",
     email: "dev@pauseai.info",
     avatar: "",
-    isAdmin: true,
+    role: "admin" as UserRole,
   };
 
   if (!devBypass) {
@@ -35,8 +36,8 @@ export default async function DashboardLayout({
       name: session.user.name ?? "User",
       email: session.user.email ?? "",
       avatar: session.user.image ?? "",
-      // @ts-expect-error - isAdmin is added in auth callbacks
-      isAdmin: session.user.isAdmin ?? false,
+      // @ts-expect-error - role is added in auth callbacks
+      role: (session.user.role as UserRole) ?? "viewer",
     };
   }
 

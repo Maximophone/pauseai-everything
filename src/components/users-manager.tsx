@@ -4,26 +4,38 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  ShieldIcon,
-  ShieldOffIcon,
   TrashIcon,
-  PlusIcon,
   MailIcon,
   Loader2Icon,
 } from "lucide-react";
+
+type UserRole = "admin" | "member" | "viewer";
 
 type User = {
   id: string;
   name: string | null;
   email: string | null;
   image: string | null;
-  isAdmin: boolean;
+  role: UserRole;
+};
+
+const roleLabels: Record<UserRole, string> = {
+  admin: "Admin",
+  member: "Member",
+  viewer: "Viewer",
+};
+
+const roleColors: Record<UserRole, string> = {
+  admin: "bg-red-100 text-red-700",
+  member: "bg-blue-100 text-blue-700",
+  viewer: "bg-gray-100 text-gray-700",
 };
 
 export function UsersManager() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<UserRole>("viewer");
   const [inviting, setInviting] = useState(false);
   const [inviteError, setInviteError] = useState("");
   const [inviteSuccess, setInviteSuccess] = useState("");
@@ -51,12 +63,13 @@ export function UsersManager() {
     const res = await fetch("/api/users", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: inviteEmail.trim() }),
+      body: JSON.stringify({ email: inviteEmail.trim(), role: inviteRole }),
     });
 
     if (res.ok) {
       setInviteSuccess(`Invitation sent to ${inviteEmail.trim()}`);
       setInviteEmail("");
+      setInviteRole("viewer");
       fetchUsers();
     } else {
       const data = await res.json();
@@ -66,18 +79,18 @@ export function UsersManager() {
     setInviting(false);
   }
 
-  async function toggleAdmin(userId: string, currentIsAdmin: boolean) {
-    const action = currentIsAdmin ? "remove admin from" : "make admin";
-    if (!confirm(`Are you sure you want to ${action} this user?`)) return;
-
+  async function changeRole(userId: string, newRole: UserRole) {
     const res = await fetch(`/api/users/${userId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ isAdmin: !currentIsAdmin }),
+      body: JSON.stringify({ role: newRole }),
     });
 
     if (res.ok) {
       fetchUsers();
+    } else {
+      const data = await res.json();
+      alert(data.error || "Failed to update role");
     }
   }
 
@@ -125,6 +138,24 @@ export function UsersManager() {
             className="mt-1.5"
           />
         </div>
+        <div>
+          <label
+            htmlFor="invite-role"
+            className="text-sm font-medium text-foreground"
+          >
+            Role
+          </label>
+          <select
+            id="invite-role"
+            value={inviteRole}
+            onChange={(e) => setInviteRole(e.target.value as UserRole)}
+            className="mt-1.5 h-9 rounded-md border border-input bg-background px-3 text-sm"
+          >
+            <option value="viewer">Viewer</option>
+            <option value="member">Member</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
         <Button type="submit" disabled={inviting || !inviteEmail.trim()}>
           {inviting ? (
             <Loader2Icon className="h-4 w-4 animate-spin" />
@@ -141,6 +172,13 @@ export function UsersManager() {
       {inviteSuccess && (
         <p className="text-sm text-green-600">{inviteSuccess}</p>
       )}
+
+      {/* Role descriptions */}
+      <div className="rounded-lg border bg-muted/50 p-4 text-sm space-y-1">
+        <p><strong>Admin</strong> — Full access. Manage users, settings, campaigns, scripts, and all data.</p>
+        <p><strong>Member</strong> — Can view and edit contacts, tags, and interactions. Cannot send campaigns, manage segments/scripts, or access settings.</p>
+        <p><strong>Viewer</strong> — Read-only access across the board.</p>
+      </div>
 
       {/* Users list */}
       <div className="divide-y rounded-lg border">
@@ -175,23 +213,15 @@ export function UsersManager() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              {user.isAdmin && (
-                <span className="inline-flex items-center rounded-full bg-primary/10 text-primary px-2 py-0.5 text-xs font-medium">
-                  Admin
-                </span>
-              )}
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => toggleAdmin(user.id, user.isAdmin)}
-                title={user.isAdmin ? "Remove admin" : "Make admin"}
+              <select
+                value={user.role}
+                onChange={(e) => changeRole(user.id, e.target.value as UserRole)}
+                className={`rounded-full px-2.5 py-0.5 text-xs font-medium border-0 cursor-pointer ${roleColors[user.role]}`}
               >
-                {user.isAdmin ? (
-                  <ShieldOffIcon className="h-4 w-4" />
-                ) : (
-                  <ShieldIcon className="h-4 w-4" />
-                )}
-              </Button>
+                <option value="admin">Admin</option>
+                <option value="member">Member</option>
+                <option value="viewer">Viewer</option>
+              </select>
               <Button
                 size="sm"
                 variant="ghost"

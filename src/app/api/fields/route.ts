@@ -4,9 +4,13 @@ import { fieldDefinitions } from "@/db/schema/field-definitions";
 import { asc } from "drizzle-orm";
 import { validateBody } from "@/lib/api-validate";
 import { CreateFieldInput } from "@/lib/schemas";
+import { checkAuth, requireAuth, requireAdmin } from "@/lib/api-auth";
 
 // GET /api/fields — list all field definitions
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const authResult = await checkAuth(request);
+  const authError = requireAuth(authResult);
+  if (authError) return authError;
   const fields = await db
     .select()
     .from(fieldDefinitions)
@@ -17,6 +21,9 @@ export async function GET() {
 
 // POST /api/fields — create a field definition
 export async function POST(request: NextRequest) {
+  const authResult = await checkAuth(request);
+  const authError = requireAdmin(authResult);
+  if (authError) return authError;
   const body = await request.json();
   const parsed = validateBody(CreateFieldInput, body);
   if (!parsed.success) return parsed.error;

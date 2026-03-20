@@ -4,6 +4,7 @@ import { fieldDefinitions } from "@/db/schema/field-definitions";
 import { eq } from "drizzle-orm";
 import { validateBody } from "@/lib/api-validate";
 import { UpdateFieldInput } from "@/lib/schemas";
+import { checkAuth, requireAdmin } from "@/lib/api-auth";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -12,6 +13,9 @@ export async function PUT(
   request: NextRequest,
   context: RouteContext
 ) {
+  const authResult = await checkAuth(request);
+  const authError = requireAdmin(authResult);
+  if (authError) return authError;
   const { id } = await context.params;
   const body = await request.json();
   const parsed = validateBody(UpdateFieldInput, body);
@@ -41,9 +45,12 @@ export async function PUT(
 
 // DELETE /api/fields/:id
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   context: RouteContext
 ) {
+  const authResult = await checkAuth(request);
+  const authError = requireAdmin(authResult);
+  if (authError) return authError;
   const { id } = await context.params;
 
   const result = await db

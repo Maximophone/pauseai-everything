@@ -7,14 +7,18 @@ import {
 } from "@/lib/contacts";
 import { validateBody } from "@/lib/api-validate";
 import { UpdateContactInput } from "@/lib/schemas";
+import { checkAuth, requireAuth, requireMember, requireAdmin } from "@/lib/api-auth";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
 // GET /api/contacts/:id
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   context: RouteContext
 ) {
+  const authResult = await checkAuth(request);
+  const authError = requireAuth(authResult);
+  if (authError) return authError;
   const { id } = await context.params;
   const contact = await getContact(id);
 
@@ -30,6 +34,9 @@ export async function PUT(
   request: NextRequest,
   context: RouteContext
 ) {
+  const authResult = await checkAuth(request);
+  const authError = requireMember(authResult);
+  if (authError) return authError;
   const { id } = await context.params;
   const body = await request.json();
   const parsed = validateBody(UpdateContactInput, body);
@@ -63,9 +70,12 @@ export async function PUT(
 
 // DELETE /api/contacts/:id
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   context: RouteContext
 ) {
+  const authResult = await checkAuth(request);
+  const authError = requireAdmin(authResult);
+  if (authError) return authError;
   const { id } = await context.params;
   const deleted = await deleteContact(id);
 

@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     name: u.name,
     email: u.email,
     image: u.image,
-    isAdmin: u.isAdmin,
+    role: u.role,
   }));
 
   return NextResponse.json(safeUsers);
@@ -39,7 +39,11 @@ export async function POST(request: NextRequest) {
   const session = await auth();
   const inviterName = session?.user?.name || undefined;
 
-  const { user, alreadyExists } = await inviteUser(parsed.data.email, inviterName);
+  const { user, alreadyExists } = await inviteUser(
+    parsed.data.email,
+    parsed.data.role,
+    inviterName
+  );
 
   if (alreadyExists) {
     return NextResponse.json(
@@ -52,7 +56,7 @@ export async function POST(request: NextRequest) {
     {
       id: user.id,
       email: user.email,
-      isAdmin: user.isAdmin,
+      role: user.role,
     },
     { status: 201 }
   );

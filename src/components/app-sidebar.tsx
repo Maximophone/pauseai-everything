@@ -112,9 +112,10 @@ export function AppSidebar({
   user,
   ...props
 }: React.ComponentProps<typeof Sidebar> & {
-  user: { name: string; email: string; avatar: string; isAdmin: boolean }
+  user: { name: string; email: string; avatar: string; role: string }
 }) {
-  const navItems = user.isAdmin
+  const isAdmin = user.role === "admin";
+  const navItems = isAdmin
     ? allNavItems
     : allNavItems.filter((item) => !("adminOnly" in item && item.adminOnly));
 

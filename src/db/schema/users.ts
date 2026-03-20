@@ -1,5 +1,6 @@
 import {
   pgTable,
+  pgEnum,
   text,
   boolean,
   timestamp,
@@ -7,6 +8,10 @@ import {
   primaryKey,
 } from "drizzle-orm/pg-core";
 import type { AdapterAccountType } from "next-auth/adapters";
+
+export const userRoleEnum = pgEnum("user_role", ["admin", "member", "viewer"]);
+
+export type UserRole = "admin" | "member" | "viewer";
 
 // NextAuth-compatible users table
 export const users = pgTable("user", {
@@ -18,7 +23,7 @@ export const users = pgTable("user", {
   emailVerified: timestamp("emailVerified", { mode: "date" }),
   image: text("image"),
   // App-specific fields
-  isAdmin: boolean("is_admin").default(false).notNull(),
+  role: userRoleEnum("role").default("viewer").notNull(),
 });
 
 export const accounts = pgTable(

@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { validateApiKey } from "@/lib/users";
+import type { UserRole } from "@/db/schema/users";
 
-type AuthResult = {
+export type AuthResult = {
   authenticated: boolean;
   userId?: string;
-  isAdmin?: boolean;
+  role?: UserRole;
   error?: NextResponse;
 };
 
@@ -20,7 +21,7 @@ export async function checkAuth(request: NextRequest): Promise<AuthResult> {
     const key = authHeader.slice(7);
     const apiKey = await validateApiKey(key);
     if (apiKey) {
-      return { authenticated: true, userId: apiKey.userId, isAdmin: true };
+      return { authenticated: true, userId: apiKey.userId, role: "admin" };
     }
     return {
       authenticated: false,
@@ -33,7 +34,7 @@ export async function checkAuth(request: NextRequest): Promise<AuthResult> {
     process.env.NODE_ENV === "development" &&
     process.env.DEV_BYPASS_AUTH === "true"
   ) {
-    return { authenticated: true, userId: undefined, isAdmin: true };
+    return { authenticated: true, userId: undefined, role: "admin" };
   }
 
   // Check session auth
@@ -48,15 +49,41 @@ export async function checkAuth(request: NextRequest): Promise<AuthResult> {
   return {
     authenticated: true,
     userId: session.user.id,
-    // @ts-expect-error - isAdmin is added in auth callbacks
-    isAdmin: session.user.isAdmin ?? false,
+    // @ts-expect-error - role is added in auth callbacks
+    role: (session.user.role as UserRole) ?? "viewer",
   };
 }
 
+/**
+ * Require admin role. Returns error response if not admin, null if OK.
+ */
 export function requireAdmin(authResult: AuthResult): NextResponse | null {
   if (!authResult.authenticated) return authResult.error!;
-  if (!authResult.isAdmin) {
+  if (authResult.role !== "admin") {
     return NextResponse.json({ error: "Admin access required" }, { status: 403 });
   }
+  return null;
+}
+
+/**
+ * Require at least member role (member or admin).
+ * Viewers are rejected.
+ */
+export function requireMember(authResult: AuthResult): NextResponse | null {
+  if (!authResult.authenticated) return authResult.error!;
+  if (authResult.role === "viewer") {
+    return NextResponse.json(
+      { error: "Insufficient permissions. Member or admin role required." },
+      { status: 403 }
+    );
+  }
+  return null;
+}
+
+/**
+ * Require authentication (any role).
+ */
+export function requireAuth(authResult: AuthResult): NextResponse | null {
+  if (!authResult.authenticated) return authResult.error!;
   return null;
 }

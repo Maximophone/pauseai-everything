@@ -6,11 +6,15 @@ import {
 import { getContact } from "@/lib/contacts";
 import { validateBody } from "@/lib/api-validate";
 import { CreateInteractionInput } from "@/lib/schemas";
+import { checkAuth, requireAuth, requireMember } from "@/lib/api-auth";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
 // GET /api/contacts/:id/interactions
 export async function GET(request: NextRequest, context: RouteContext) {
+  const authResult = await checkAuth(request);
+  const authError = requireAuth(authResult);
+  if (authError) return authError;
   const { id } = await context.params;
   const searchParams = request.nextUrl.searchParams;
 
@@ -29,6 +33,9 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
 // POST /api/contacts/:id/interactions
 export async function POST(request: NextRequest, context: RouteContext) {
+  const authResult = await checkAuth(request);
+  const authError = requireMember(authResult);
+  if (authError) return authError;
   const { id: contactId } = await context.params;
   const body = await request.json();
 

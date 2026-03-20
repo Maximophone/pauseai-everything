@@ -22,12 +22,20 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: "User not found." }, { status: 404 });
   }
 
-  const updated = await updateUserRole(id, parsed.data.isAdmin);
+  // Prevent admins from demoting themselves
+  if (id === authResult.userId && parsed.data.role !== "admin") {
+    return NextResponse.json(
+      { error: "You cannot change your own role." },
+      { status: 400 }
+    );
+  }
+
+  const updated = await updateUserRole(id, parsed.data.role);
   return NextResponse.json({
     id: updated.id,
     name: updated.name,
     email: updated.email,
-    isAdmin: updated.isAdmin,
+    role: updated.role,
   });
 }
 

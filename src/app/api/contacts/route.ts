@@ -6,9 +6,13 @@ import {
 } from "@/lib/contacts";
 import { validateBody } from "@/lib/api-validate";
 import { CreateContactInput } from "@/lib/schemas";
+import { checkAuth, requireAuth, requireMember } from "@/lib/api-auth";
 
 // GET /api/contacts — list contacts with search, pagination, sorting
 export async function GET(request: NextRequest) {
+  const authResult = await checkAuth(request);
+  const authError = requireAuth(authResult);
+  if (authError) return authError;
   const searchParams = request.nextUrl.searchParams;
 
   const result = await listContacts({
@@ -25,6 +29,9 @@ export async function GET(request: NextRequest) {
 
 // POST /api/contacts — create a contact
 export async function POST(request: NextRequest) {
+  const authResult = await checkAuth(request);
+  const authError = requireMember(authResult);
+  if (authError) return authError;
   const body = await request.json();
   const parsed = validateBody(CreateContactInput, body);
   if (!parsed.success) return parsed.error;
