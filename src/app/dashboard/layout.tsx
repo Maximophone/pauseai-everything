@@ -21,6 +21,7 @@ export default async function DashboardLayout({
     name: "Dev User",
     email: "dev@pauseai.info",
     avatar: "",
+    isAdmin: true,
   };
 
   if (!devBypass) {
@@ -34,6 +35,8 @@ export default async function DashboardLayout({
       name: session.user.name ?? "User",
       email: session.user.email ?? "",
       avatar: session.user.image ?? "",
+      // @ts-expect-error - isAdmin is added in auth callbacks
+      isAdmin: session.user.isAdmin ?? false,
     };
   }
 

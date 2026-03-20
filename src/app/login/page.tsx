@@ -1,6 +1,13 @@
 import { signIn } from "@/lib/auth";
 
-export default function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const params = await searchParams;
+  const notInvited = params.error === "not_invited";
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50">
       <div className="w-full max-w-sm space-y-6 rounded-lg border bg-white p-8 shadow-sm">
@@ -13,6 +20,17 @@ export default function LoginPage() {
             Sign in to manage your network.
           </p>
         </div>
+
+        {notInvited && (
+          <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <p className="font-medium">Access denied</p>
+            <p className="mt-1">
+              Your email address has not been invited to this system. Please
+              contact an administrator to request access.
+            </p>
+          </div>
+        )}
+
         <form
           action={async () => {
             "use server";
@@ -44,6 +62,10 @@ export default function LoginPage() {
             Sign in with Google
           </button>
         </form>
+
+        <p className="text-center text-xs text-muted-foreground">
+          Access is invite-only. Contact an administrator if you need access.
+        </p>
       </div>
     </div>
   );

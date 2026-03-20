@@ -26,7 +26,7 @@ import {
   ZapIcon,
 } from "lucide-react"
 
-const navItems = [
+const allNavItems = [
     {
       title: "Dashboard",
       url: "/dashboard",
@@ -82,6 +82,7 @@ const navItems = [
       title: "Settings",
       url: "/dashboard/settings",
       icon: (<SettingsIcon />),
+      adminOnly: true,
       items: [
         {
           title: "Fields",
@@ -111,8 +112,12 @@ export function AppSidebar({
   user,
   ...props
 }: React.ComponentProps<typeof Sidebar> & {
-  user: { name: string; email: string; avatar: string }
+  user: { name: string; email: string; avatar: string; isAdmin: boolean }
 }) {
+  const navItems = user.isAdmin
+    ? allNavItems
+    : allNavItems.filter((item) => !("adminOnly" in item && item.adminOnly));
+
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>

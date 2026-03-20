@@ -22,6 +22,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   providers: [Google],
   callbacks: {
+    async signIn({ user, profile }) {
+      // Invite-only: only allow sign-in if the user's email already exists in the DB
+      const email = user.email || profile?.email;
+      if (!email) return false;
+
+      const [existingUser] = await db
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.email, email.toLowerCase()));
+
+      if (!existingUser) {
+        // Redirect to login with error message
+        return "/login?error=not_invited";
+      }
+
+      return true;
+    },
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
