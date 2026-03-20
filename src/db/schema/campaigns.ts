@@ -1,6 +1,7 @@
 import { pgTable, uuid, text, timestamp, integer } from "drizzle-orm/pg-core";
 import { users } from "./users";
 import { segments } from "./segments";
+import { communicationCategories } from "./communication-categories";
 
 export const campaigns = pgTable("campaigns", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -10,6 +11,7 @@ export const campaigns = pgTable("campaigns", {
   fromName: text("from_name"),
   fromEmail: text("from_email"),
   segmentId: uuid("segment_id").references(() => segments.id, { onDelete: "set null" }),
+  categoryId: uuid("category_id").references(() => communicationCategories.id, { onDelete: "set null" }),
   status: text("status").notNull().default("draft"), // draft, sending, sent, failed
   sentCount: integer("sent_count").default(0),
   deliveredCount: integer("delivered_count").default(0),

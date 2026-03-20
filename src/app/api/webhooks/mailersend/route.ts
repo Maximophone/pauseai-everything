@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { emails } from "@/db/schema/emails";
 import { campaigns } from "@/db/schema/campaigns";
+import { contacts } from "@/db/schema/contacts";
+import { communicationCategories } from "@/db/schema/communication-categories";
 import { eq, sql } from "drizzle-orm";
 
 /**
@@ -58,12 +60,17 @@ export async function POST(request: NextRequest) {
         .update(emails)
         .set({ status })
         .where(eq(emails.mailersendId, messageId))
-        .returning({ metadata: emails.metadata });
+        .returning({ metadata: emails.metadata, contactId: emails.contactId });
 
       if (updated.length > 0) {
         const meta = updated[0].metadata as Record<string, unknown> | null;
         if (meta?.campaignId && typeof meta.campaignId === "string") {
           affectedCampaignIds.add(meta.campaignId);
+
+          // Handle unsubscribe: update contact's communication preferences
+          if (type === "activity.unsubscribed" && updated[0].contactId) {
+            await handleWebhookUnsubscribe(meta.campaignId, updated[0].contactId);
+          }
         }
       }
     }
@@ -103,4 +110,40 @@ async function recalculateCampaignCounts(campaignId: string) {
       updatedAt: new Date(),
     })
     .where(eq(campaigns.id, campaignId));
+}
+
+/**
+ * When Mailersend reports an unsubscribe, look up the campaign's category
+ * and set that category to false in the contact's communication preferences.
+ */
+async function handleWebhookUnsubscribe(campaignId: string, contactId: string) {
+  // Find the campaign's category
+  const [campaign] = await db
+    .select({ categoryId: campaigns.categoryId })
+    .from(campaigns)
+    .where(eq(campaigns.id, campaignId));
+
+  if (!campaign?.categoryId) return; // transactional campaign, nothing to update
+
+  const [cat] = await db
+    .select({ name: communicationCategories.name })
+    .from(communicationCategories)
+    .where(eq(communicationCategories.id, campaign.categoryId));
+
+  if (!cat) return;
+
+  const [contact] = await db
+    .select({ communicationPreferences: contacts.communicationPreferences })
+    .from(contacts)
+    .where(eq(contacts.id, contactId));
+
+  if (!contact) return;
+
+  const prefs = (contact.communicationPreferences as Record<string, boolean>) || {};
+  prefs[cat.name] = false;
+
+  await db
+    .update(contacts)
+    .set({ communicationPreferences: prefs, updatedAt: new Date() })
+    .where(eq(contacts.id, contactId));
 }

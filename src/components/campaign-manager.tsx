@@ -26,6 +26,12 @@ type Segment = {
   name: string;
 };
 
+type Category = {
+  id: string;
+  name: string;
+  label: string;
+};
+
 type Campaign = {
   id: string;
   name: string;
@@ -34,6 +40,7 @@ type Campaign = {
   fromName: string | null;
   fromEmail: string | null;
   segmentId: string | null;
+  categoryId: string | null;
   status: string;
   sentCount: number | null;
   deliveredCount: number | null;
@@ -84,10 +91,12 @@ const emailStatusColors: Record<string, string> = {
 function CampaignDetail({
   campaign,
   segments,
+  categories,
   onUpdated,
 }: {
   campaign: Campaign;
   segments: Segment[];
+  categories: Category[];
   onUpdated: () => void;
 }) {
   const [emailList, setEmailList] = useState<CampaignEmail[] | null>(null);
@@ -106,6 +115,7 @@ function CampaignDetail({
   const [editFromName, setEditFromName] = useState(campaign.fromName || "PauseAI");
   const [editFromEmail, setEditFromEmail] = useState(campaign.fromEmail || "");
   const [editSegmentId, setEditSegmentId] = useState(campaign.segmentId || "");
+  const [editCategoryId, setEditCategoryId] = useState(campaign.categoryId || "");
   const [editScheduledAt, setEditScheduledAt] = useState(
     campaign.scheduledAt ? campaign.scheduledAt.slice(0, 16) : ""
   );
@@ -119,6 +129,7 @@ function CampaignDetail({
     setEditFromName(campaign.fromName || "PauseAI");
     setEditFromEmail(campaign.fromEmail || "");
     setEditSegmentId(campaign.segmentId || "");
+    setEditCategoryId(campaign.categoryId || "");
     setEditScheduledAt(campaign.scheduledAt ? campaign.scheduledAt.slice(0, 16) : "");
     setEditError(null);
     setEditing(true);
@@ -139,6 +150,7 @@ function CampaignDetail({
         fromName: editFromName.trim() || null,
         fromEmail: editFromEmail.trim() || null,
         segmentId: editSegmentId || null,
+        categoryId: editCategoryId || null,
         scheduledAt: editScheduledAt || null,
       }),
     });
@@ -209,6 +221,7 @@ function CampaignDetail({
   }
 
   const segName = segments.find((s) => s.id === campaign.segmentId)?.name;
+  const catLabel = categories.find((c) => c.id === campaign.categoryId)?.label;
 
   // ─── Edit form ──────────────────────────────────
   if (editing) {
@@ -275,6 +288,23 @@ function CampaignDetail({
         </div>
 
         <div>
+          <label className="text-xs font-medium text-muted-foreground">Email Category</label>
+          <select
+            value={editCategoryId}
+            onChange={(e) => setEditCategoryId(e.target.value)}
+            className="mt-1 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            <option value="">None (transactional — no unsubscribe)</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>{c.label}</option>
+            ))}
+          </select>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Categorized emails include an unsubscribe link and respect contact preferences.
+          </p>
+        </div>
+
+        <div>
           <label className="text-xs font-medium text-muted-foreground">Subject</label>
           <Input
             value={editSubject}
@@ -319,6 +349,7 @@ function CampaignDetail({
     <div className="mt-2 pl-7 space-y-3 text-sm">
       <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs text-muted-foreground max-w-lg">
         <div>Audience: <span className="text-foreground">{segName || "All contacts"}</span></div>
+        <div>Category: <span className="text-foreground">{catLabel || "Transactional"}</span></div>
         <div>Status: <span className="text-foreground capitalize">{campaign.status}</span></div>
         {campaign.scheduledAt && (
           <div>Scheduled: <span className="text-foreground">{new Date(campaign.scheduledAt).toLocaleString()}</span></div>
@@ -472,9 +503,11 @@ function CampaignDetail({
 export function CampaignManager({
   initialCampaigns,
   segments,
+  categories,
 }: {
   initialCampaigns: Campaign[];
   segments: Segment[];
+  categories: Category[];
 }) {
   const router = useRouter();
   const [campaigns, setCampaigns] = useState<Campaign[]>(initialCampaigns);
@@ -490,6 +523,7 @@ export function CampaignManager({
   const [fromName, setFromName] = useState("PauseAI");
   const [fromEmail, setFromEmail] = useState("");
   const [segmentId, setSegmentId] = useState("");
+  const [categoryId, setCategoryId] = useState("");
   const [scheduledAt, setScheduledAt] = useState("");
   const [creating, setCreating] = useState(false);
 
@@ -505,6 +539,7 @@ export function CampaignManager({
     setFromName("PauseAI");
     setFromEmail("");
     setSegmentId("");
+    setCategoryId("");
     setScheduledAt("");
     setShowCreate(false);
     setError(null);
@@ -525,6 +560,7 @@ export function CampaignManager({
         fromName: fromName.trim() || null,
         fromEmail: fromEmail.trim() || null,
         segmentId: segmentId || null,
+        categoryId: categoryId || null,
         scheduledAt: scheduledAt || null,
       }),
     });
@@ -682,6 +718,25 @@ export function CampaignManager({
 
           <div>
             <label className="text-xs font-medium text-muted-foreground">
+              Email Category
+            </label>
+            <select
+              value={categoryId}
+              onChange={(e) => setCategoryId(e.target.value)}
+              className="mt-1 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              <option value="">None (transactional — no unsubscribe)</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>{c.label}</option>
+              ))}
+            </select>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Categorized emails include an unsubscribe link and respect contact preferences.
+            </p>
+          </div>
+
+          <div>
+            <label className="text-xs font-medium text-muted-foreground">
               Subject
             </label>
             <Input
@@ -801,7 +856,7 @@ export function CampaignManager({
 
               {/* Expanded detail */}
               {expandedId === campaign.id && (
-                <CampaignDetail campaign={campaign} segments={segments} onUpdated={refetch} />
+                <CampaignDetail campaign={campaign} segments={segments} categories={categories} onUpdated={refetch} />
               )}
             </div>
           ))}

@@ -7,6 +7,7 @@ export const CreateCampaignInput = z.object({
   fromName: z.string().nullable().optional(),
   fromEmail: z.string().email().nullable().optional(),
   segmentId: z.string().uuid().nullable().optional(),
+  categoryId: z.string().uuid().nullable().optional(),
   scheduledAt: z.string().datetime().nullable().optional(),
 });
 export type CreateCampaignInput = z.infer<typeof CreateCampaignInput>;
@@ -18,6 +19,7 @@ export const UpdateCampaignInput = z.object({
   fromName: z.string().nullable().optional(),
   fromEmail: z.string().email().nullable().optional(),
   segmentId: z.string().uuid().nullable().optional(),
+  categoryId: z.string().uuid().nullable().optional(),
   scheduledAt: z.string().datetime().nullable().optional(),
 });
 export type UpdateCampaignInput = z.infer<typeof UpdateCampaignInput>;

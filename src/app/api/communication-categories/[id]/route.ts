@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkAuth, requireAdmin } from "@/lib/api-auth";
-import { getCampaign, updateCampaign, deleteCampaign } from "@/lib/campaigns";
+import { getCategory, updateCategory, deleteCategory } from "@/lib/communication-categories";
 import { validateBody, stripNulls } from "@/lib/api-validate";
-import { UpdateCampaignInput } from "@/lib/schemas";
+import { UpdateCategoryInput } from "@/lib/schemas";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -11,12 +11,12 @@ export async function GET(request: NextRequest, context: RouteContext) {
   if (!authResult.authenticated) return authResult.error!;
 
   const { id } = await context.params;
-  const campaign = await getCampaign(id);
-  if (!campaign) {
-    return NextResponse.json({ error: "Campaign not found." }, { status: 404 });
+  const category = await getCategory(id);
+  if (!category) {
+    return NextResponse.json({ error: "Category not found." }, { status: 404 });
   }
 
-  return NextResponse.json(campaign);
+  return NextResponse.json(category);
 }
 
 export async function PUT(request: NextRequest, context: RouteContext) {
@@ -26,16 +26,12 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
   const { id } = await context.params;
   const body = await request.json();
-  const parsed = validateBody(UpdateCampaignInput, body);
+  const parsed = validateBody(UpdateCategoryInput, body);
   if (!parsed.success) return parsed.error;
 
-  // categoryId: null is meaningful (= transactional), so preserve it
-  const { categoryId, ...rest } = parsed.data;
-  const updateData: Record<string, unknown> = stripNulls(rest);
-  if (categoryId !== undefined) updateData.categoryId = categoryId;
-  const updated = await updateCampaign(id, updateData as Parameters<typeof updateCampaign>[1]);
+  const updated = await updateCategory(id, stripNulls(parsed.data));
   if (!updated) {
-    return NextResponse.json({ error: "Campaign not found." }, { status: 404 });
+    return NextResponse.json({ error: "Category not found." }, { status: 404 });
   }
 
   return NextResponse.json(updated);
@@ -47,9 +43,9 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
   if (adminError) return adminError;
 
   const { id } = await context.params;
-  const deleted = await deleteCampaign(id);
+  const deleted = await deleteCategory(id);
   if (!deleted) {
-    return NextResponse.json({ error: "Campaign not found." }, { status: 404 });
+    return NextResponse.json({ error: "Category not found." }, { status: 404 });
   }
 
   return NextResponse.json({ success: true });

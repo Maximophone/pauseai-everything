@@ -2,9 +2,11 @@ import { db } from "@/db";
 import { campaigns } from "@/db/schema/campaigns";
 import { contacts } from "@/db/schema/contacts";
 import { emails } from "@/db/schema/emails";
+import { communicationCategories } from "@/db/schema/communication-categories";
 import { eq, asc, desc, sql } from "drizzle-orm";
 import { getSegment, getSegmentContactIds } from "./segments";
 import { sendEmail, renderTemplate } from "./mailersend";
+import { buildUnsubscribeUrl } from "./unsubscribe-tokens";
 
 export async function listCampaigns() {
   return db.select().from(campaigns).orderBy(desc(campaigns.createdAt));
@@ -22,6 +24,7 @@ export async function createCampaign(data: {
   fromName?: string;
   fromEmail?: string;
   segmentId?: string;
+  categoryId?: string | null;
   scheduledAt?: Date | null;
   createdBy?: string;
 }) {
@@ -38,6 +41,7 @@ export async function updateCampaign(
     fromName: string;
     fromEmail: string;
     segmentId: string;
+    categoryId: string | null;
     status: string;
     scheduledAt: string | Date | null;
   }>
@@ -97,8 +101,19 @@ export async function sendCampaign(campaignId: string) {
   const fromEmail = campaign.fromEmail || process.env.MAILERSEND_FROM_EMAIL || "noreply@pauseai.info";
   const fromName = campaign.fromName || "PauseAI";
 
+  // Look up the category for this campaign (if any)
+  let categoryName: string | null = null;
+  if (campaign.categoryId) {
+    const [cat] = await db
+      .select()
+      .from(communicationCategories)
+      .where(eq(communicationCategories.id, campaign.categoryId));
+    categoryName = cat?.name ?? null;
+  }
+
   let sentCount = 0;
   let bouncedCount = 0;
+  let skippedCount = 0;
 
   for (const contactId of contactIds) {
     const [contact] = await db
@@ -107,6 +122,15 @@ export async function sendCampaign(campaignId: string) {
       .where(eq(contacts.id, contactId));
 
     if (!contact || !contact.email) continue;
+
+    // If campaign has a category, skip contacts who opted out
+    if (categoryName) {
+      const prefs = (contact.communicationPreferences as Record<string, boolean>) || {};
+      if (prefs[categoryName] === false) {
+        skippedCount++;
+        continue;
+      }
+    }
 
     // Merge template fields
     const mergeData: Record<string, unknown> = {
@@ -119,12 +143,23 @@ export async function sendCampaign(campaignId: string) {
     const renderedSubject = renderTemplate(campaign.subject, mergeData);
     const renderedBody = renderTemplate(campaign.body, mergeData);
 
+    // Build unsubscribe URL if campaign has a category
+    let listUnsubscribe: string | undefined;
+    if (categoryName) {
+      try {
+        listUnsubscribe = buildUnsubscribeUrl(contact.id, categoryName);
+      } catch {
+        // UNSUBSCRIBE_SECRET not configured — send without unsubscribe
+      }
+    }
+
     const result = await sendEmail({
       to: [{ email: contact.email, name: contact.firstName || undefined }],
       from: { email: fromEmail, name: fromName },
       subject: renderedSubject,
       html: renderedBody,
       tags: [`campaign:${campaignId}`],
+      listUnsubscribe,
     });
 
     // Log the email
@@ -156,7 +191,7 @@ export async function sendCampaign(campaignId: string) {
     })
     .where(eq(campaigns.id, campaignId));
 
-  return { sentCount, bouncedCount, totalContacts: contactIds.length };
+  return { sentCount, bouncedCount, skippedCount, totalContacts: contactIds.length };
 }
 
 /**

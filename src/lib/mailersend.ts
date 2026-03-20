@@ -8,6 +8,8 @@ type EmailParams = {
   html: string;
   text?: string;
   tags?: string[];
+  /** RFC 8058 one-click unsubscribe URL. Mailersend auto-adds List-Unsubscribe headers. */
+  listUnsubscribe?: string;
 };
 
 type MailersendResponse = {
@@ -22,7 +24,7 @@ export async function sendEmail(params: EmailParams): Promise<MailersendResponse
     return { ok: false, error: "MAILERSEND_API_KEY not configured" };
   }
 
-  const body = {
+  const body: Record<string, unknown> = {
     from: params.from,
     to: params.to,
     subject: params.subject,
@@ -30,6 +32,10 @@ export async function sendEmail(params: EmailParams): Promise<MailersendResponse
     text: params.text,
     tags: params.tags,
   };
+
+  if (params.listUnsubscribe) {
+    body.settings = { list_unsubscribe: params.listUnsubscribe };
+  }
 
   const res = await fetch(`${MAILERSEND_BASE}/email`, {
     method: "POST",

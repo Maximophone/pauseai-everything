@@ -28,6 +28,7 @@ export async function POST(request: NextRequest) {
     fromName: parsed.data.fromName ?? undefined,
     fromEmail: parsed.data.fromEmail ?? undefined,
     segmentId: parsed.data.segmentId ?? undefined,
+    categoryId: parsed.data.categoryId,
     scheduledAt: parsed.data.scheduledAt ? new Date(parsed.data.scheduledAt) : null,
     createdBy: authResult.userId,
   });

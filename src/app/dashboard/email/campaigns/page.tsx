@@ -1,11 +1,13 @@
 import { listCampaigns } from "@/lib/campaigns";
 import { listSegments } from "@/lib/segments";
+import { listCategories } from "@/lib/communication-categories";
 import { CampaignManager } from "@/components/campaign-manager";
 
 export default async function CampaignsPage() {
-  const [campaigns, segments] = await Promise.all([
+  const [campaigns, segments, categories] = await Promise.all([
     listCampaigns(),
     listSegments(),
+    listCategories(),
   ]);
 
   return (
@@ -18,6 +20,7 @@ export default async function CampaignsPage() {
         <CampaignManager
           initialCampaigns={JSON.parse(JSON.stringify(campaigns))}
           segments={JSON.parse(JSON.stringify(segments))}
+          categories={JSON.parse(JSON.stringify(categories))}
         />
       </div>
     </div>

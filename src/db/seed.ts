@@ -1,6 +1,7 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { fieldDefinitions } from "./schema/field-definitions";
+import { communicationCategories } from "./schema/communication-categories";
 
 const connectionString = process.env.DATABASE_URL!;
 const client = postgres(connectionString);
@@ -157,6 +158,23 @@ async function seed() {
   }
 
   console.log(`Seeded ${defaultFields.length} field definitions.`);
+
+  // Seed default communication categories
+  const defaultCategories = [
+    { name: "newsletter", label: "Newsletter", description: "Regular newsletters and updates", sortOrder: 1 },
+    { name: "events", label: "Events", description: "Event invitations and reminders", sortOrder: 2 },
+    { name: "action-alerts", label: "Action Alerts", description: "Urgent calls to action", sortOrder: 3 },
+  ];
+
+  console.log("Seeding communication categories...");
+  for (const cat of defaultCategories) {
+    await db
+      .insert(communicationCategories)
+      .values(cat)
+      .onConflictDoNothing({ target: communicationCategories.name });
+  }
+  console.log(`Seeded ${defaultCategories.length} communication categories.`);
+
   await client.end();
 }
 

@@ -9,3 +9,5 @@ export * from "./scripts";
 export * from "./automations";
 export * from "./api-keys";
 export * from "./users";
+export * from "./communication-categories";
+export * from "./unsubscribe";

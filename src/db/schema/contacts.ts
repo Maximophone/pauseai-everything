@@ -11,6 +11,10 @@ export const contacts = pgTable(
       .$type<Record<string, unknown>>()
       .default({})
       .notNull(),
+    communicationPreferences: jsonb("communication_preferences")
+      .$type<Record<string, boolean>>()
+      .default({})
+      .notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
