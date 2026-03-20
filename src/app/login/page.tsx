@@ -7,6 +7,7 @@ export default async function LoginPage({
 }) {
   const params = await searchParams;
   const notInvited = params.error === "not_invited";
+  const hasError = params.error && !notInvited;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50">
@@ -27,6 +28,16 @@ export default async function LoginPage({
             <p className="mt-1">
               Your email address has not been invited to this system. Please
               contact an administrator to request access.
+            </p>
+          </div>
+        )}
+
+        {hasError && (
+          <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <p className="font-medium">Sign-in failed</p>
+            <p className="mt-1">
+              Something went wrong during sign-in. Please try again or contact
+              an administrator.
             </p>
           </div>
         )}

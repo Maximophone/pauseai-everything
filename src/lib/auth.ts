@@ -21,7 +21,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   session: {
     strategy: "jwt",
   },
-  providers: [Google],
+  providers: [
+    Google({
+      allowDangerousEmailAccountLinking: true,
+    }),
+  ],
   callbacks: {
     async signIn({ user, profile }) {
       // Invite-only: only allow sign-in if the user's email already exists in the DB
