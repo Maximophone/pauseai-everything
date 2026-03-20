@@ -139,8 +139,8 @@ async function handleWebhookUnsubscribe(campaignId: string, contactId: string) {
 
   if (!contact) return;
 
-  const prefs = (contact.communicationPreferences as Record<string, boolean>) || {};
-  prefs[cat.name] = false;
+  const prefs = (contact.communicationPreferences as Record<string, "subscribed" | "unsubscribed">) || {};
+  prefs[cat.name] = "unsubscribed";
 
   await db
     .update(contacts)

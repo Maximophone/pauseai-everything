@@ -12,7 +12,7 @@ export const contacts = pgTable(
       .default({})
       .notNull(),
     communicationPreferences: jsonb("communication_preferences")
-      .$type<Record<string, boolean>>()
+      .$type<Record<string, "subscribed" | "unsubscribed">>()
       .default({})
       .notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),

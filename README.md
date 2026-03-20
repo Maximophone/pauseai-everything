@@ -14,9 +14,10 @@ A Next.js web app + background worker that replaces Airtable + manual email work
 - **Contacts** — spreadsheet-style table with inline editing, custom fields, tags, interaction history
 - **Segments** — visual query builder to define dynamic audiences (e.g. "active members in France")
 - **Campaigns** — compose and send broadcast emails to segments via Mailersend; schedule for later; assign email categories for preference-based filtering
-- **Communication preferences** — contacts can opt in/out of email categories (newsletter, events, etc.); public unsubscribe page with preference center; HMAC-signed unsubscribe links; `{{unsubscribe}}` merge variable for in-body links
+- **Communication preferences** — three-state subscription model (subscribed/unsubscribed/neutral); contacts must be explicitly subscribed to receive categorized emails; public unsubscribe page with preference center; HMAC-signed unsubscribe links; `{{unsubscribe}}` merge variable for in-body links
 - **Scripts** — write JavaScript automation scripts that run on a schedule or on demand (e.g. flag dormant contacts, bulk-update fields)
 - **Settings** — manage custom fields, users, API keys, email categories, app-level settings
+- **Role-based access** — three roles (admin, member, viewer) with invite-only login via Google OAuth
 
 ## Tech stack
 
@@ -62,6 +63,9 @@ NEXTAUTH_URL=http://localhost:3000
 AUTH_GOOGLE_ID=...
 AUTH_GOOGLE_SECRET=...
 DEV_BYPASS_AUTH=true   # skip Google login in development
+ADMIN_EMAILS=you@example.com   # auto-promote to admin
+UNSUBSCRIBE_SECRET=...         # openssl rand -hex 32
+NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
 ### 3. Set up the database
@@ -159,6 +163,23 @@ npm run docs:api      # Regenerate docs/api-reference.md from Zod schemas
 | [docs/deployment.md](docs/deployment.md) | Railway deployment, env vars, how to deploy each service |
 | [docs/build-plan.md](docs/build-plan.md) | Build phases with completion status |
 | [docs/features.md](docs/features.md) | Feature specs, backlog, and future ideas |
+
+## Auth & Permissions
+
+**Invite-only access** — users must be invited by an admin before they can sign in with Google. Uninvited emails are rejected at login.
+
+**Three roles:**
+
+| Role | Can do | Cannot do |
+|------|--------|-----------|
+| **Admin** | Everything — manage users, settings, campaigns, scripts, segments, fields, contacts | — |
+| **Member** | View/edit contacts, tags, interactions | Send campaigns, manage segments/scripts/fields, access settings |
+| **Viewer** | View all data (read-only) | Create, edit, or delete anything |
+
+- Roles assigned by admins in Settings > Users
+- `ADMIN_EMAILS` env var auto-promotes specified emails to admin
+- API key auth (`Bearer pai_<key>`) grants admin access
+- All API routes enforce role checks server-side; UI buttons are disabled for insufficient roles
 
 ## Deployment
 

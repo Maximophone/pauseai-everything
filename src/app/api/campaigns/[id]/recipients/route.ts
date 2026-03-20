@@ -70,8 +70,8 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
   // Add unsubscribed flag and remove communicationPreferences from response
   const recipients = rawRecipients.map((r) => {
-    const prefs = (r.communicationPreferences as Record<string, boolean>) || {};
-    const unsubscribed = categoryName ? prefs[categoryName] === false : false;
+    const prefs = (r.communicationPreferences as Record<string, "subscribed" | "unsubscribed">) || {};
+    const unsubscribed = categoryName ? prefs[categoryName] !== "subscribed" : false;
     return {
       id: r.id,
       email: r.email,

@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Contact not found." }, { status: 404 });
   }
 
-  const currentPrefs = (contact.communicationPreferences as Record<string, boolean>) || {};
+  const currentPrefs = (contact.communicationPreferences as Record<string, "subscribed" | "unsubscribed">) || {};
 
   if (preferences) {
     // Bulk update — user toggled multiple categories from the preference center
@@ -44,11 +44,7 @@ export async function POST(request: NextRequest) {
     const newPrefs = { ...currentPrefs };
     for (const [key, value] of Object.entries(preferences)) {
       if (validNames.has(key)) {
-        if (value) {
-          delete newPrefs[key]; // opted-in = remove key (default is opted-in)
-        } else {
-          newPrefs[key] = false;
-        }
+        newPrefs[key] = value;
       }
     }
 
@@ -58,7 +54,7 @@ export async function POST(request: NextRequest) {
       .where(eq(contacts.id, contactId));
   } else {
     // One-click unsubscribe — just opt out of the specified category
-    const newPrefs = { ...currentPrefs, [category]: false };
+    const newPrefs = { ...currentPrefs, [category]: "unsubscribed" as const };
 
     await db
       .update(contacts)

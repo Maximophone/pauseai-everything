@@ -60,7 +60,7 @@ export default async function ContactDetailPage({
             <ContactPreferences
               contactId={contact.id}
               initialPreferences={
-                (contact.communicationPreferences as Record<string, boolean>) || {}
+                (contact.communicationPreferences as Record<string, "subscribed" | "unsubscribed">) || {}
               }
             />
           </div>

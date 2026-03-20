@@ -275,10 +275,12 @@ export function FieldsManager({
 
       {/* Create button */}
       {!showCreate && (
-        <Button onClick={() => setShowCreate(true)} disabled={!isAdmin} title={!isAdmin ? "Admin access required" : undefined}>
-          <PlusIcon className="mr-2 h-4 w-4" />
-          Add Field
-        </Button>
+        <span title={!isAdmin ? "Admin access required" : undefined}>
+          <Button onClick={() => setShowCreate(true)} disabled={!isAdmin}>
+            <PlusIcon className="mr-2 h-4 w-4" />
+            Add Field
+          </Button>
+        </span>
       )}
 
       {/* Create form */}
@@ -369,16 +371,17 @@ export function FieldsManager({
           )}
 
           <div className="flex gap-2">
-            <Button
-              onClick={createField}
-              disabled={
-                !isAdmin || !newField.name.trim() || !newField.label.trim() || saving
-              }
-              size="sm"
-              title={!isAdmin ? "Admin access required" : undefined}
-            >
-              {saving ? "Creating..." : "Create Field"}
-            </Button>
+            <span title={!isAdmin ? "Admin access required" : undefined}>
+              <Button
+                onClick={createField}
+                disabled={
+                  !isAdmin || !newField.name.trim() || !newField.label.trim() || saving
+                }
+                size="sm"
+              >
+                {saving ? "Creating..." : "Create Field"}
+              </Button>
+            </span>
             <Button
               variant="ghost"
               size="sm"
@@ -468,15 +471,16 @@ export function FieldsManager({
                 )}
 
                 <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    onClick={() => saveEdit(field.id)}
-                    disabled={!isAdmin || saving || !editData.label.trim()}
-                    title={!isAdmin ? "Admin access required" : undefined}
-                  >
-                    <CheckIcon className="mr-1 h-3 w-3" />
-                    {saving ? "Saving..." : "Save"}
-                  </Button>
+                  <span title={!isAdmin ? "Admin access required" : undefined}>
+                    <Button
+                      size="sm"
+                      onClick={() => saveEdit(field.id)}
+                      disabled={!isAdmin || saving || !editData.label.trim()}
+                    >
+                      <CheckIcon className="mr-1 h-3 w-3" />
+                      {saving ? "Saving..." : "Save"}
+                    </Button>
+                  </span>
                   <Button
                     size="sm"
                     variant="ghost"
@@ -547,15 +551,16 @@ export function FieldsManager({
                   >
                     <PencilIcon className="h-4 w-4" />
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => deleteField(field.id, field.label)}
-                    disabled={!isAdmin}
-                    title={!isAdmin ? "Admin access required" : undefined}
-                  >
-                    <Trash2Icon className="h-4 w-4" />
-                  </Button>
+                  <span title={!isAdmin ? "Admin access required" : undefined}>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => deleteField(field.id, field.label)}
+                      disabled={!isAdmin}
+                    >
+                      <Trash2Icon className="h-4 w-4" />
+                    </Button>
+                  </span>
                 </div>
               </div>
             )}

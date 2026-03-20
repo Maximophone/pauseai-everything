@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useHasRole } from "@/lib/hooks/use-user-role";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -17,6 +18,7 @@ import { PlusIcon } from "lucide-react";
 
 export function AddContactButton() {
   const router = useRouter();
+  const canEdit = useHasRole("member");
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,11 +57,13 @@ export function AddContactButton() {
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button />}>
-        <PlusIcon className="mr-2 h-4 w-4" />
-        Add Contact
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={(v) => { if (canEdit) setOpen(v); }}>
+      <span title={!canEdit ? "Member access required" : undefined}>
+        <DialogTrigger render={<Button disabled={!canEdit} />}>
+          <PlusIcon className="mr-2 h-4 w-4" />
+          Add Contact
+        </DialogTrigger>
+      </span>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Add Contact</DialogTitle>

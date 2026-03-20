@@ -8,7 +8,7 @@ type CategoryInfo = {
   name: string;
   label: string;
   description: string | null;
-  optedOut: boolean;
+  status: "subscribed" | "unsubscribed" | "neutral";
 };
 
 function UnsubscribeContent() {
@@ -65,9 +65,9 @@ function UnsubscribeContent() {
     if (!categories || !contactId || !category || !token) return;
     setSaving(true);
 
-    const preferences: Record<string, boolean> = {};
+    const preferences: Record<string, "subscribed" | "unsubscribed"> = {};
     for (const cat of categories) {
-      preferences[cat.name] = !cat.optedOut;
+      preferences[cat.name] = cat.status === "unsubscribed" ? "unsubscribed" : "subscribed";
     }
 
     const res = await fetch("/api/unsubscribe", {
@@ -143,11 +143,13 @@ function UnsubscribeContent() {
               >
                 <input
                   type="checkbox"
-                  checked={!cat.optedOut}
+                  checked={cat.status !== "unsubscribed"}
                   onChange={() => {
                     setCategories(
                       categories.map((c) =>
-                        c.name === cat.name ? { ...c, optedOut: !c.optedOut } : c
+                        c.name === cat.name
+                          ? { ...c, status: c.status === "unsubscribed" ? "subscribed" as const : "unsubscribed" as const }
+                          : c
                       )
                     );
                   }}

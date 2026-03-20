@@ -17,7 +17,7 @@ export const UpdateContactInput = z.object({
   firstName: z.string().nullable().optional(),
   lastName: z.string().nullable().optional(),
   customFields: z.record(z.string(), z.unknown()).optional(),
-  communicationPreferences: z.record(z.string(), z.boolean()).optional(),
+  communicationPreferences: z.record(z.string(), z.enum(["subscribed", "unsubscribed"])).optional(),
 });
 export type UpdateContactInput = z.infer<typeof UpdateContactInput>;
 

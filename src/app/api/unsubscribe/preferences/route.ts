@@ -37,14 +37,14 @@ export async function GET(request: NextRequest) {
     .from(communicationCategories)
     .orderBy(asc(communicationCategories.sortOrder));
 
-  const prefs = (contact.communicationPreferences as Record<string, boolean>) || {};
+  const prefs = (contact.communicationPreferences as Record<string, "subscribed" | "unsubscribed">) || {};
 
   const categories = allCategories.map((cat) => ({
     id: cat.id,
     name: cat.name,
     label: cat.label,
     description: cat.description,
-    optedOut: prefs[cat.name] === false,
+    status: prefs[cat.name] ?? "neutral" as "subscribed" | "unsubscribed" | "neutral",
   }));
 
   return NextResponse.json({ categories });

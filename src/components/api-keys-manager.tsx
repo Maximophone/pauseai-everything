@@ -89,10 +89,12 @@ export function ApiKeysManager() {
             if (e.key === "Enter") createKey();
           }}
         />
-        <Button onClick={createKey} disabled={!isAdmin || !newName.trim() || creating} title={!isAdmin ? "Admin access required" : undefined}>
-          <PlusIcon className="mr-2 h-4 w-4" />
-          Create
-        </Button>
+        <span title={!isAdmin ? "Admin access required" : undefined}>
+          <Button onClick={createKey} disabled={!isAdmin || !newName.trim() || creating}>
+            <PlusIcon className="mr-2 h-4 w-4" />
+            Create
+          </Button>
+        </span>
       </div>
 
       {/* Show newly created key */}
@@ -154,15 +156,16 @@ export function ApiKeysManager() {
                   )}
                 </div>
               </div>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => deleteKey(key.id)}
-                disabled={!isAdmin}
-                title={!isAdmin ? "Admin access required" : undefined}
-              >
-                <Trash2Icon className="h-4 w-4" />
-              </Button>
+              <span title={!isAdmin ? "Admin access required" : undefined}>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => deleteKey(key.id)}
+                  disabled={!isAdmin}
+                >
+                  <Trash2Icon className="h-4 w-4" />
+                </Button>
+              </span>
             </div>
           ))}
         </div>

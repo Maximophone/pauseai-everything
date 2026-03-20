@@ -274,10 +274,12 @@ export function ScriptsManager({ initialScripts }: { initialScripts: Script[] })
       {/* Action buttons */}
       {!showCreate && !editingScript && (
         <div className="flex gap-2 flex-wrap">
-          <Button onClick={() => startFromTemplate(SCRIPT_TEMPLATES[0])} disabled={!isAdmin} title={!isAdmin ? "Admin access required" : undefined}>
-            <PlusIcon className="mr-2 h-4 w-4" />
-            New Script
-          </Button>
+          <span title={!isAdmin ? "Admin access required" : undefined}>
+            <Button onClick={() => startFromTemplate(SCRIPT_TEMPLATES[0])} disabled={!isAdmin}>
+              <PlusIcon className="mr-2 h-4 w-4" />
+              New Script
+            </Button>
+          </span>
           <div className="relative group">
             <Button variant="outline">
               <FileCodeIcon className="mr-2 h-4 w-4" />
@@ -378,9 +380,11 @@ export function ScriptsManager({ initialScripts }: { initialScripts: Script[] })
           </div>
 
           <div className="flex gap-2">
-            <Button onClick={createNewScript} disabled={!isAdmin || loading || !name.trim()} size="sm" title={!isAdmin ? "Admin access required" : undefined}>
-              {loading ? "Creating..." : "Create Script"}
-            </Button>
+            <span title={!isAdmin ? "Admin access required" : undefined}>
+              <Button onClick={createNewScript} disabled={!isAdmin || loading || !name.trim()} size="sm">
+                {loading ? "Creating..." : "Create Script"}
+              </Button>
+            </span>
             <Button variant="ghost" size="sm" onClick={resetForm}>
               Cancel
             </Button>
@@ -496,20 +500,23 @@ export function ScriptsManager({ initialScripts }: { initialScripts: Script[] })
           </div>
 
           <div className="flex gap-2">
-            <Button onClick={saveScript} disabled={!isAdmin || loading} size="sm" title={!isAdmin ? "Admin access required" : undefined}>
-              <SaveIcon className="mr-1 h-3 w-3" />
-              {loading ? "Saving..." : "Save"}
-            </Button>
-            <Button
-              onClick={() => runScript(editingScript.id)}
-              disabled={!isAdmin || loading}
-              size="sm"
-              variant="outline"
-              title={!isAdmin ? "Admin access required" : undefined}
-            >
-              <PlayIcon className="mr-1 h-3 w-3" />
-              {loading ? "Running..." : "Run Now"}
-            </Button>
+            <span title={!isAdmin ? "Admin access required" : undefined}>
+              <Button onClick={saveScript} disabled={!isAdmin || loading} size="sm">
+                <SaveIcon className="mr-1 h-3 w-3" />
+                {loading ? "Saving..." : "Save"}
+              </Button>
+            </span>
+            <span title={!isAdmin ? "Admin access required" : undefined}>
+              <Button
+                onClick={() => runScript(editingScript.id)}
+                disabled={!isAdmin || loading}
+                size="sm"
+                variant="outline"
+              >
+                <PlayIcon className="mr-1 h-3 w-3" />
+                {loading ? "Running..." : "Run Now"}
+              </Button>
+            </span>
           </div>
         </div>
       )}
@@ -573,15 +580,16 @@ export function ScriptsManager({ initialScripts }: { initialScripts: Script[] })
                 </button>
 
                 <div className="flex items-center gap-1 shrink-0">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => runScript(script.id)}
-                    disabled={!isAdmin || loading}
-                    title={!isAdmin ? "Admin access required" : "Run now"}
-                  >
-                    <PlayIcon className="h-4 w-4" />
-                  </Button>
+                  <span title={!isAdmin ? "Admin access required" : "Run now"}>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => runScript(script.id)}
+                      disabled={!isAdmin || loading}
+                    >
+                      <PlayIcon className="h-4 w-4" />
+                    </Button>
+                  </span>
                   <Button
                     size="sm"
                     variant="ghost"
@@ -590,28 +598,30 @@ export function ScriptsManager({ initialScripts }: { initialScripts: Script[] })
                   >
                     <HistoryIcon className="h-4 w-4" />
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => toggleEnabled(script)}
-                    disabled={!isAdmin}
-                    title={!isAdmin ? "Admin access required" : script.enabled ? "Disable" : "Enable"}
-                  >
-                    {script.enabled ? (
-                      <PauseIcon className="h-4 w-4" />
-                    ) : (
-                      <ZapIcon className="h-4 w-4" />
-                    )}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => deleteScriptById(script.id)}
-                    disabled={!isAdmin}
-                    title={!isAdmin ? "Admin access required" : "Delete"}
-                  >
-                    <Trash2Icon className="h-4 w-4" />
-                  </Button>
+                  <span title={!isAdmin ? "Admin access required" : script.enabled ? "Disable" : "Enable"}>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => toggleEnabled(script)}
+                      disabled={!isAdmin}
+                    >
+                      {script.enabled ? (
+                        <PauseIcon className="h-4 w-4" />
+                      ) : (
+                        <ZapIcon className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </span>
+                  <span title={!isAdmin ? "Admin access required" : "Delete"}>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => deleteScriptById(script.id)}
+                      disabled={!isAdmin}
+                    >
+                      <Trash2Icon className="h-4 w-4" />
+                    </Button>
+                  </span>
                 </div>
               </div>
 

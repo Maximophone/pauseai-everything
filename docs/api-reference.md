@@ -10,8 +10,9 @@ Two auth methods are supported:
 
 Auth levels:
 - **No auth**: Public endpoint
-- **Session**: Any authenticated user
-- **Admin**: Requires admin role (returns 403 otherwise)
+- **Auth: Any**: Any authenticated user (viewer, member, or admin)
+- **Auth: Member**: Requires member or admin role (returns 403 for viewers)
+- **Auth: Admin**: Requires admin role (returns 403 for member/viewer)
 
 ## Error Format
 
@@ -23,13 +24,13 @@ Auth levels:
 
 ### `GET /api/contacts`
 
-List contacts with search, pagination, and sorting. No auth required
+List contacts with search, pagination, and sorting. **Auth: Any**
 
 **Response:** { contacts: Contact[], total: number, page: number, pageSize: number }
 
 ### `POST /api/contacts`
 
-Create a new contact. No auth required
+Create a new contact. **Auth: Member**
 
 **Request body** (`CreateContactInput`):
 ```
@@ -47,7 +48,7 @@ Create a new contact. No auth required
 
 ### `GET /api/contacts/:id`
 
-Get a single contact by ID. No auth required
+Get a single contact by ID. **Auth: Any**
 
 **Response:** Contact
 
@@ -55,7 +56,7 @@ Get a single contact by ID. No auth required
 
 ### `PUT /api/contacts/:id`
 
-Update a contact (partial update). No auth required
+Update a contact (partial update). **Auth: Member**
 
 **Request body** (`UpdateContactInput`):
 ```
@@ -76,7 +77,7 @@ Update a contact (partial update). No auth required
 
 ### `DELETE /api/contacts/:id`
 
-Delete a contact. No auth required
+Delete a contact. **Auth: Admin**
 
 **Response:** { success: true }
 
@@ -84,7 +85,7 @@ Delete a contact. No auth required
 
 ### `POST /api/contacts/import`
 
-Bulk import contacts from CSV data. No auth required
+Bulk import contacts from CSV data. **Auth: Admin**
 
 **Request body** (`ImportContactsInput`):
 ```
@@ -101,7 +102,7 @@ Bulk import contacts from CSV data. No auth required
 
 ### `GET /api/contacts/:id/interactions`
 
-List interactions for a contact (paginated). No auth required
+List interactions for a contact (paginated). **Auth: Any**
 
 **Response:** { interactions: Interaction[], total, page, pageSize }
 
@@ -109,7 +110,7 @@ List interactions for a contact (paginated). No auth required
 
 ### `POST /api/contacts/:id/interactions`
 
-Create an interaction for a contact. No auth required
+Create an interaction for a contact. **Auth: Member**
 
 **Request body** (`CreateInteractionInput`):
 ```
@@ -128,7 +129,7 @@ Create an interaction for a contact. No auth required
 
 ### `GET /api/contacts/:id/tags`
 
-List tags for a contact. No auth required
+List tags for a contact. **Auth: Any**
 
 **Response:** Tag[]
 
@@ -136,7 +137,7 @@ List tags for a contact. No auth required
 
 ### `POST /api/contacts/:id/tags`
 
-Add a tag to a contact. No auth required
+Add a tag to a contact. **Auth: Member**
 
 **Request body** (`ContactTagInput`):
 ```
@@ -151,7 +152,7 @@ Add a tag to a contact. No auth required
 
 ### `DELETE /api/contacts/:id/tags`
 
-Remove a tag from a contact. No auth required
+Remove a tag from a contact. **Auth: Member**
 
 **Request body** (`ContactTagInput`):
 ```
@@ -166,7 +167,7 @@ Remove a tag from a contact. No auth required
 
 ### `GET /api/contacts/tags?ids=uuid1,uuid2`
 
-Get tags for multiple contacts (batch). No auth required
+Get tags for multiple contacts (batch). **Auth: Any**
 
 **Response:** Record<contactId, Tag[]>
 
@@ -174,7 +175,7 @@ Get tags for multiple contacts (batch). No auth required
 
 ### `DELETE /api/interactions/:id`
 
-Delete an interaction. No auth required
+Delete an interaction. **Auth: Member**
 
 **Response:** { success: true }
 
@@ -184,13 +185,13 @@ Delete an interaction. No auth required
 
 ### `GET /api/tags`
 
-List all tags. No auth required
+List all tags. **Auth: Any**
 
 **Response:** Tag[]
 
 ### `POST /api/tags`
 
-Create a tag. No auth required
+Create a tag. **Auth: Member**
 
 **Request body** (`CreateTagInput`):
 ```
@@ -206,7 +207,7 @@ Create a tag. No auth required
 
 ### `PUT /api/tags/:id`
 
-Update a tag. No auth required
+Update a tag. **Auth: Member**
 
 **Request body** (`UpdateTagInput`):
 ```
@@ -222,7 +223,7 @@ Update a tag. No auth required
 
 ### `DELETE /api/tags/:id`
 
-Delete a tag. No auth required
+Delete a tag. **Auth: Admin**
 
 **Response:** { success: true }
 
@@ -232,13 +233,13 @@ Delete a tag. No auth required
 
 ### `GET /api/fields`
 
-List all custom field definitions. No auth required
+List all custom field definitions. **Auth: Any**
 
 **Response:** FieldDefinition[]
 
 ### `POST /api/fields`
 
-Create a custom field definition. No auth required
+Create a custom field definition. **Auth: Admin**
 
 **Request body** (`CreateFieldInput`):
 ```
@@ -258,7 +259,7 @@ Create a custom field definition. No auth required
 
 ### `PUT /api/fields/:id`
 
-Update a field definition. No auth required
+Update a field definition. **Auth: Admin**
 
 **Request body** (`UpdateFieldInput`):
 ```
@@ -277,7 +278,7 @@ Update a field definition. No auth required
 
 ### `DELETE /api/fields/:id`
 
-Delete a field definition. No auth required
+Delete a field definition. **Auth: Admin**
 
 **Response:** { success: true }
 
@@ -287,7 +288,7 @@ Delete a field definition. No auth required
 
 ### `GET /api/segments`
 
-List all segments. **Auth: Session**
+List all segments. **Auth: Any**
 
 **Response:** Segment[]
 
@@ -317,7 +318,7 @@ Create a segment. **Auth: Admin**
 
 ### `GET /api/segments/:id`
 
-Get a single segment. **Auth: Session**
+Get a single segment. **Auth: Any**
 
 **Response:** Segment
 
@@ -357,7 +358,7 @@ Delete a segment. **Auth: Admin**
 
 ### `POST /api/segments/preview`
 
-Preview contacts matching a segment filter. **Auth: Session**
+Preview contacts matching a segment filter. **Auth: Any**
 
 **Request body** (`SegmentPreviewInput`):
 ```
@@ -381,7 +382,7 @@ Preview contacts matching a segment filter. **Auth: Session**
 
 ### `GET /api/campaigns`
 
-List all campaigns. **Auth: Session**
+List all campaigns. **Auth: Any**
 
 **Response:** Campaign[]
 
@@ -411,7 +412,7 @@ Create a campaign. **Auth: Admin**
 
 ### `GET /api/campaigns/:id`
 
-Get a single campaign. **Auth: Session**
+Get a single campaign. **Auth: Any**
 
 **Response:** Campaign
 
@@ -472,7 +473,7 @@ Send a preview email for a campaign. **Auth: Admin**
 
 ### `GET /api/campaigns/:id/recipients`
 
-Preview who would receive this campaign based on its segment and category. Contacts who opted out of the campaign's category are included but flagged. **Auth: Session**
+Preview who would receive this campaign based on its segment and category. Contacts who opted out of the campaign's category are included but flagged. **Auth: Any**
 
 **Response:**
 ```
@@ -488,7 +489,7 @@ Preview who would receive this campaign based on its segment and category. Conta
 
 ### `GET /api/campaigns/:id/emails`
 
-List email records for a campaign. **Auth: Session**
+List email records for a campaign. **Auth: Any**
 
 **Response:** Email[]
 
@@ -674,7 +675,23 @@ Execute an automation rule now. **Auth: Admin**
 
 List all users. **Auth: Admin**
 
-**Response:** { id, name, email, image, isAdmin }[]
+**Response:** { id, name, email, image, role }[]
+
+### `POST /api/users`
+
+Invite a user. **Auth: Admin**
+
+**Request body**:
+```
+{
+  "email": string,
+  "role": "admin" | "member" | "viewer"
+}
+```
+
+**Response:** { id, email, role } (201)
+
+**Errors:** `409 already exists`
 
 ### `PUT /api/users/:id`
 
@@ -683,13 +700,21 @@ Update user role. **Auth: Admin**
 **Request body** (`UpdateUserInput`):
 ```
 {
-  "isAdmin": boolean
+  "role": "admin" | "member" | "viewer"
 }
 ```
 
-**Response:** { id, name, email, isAdmin }
+**Response:** { id, name, email, role }
 
 **Errors:** `400 validation`, `404 not found`
+
+### `DELETE /api/users/:id`
+
+Remove a user. **Auth: Admin**
+
+**Response:** { success: true }
+
+**Errors:** `400 cannot delete self`, `404 not found`
 
 ## Api-keys
 
@@ -744,7 +769,7 @@ Receive Tally form submissions, creates/updates contacts and logs interactions. 
 
 ### `GET /api/communication-categories`
 
-List all email categories. **Auth: Session**
+List all email categories. **Auth: Any**
 
 **Response:** Category[]
 
@@ -768,7 +793,7 @@ Create a new email category. **Auth: Admin**
 
 ### `GET /api/communication-categories/:id`
 
-Get a single category. **Auth: Session**
+Get a single category. **Auth: Any**
 
 **Response:** Category
 
@@ -840,7 +865,7 @@ Get a contact's subscription status for all categories. Authenticated by HMAC to
 
 ### `GET /api/settings`
 
-Get all app-level settings as key-value pairs. **Auth: Session**
+Get all app-level settings as key-value pairs. **Auth: Any**
 
 **Response:** Record<string, string>
 

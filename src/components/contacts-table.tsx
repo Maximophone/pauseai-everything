@@ -13,6 +13,8 @@ import {
 } from "ag-grid-community";
 import { useRouter } from "next/navigation";
 import { Download } from "lucide-react";
+import { TagCellEditor } from "./tag-cell-editor";
+import { SubscriptionCellEditor } from "./subscription-cell-editor";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -32,7 +34,7 @@ type Contact = {
   firstName: string | null;
   lastName: string | null;
   customFields: Record<string, unknown>;
-  communicationPreferences: Record<string, boolean>;
+  communicationPreferences: Record<string, "subscribed" | "unsubscribed">;
   createdAt: string;
   updatedAt: string;
 };
@@ -138,6 +140,8 @@ export function ContactsTable({
     initialContacts.map((c) => ({ ...flattenContact(c), _tags: initialTagsMap[c.id] || [] }))
   );
   const [search, setSearch] = useState("");
+  const [editingTagsFor, setEditingTagsFor] = useState<{ contactId: string; rect: DOMRect } | null>(null);
+  const [editingSubsFor, setEditingSubsFor] = useState<{ contactId: string; rect: DOMRect } | null>(null);
 
   // Sync rowData when server re-renders with new initialContacts
   useEffect(() => {
@@ -178,19 +182,32 @@ export function ContactsTable({
         width: 180,
         valueFormatter: (params: { value: unknown }) =>
           Array.isArray(params.value) ? params.value.join(", ") : "",
-        cellRenderer: (params: { value: unknown }) => {
+        cellRenderer: (params: { value: unknown; data: FlatContact; eGridCell: HTMLElement }) => {
           const tagList = Array.isArray(params.value) ? params.value : [];
-          if (tagList.length === 0) return null;
+          const handleClick = () => {
+            if (!canEdit || !params.eGridCell) return;
+            const rect = params.eGridCell.getBoundingClientRect();
+            setEditingTagsFor({ contactId: params.data.id, rect });
+          };
           return (
-            <div className="flex gap-1 flex-wrap items-center h-full">
-              {tagList.map((tag: string) => (
-                <span
-                  key={tag}
-                  className="inline-flex items-center rounded-full bg-primary/10 text-primary px-2 py-0.5 text-xs font-medium"
-                >
-                  {tag}
-                </span>
-              ))}
+            <div
+              className={`flex gap-1 flex-wrap items-center h-full ${canEdit ? "cursor-pointer" : ""}`}
+              onClick={handleClick}
+            >
+              {tagList.length === 0 ? (
+                canEdit ? (
+                  <span className="text-xs text-muted-foreground">+ Add tags</span>
+                ) : null
+              ) : (
+                tagList.map((tag: string) => (
+                  <span
+                    key={tag}
+                    className="inline-flex items-center rounded-full bg-primary/10 text-primary px-2 py-0.5 text-xs font-medium"
+                  >
+                    {tag}
+                  </span>
+                ))
+              )}
             </div>
           );
         },
@@ -199,36 +216,61 @@ export function ContactsTable({
         field: "_commPrefs",
         headerName: "Subscriptions",
         editable: false,
-        width: 160,
+        width: 180,
         valueGetter: (params: { data: FlatContact }) => {
-          const prefs = (params.data?._commPrefs || {}) as Record<string, boolean>;
-          const optOuts = Object.entries(prefs)
-            .filter(([, v]) => v === false)
-            .map(([k]) => k);
-          return optOuts.length > 0 ? optOuts : null;
+          const prefs = (params.data?._commPrefs || {}) as Record<string, "subscribed" | "unsubscribed">;
+          const entries = Object.entries(prefs);
+          const subscribed = entries.filter(([, v]) => v === "subscribed").map(([k]) => k);
+          const unsubscribed = entries.filter(([, v]) => v === "unsubscribed").map(([k]) => k);
+          return { subscribed, unsubscribed, total: entries.length };
         },
         valueFormatter: (params: { value: unknown }) => {
-          const optOuts = params.value as string[] | null;
-          if (!optOuts || optOuts.length === 0) return "All subscribed";
-          return `Opted out: ${optOuts.join(", ")}`;
+          const val = params.value as { subscribed: string[]; unsubscribed: string[]; total: number } | null;
+          if (!val || val.total === 0) return "No preferences";
+          if (val.unsubscribed.length > 0) return `Opted out: ${val.unsubscribed.join(", ")}`;
+          return `Subscribed (${val.subscribed.length})`;
         },
-        cellRenderer: (params: { value: unknown }) => {
-          const optOuts = params.value as string[] | null;
-          if (!optOuts || optOuts.length === 0) {
-            return (
-              <span className="text-xs text-green-600">All subscribed</span>
-            );
-          }
-          return (
-            <div className="flex gap-1 flex-wrap items-center h-full">
-              {optOuts.map((name: string) => (
-                <span
-                  key={name}
-                  className="inline-flex items-center rounded-full bg-orange-50 text-orange-600 px-2 py-0.5 text-xs font-medium"
-                >
-                  {name}
+        cellRenderer: (params: { value: unknown; data: FlatContact; eGridCell: HTMLElement }) => {
+          const val = params.value as { subscribed: string[]; unsubscribed: string[]; total: number } | null;
+          const handleClick = () => {
+            if (!canEdit || !params.eGridCell) return;
+            const rect = params.eGridCell.getBoundingClientRect();
+            setEditingSubsFor({ contactId: params.data.id, rect });
+          };
+          const content = (() => {
+            if (!val || val.total === 0) {
+              return (
+                <span className="text-xs text-gray-400">
+                  {canEdit ? "Click to set" : "No preferences"}
                 </span>
-              ))}
+              );
+            }
+            if (val.unsubscribed.length > 0) {
+              return (
+                <div className="flex gap-1 flex-wrap items-center h-full">
+                  {val.unsubscribed.map((name: string) => (
+                    <span
+                      key={name}
+                      className="inline-flex items-center rounded-full bg-orange-50 text-orange-600 px-2 py-0.5 text-xs font-medium"
+                    >
+                      {name}
+                    </span>
+                  ))}
+                </div>
+              );
+            }
+            return (
+              <span className="text-xs text-green-600">
+                Subscribed ({val.subscribed.length})
+              </span>
+            );
+          })();
+          return (
+            <div
+              className={`h-full flex items-center ${canEdit ? "cursor-pointer" : ""}`}
+              onClick={handleClick}
+            >
+              {content}
             </div>
           );
         },
@@ -328,8 +370,65 @@ export function ContactsTable({
     return () => clearTimeout(timer);
   }, [search]);
 
+  // Get current prefs for the editing contact
+  const editingSubsPrefs = editingSubsFor
+    ? ((rowData.find((r) => r.id === editingSubsFor.contactId)?._commPrefs || {}) as Record<string, "subscribed" | "unsubscribed">)
+    : {};
+
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 relative">
+      {/* Tag editor popup */}
+      {editingTagsFor && (
+        <div
+          style={{
+            position: "fixed",
+            top: editingTagsFor.rect.bottom + 4,
+            left: editingTagsFor.rect.left,
+            zIndex: 100,
+          }}
+        >
+          <TagCellEditor
+            contactId={editingTagsFor.contactId}
+            currentTags={
+              (rowData.find((r) => r.id === editingTagsFor.contactId)?._tags as string[]) || []
+            }
+            onClose={() => setEditingTagsFor(null)}
+            onSave={(newTags) => {
+              setRowData((prev) =>
+                prev.map((r) =>
+                  r.id === editingTagsFor.contactId ? { ...r, _tags: newTags } : r
+                )
+              );
+            }}
+          />
+        </div>
+      )}
+
+      {/* Subscription editor popup */}
+      {editingSubsFor && (
+        <div
+          style={{
+            position: "fixed",
+            top: editingSubsFor.rect.bottom + 4,
+            left: editingSubsFor.rect.left,
+            zIndex: 100,
+          }}
+        >
+          <SubscriptionCellEditor
+            contactId={editingSubsFor.contactId}
+            currentPrefs={editingSubsPrefs}
+            onClose={() => setEditingSubsFor(null)}
+            onSave={(newPrefs) => {
+              setRowData((prev) =>
+                prev.map((r) =>
+                  r.id === editingSubsFor.contactId ? { ...r, _commPrefs: newPrefs } : r
+                )
+              );
+            }}
+          />
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <input
           type="text"

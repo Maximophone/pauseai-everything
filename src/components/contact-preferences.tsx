@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { CheckCircleIcon, XCircleIcon } from "lucide-react";
+import { CheckCircleIcon, XCircleIcon, MinusCircleIcon } from "lucide-react";
 
 type Category = {
   id: string;
@@ -15,10 +15,10 @@ export function ContactPreferences({
   initialPreferences,
 }: {
   contactId: string;
-  initialPreferences: Record<string, boolean>;
+  initialPreferences: Record<string, "subscribed" | "unsubscribed">;
 }) {
   const [categories, setCategories] = useState<Category[]>([]);
-  const [prefs, setPrefs] = useState<Record<string, boolean>>(initialPreferences);
+  const [prefs, setPrefs] = useState<Record<string, "subscribed" | "unsubscribed">>(initialPreferences);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -31,16 +31,23 @@ export function ContactPreferences({
       .catch(() => setLoading(false));
   }, []);
 
-  async function togglePref(categoryName: string) {
-    const currentlyOptedOut = prefs[categoryName] === false;
+  async function togglePref(categoryName: string, categoryLabel: string) {
+    const current = prefs[categoryName]; // "subscribed" | "unsubscribed" | undefined (neutral)
     const newPrefs = { ...prefs };
 
-    if (currentlyOptedOut) {
-      // Re-subscribe: remove the key (default = opted in)
-      delete newPrefs[categoryName];
+    if (current === undefined) {
+      // neutral -> subscribed
+      newPrefs[categoryName] = "subscribed";
+    } else if (current === "subscribed") {
+      // subscribed -> unsubscribed
+      newPrefs[categoryName] = "unsubscribed";
     } else {
-      // Unsubscribe
-      newPrefs[categoryName] = false;
+      // unsubscribed -> neutral (with confirmation)
+      const confirmed = confirm(
+        `This contact previously unsubscribed from ${categoryLabel}. Are you sure you want to change their preference?`
+      );
+      if (!confirmed) return;
+      delete newPrefs[categoryName];
     }
 
     setPrefs(newPrefs);
@@ -69,7 +76,7 @@ export function ContactPreferences({
     );
   }
 
-  const hasAnyOptOut = categories.some((c) => prefs[c.name] === false);
+  const hasAnyOptOut = categories.some((c) => prefs[c.name] === "unsubscribed");
 
   return (
     <div className="space-y-2">
@@ -83,17 +90,19 @@ export function ContactPreferences({
       </div>
       <div className="space-y-1">
         {categories.map((cat) => {
-          const optedOut = prefs[cat.name] === false;
+          const status = prefs[cat.name]; // "subscribed" | "unsubscribed" | undefined
           return (
             <button
               key={cat.name}
-              onClick={() => togglePref(cat.name)}
+              onClick={() => togglePref(cat.name, cat.label)}
               className="flex items-center gap-2 w-full rounded-md px-2 py-1.5 text-left hover:bg-muted/50 transition-colors"
             >
-              {optedOut ? (
+              {status === "unsubscribed" ? (
                 <XCircleIcon className="h-4 w-4 text-red-500 shrink-0" />
-              ) : (
+              ) : status === "subscribed" ? (
                 <CheckCircleIcon className="h-4 w-4 text-green-500 shrink-0" />
+              ) : (
+                <MinusCircleIcon className="h-4 w-4 text-gray-400 shrink-0" />
               )}
               <div className="min-w-0">
                 <span className="text-xs font-medium">{cat.label}</span>
@@ -105,10 +114,18 @@ export function ContactPreferences({
               </div>
               <span
                 className={`ml-auto text-xs shrink-0 ${
-                  optedOut ? "text-red-500" : "text-green-600"
+                  status === "unsubscribed"
+                    ? "text-red-500"
+                    : status === "subscribed"
+                      ? "text-green-600"
+                      : "text-gray-400"
                 }`}
               >
-                {optedOut ? "Unsubscribed" : "Subscribed"}
+                {status === "unsubscribed"
+                  ? "Unsubscribed"
+                  : status === "subscribed"
+                    ? "Subscribed"
+                    : "No preference"}
               </span>
             </button>
           );

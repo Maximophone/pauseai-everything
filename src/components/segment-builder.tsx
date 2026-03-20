@@ -378,17 +378,18 @@ export function SegmentBuilder({
       <div className="lg:col-span-1">
         <h3 className="text-sm font-semibold mb-2">Saved Segments</h3>
         <div className="space-y-1">
-          <Button
-            variant={selectedSegmentId === null ? "secondary" : "ghost"}
-            size="sm"
-            className="w-full justify-start"
-            onClick={resetForm}
-            disabled={!isAdmin}
-            title={!isAdmin ? "Admin access required" : undefined}
-          >
-            <PlusIcon className="mr-2 h-3 w-3" />
-            New Segment
-          </Button>
+          <span title={!isAdmin ? "Admin access required" : undefined}>
+            <Button
+              variant={selectedSegmentId === null ? "secondary" : "ghost"}
+              size="sm"
+              className="w-full justify-start"
+              onClick={resetForm}
+              disabled={!isAdmin}
+            >
+              <PlusIcon className="mr-2 h-3 w-3" />
+              New Segment
+            </Button>
+          </span>
           {segments.map((seg) => (
             <div key={seg.id} className="flex items-center gap-1">
               <Button
@@ -399,16 +400,17 @@ export function SegmentBuilder({
               >
                 {seg.name}
               </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="shrink-0"
-                onClick={() => handleDelete(seg.id)}
-                disabled={!isAdmin}
-                title={!isAdmin ? "Admin access required" : undefined}
-              >
-                <XIcon className="h-3 w-3" />
-              </Button>
+              <span title={!isAdmin ? "Admin access required" : undefined}>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="shrink-0"
+                  onClick={() => handleDelete(seg.id)}
+                  disabled={!isAdmin}
+                >
+                  <XIcon className="h-3 w-3" />
+                </Button>
+              </span>
             </div>
           ))}
         </div>
@@ -488,14 +490,16 @@ export function SegmentBuilder({
             <SearchIcon className="mr-2 h-4 w-4" />
             {previewing ? "Previewing..." : "Preview"}
           </Button>
-          <Button onClick={saveSegment} disabled={!isAdmin || saving || !name.trim()} title={!isAdmin ? "Admin access required" : undefined}>
-            <SaveIcon className="mr-2 h-4 w-4" />
-            {saving
-              ? "Saving..."
-              : selectedSegmentId
-                ? "Update Segment"
-                : "Save Segment"}
-          </Button>
+          <span title={!isAdmin ? "Admin access required" : undefined}>
+            <Button onClick={saveSegment} disabled={!isAdmin || saving || !name.trim()}>
+              <SaveIcon className="mr-2 h-4 w-4" />
+              {saving
+                ? "Saving..."
+                : selectedSegmentId
+                  ? "Update Segment"
+                  : "Save Segment"}
+            </Button>
+          </span>
         </div>
 
         {/* Preview results */}

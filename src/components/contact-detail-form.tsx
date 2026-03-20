@@ -158,24 +158,27 @@ export function ContactDetailForm({
 
       {/* Actions */}
       <div className="flex items-center gap-4 pt-4 border-t">
-        <Button onClick={onSave} disabled={saving || !canEdit} title={!canEdit ? "Member access required" : undefined}>
-          <SaveIcon className="mr-2 h-4 w-4" />
-          {saving ? "Saving..." : "Save Changes"}
-        </Button>
+        <span title={!canEdit ? "Member access required" : undefined}>
+          <Button onClick={onSave} disabled={saving || !canEdit}>
+            <SaveIcon className="mr-2 h-4 w-4" />
+            {saving ? "Saving..." : "Save Changes"}
+          </Button>
+        </span>
         {success && (
           <span className="text-sm text-green-600">Saved!</span>
         )}
         {error && <span className="text-sm text-red-600">{error}</span>}
         <div className="ml-auto">
-          <Button
-            variant="destructive"
-            onClick={onDelete}
-            disabled={deleting || !isAdmin}
-            title={!isAdmin ? "Admin access required" : undefined}
-          >
-            <Trash2Icon className="mr-2 h-4 w-4" />
-            {deleting ? "Deleting..." : "Delete"}
-          </Button>
+          <span title={!isAdmin ? "Admin access required" : undefined}>
+            <Button
+              variant="destructive"
+              onClick={onDelete}
+              disabled={deleting || !isAdmin}
+            >
+              <Trash2Icon className="mr-2 h-4 w-4" />
+              {deleting ? "Deleting..." : "Delete"}
+            </Button>
+          </span>
         </div>
       </div>
 

@@ -386,10 +386,12 @@ function CampaignDetail({
       {/* Edit + Send preview + Recipients for drafts */}
       {campaign.status === "draft" && (
         <div className="space-y-2">
-          <Button size="sm" variant="outline" onClick={startEditing} className="h-8 text-xs" disabled={!isAdmin} title={!isAdmin ? "Admin access required" : undefined}>
-            <PencilIcon className="mr-1 h-3 w-3" />
-            Edit Campaign
-          </Button>
+          <span title={!isAdmin ? "Admin access required" : undefined}>
+            <Button size="sm" variant="outline" onClick={startEditing} className="h-8 text-xs" disabled={!isAdmin}>
+              <PencilIcon className="mr-1 h-3 w-3" />
+              Edit Campaign
+            </Button>
+          </span>
 
           <div className="flex items-center gap-2">
             <Input
@@ -655,10 +657,12 @@ export function CampaignManager({
       )}
 
       {!showCreate && (
-        <Button onClick={() => setShowCreate(true)} disabled={!isAdmin} title={!isAdmin ? "Admin access required" : undefined}>
-          <PlusIcon className="mr-2 h-4 w-4" />
-          New Campaign
-        </Button>
+        <span title={!isAdmin ? "Admin access required" : undefined}>
+          <Button onClick={() => setShowCreate(true)} disabled={!isAdmin}>
+            <PlusIcon className="mr-2 h-4 w-4" />
+            New Campaign
+          </Button>
+        </span>
       )}
 
       {/* Create form */}
@@ -857,26 +861,28 @@ export function CampaignManager({
                 <div className="flex items-center gap-1">
                   {campaign.status === "draft" && (
                     <>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handleSend(campaign.id)}
-                        disabled={!isAdmin || sending === campaign.id}
-                        title={!isAdmin ? "Admin access required" : "Send campaign now"}
-                      >
-                        <SendIcon className="h-4 w-4" />
-                      </Button>
+                      <span title={!isAdmin ? "Admin access required" : "Send campaign now"}>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleSend(campaign.id)}
+                          disabled={!isAdmin || sending === campaign.id}
+                        >
+                          <SendIcon className="h-4 w-4" />
+                        </Button>
+                      </span>
                     </>
                   )}
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => handleDelete(campaign.id)}
-                    disabled={!isAdmin}
-                    title={!isAdmin ? "Admin access required" : "Delete campaign"}
-                  >
-                    <Trash2Icon className="h-4 w-4" />
-                  </Button>
+                  <span title={!isAdmin ? "Admin access required" : "Delete campaign"}>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleDelete(campaign.id)}
+                      disabled={!isAdmin}
+                    >
+                      <Trash2Icon className="h-4 w-4" />
+                    </Button>
+                  </span>
                 </div>
               </div>
 

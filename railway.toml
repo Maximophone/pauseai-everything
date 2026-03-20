@@ -2,6 +2,6 @@
 builder = "RAILPACK"
 
 [deploy]
-startCommand = "npx tsx src/worker/index.ts"
+startCommand = "npx drizzle-kit push --force && npm start"
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 10

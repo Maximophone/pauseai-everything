@@ -156,10 +156,12 @@ export function CategoriesManager({
       )}
 
       {!showCreate && (
-        <Button onClick={() => { setNewSortOrder(categories.length); setShowCreate(true); }} disabled={!isAdmin} title={!isAdmin ? "Admin access required" : undefined}>
-          <PlusIcon className="mr-2 h-4 w-4" />
-          Add Category
-        </Button>
+        <span title={!isAdmin ? "Admin access required" : undefined}>
+          <Button onClick={() => { setNewSortOrder(categories.length); setShowCreate(true); }} disabled={!isAdmin}>
+            <PlusIcon className="mr-2 h-4 w-4" />
+            Add Category
+          </Button>
+        </span>
       )}
 
       {showCreate && (
@@ -198,14 +200,15 @@ export function CategoriesManager({
             />
           </div>
           <div className="flex gap-2">
-            <Button
-              onClick={handleCreate}
-              disabled={!isAdmin || creating || !newName.trim() || !newLabel.trim()}
-              size="sm"
-              title={!isAdmin ? "Admin access required" : undefined}
-            >
-              {creating ? "Creating..." : "Create Category"}
-            </Button>
+            <span title={!isAdmin ? "Admin access required" : undefined}>
+              <Button
+                onClick={handleCreate}
+                disabled={!isAdmin || creating || !newName.trim() || !newLabel.trim()}
+                size="sm"
+              >
+                {creating ? "Creating..." : "Create Category"}
+              </Button>
+            </span>
             <Button variant="ghost" size="sm" onClick={resetCreate}>
               Cancel
             </Button>
@@ -252,10 +255,12 @@ export function CategoriesManager({
                     />
                   </div>
                   <div className="flex gap-2">
-                    <Button size="sm" onClick={() => handleSave(cat.id)} disabled={!isAdmin || saving || !editLabel.trim()} title={!isAdmin ? "Admin access required" : undefined}>
-                      <SaveIcon className="mr-1 h-3 w-3" />
-                      {saving ? "Saving..." : "Save"}
-                    </Button>
+                    <span title={!isAdmin ? "Admin access required" : undefined}>
+                      <Button size="sm" onClick={() => handleSave(cat.id)} disabled={!isAdmin || saving || !editLabel.trim()}>
+                        <SaveIcon className="mr-1 h-3 w-3" />
+                        {saving ? "Saving..." : "Save"}
+                      </Button>
+                    </span>
                     <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>
                       <XIcon className="mr-1 h-3 w-3" />
                       Cancel
@@ -277,9 +282,11 @@ export function CategoriesManager({
                     <Button size="sm" variant="ghost" onClick={() => startEdit(cat)} disabled={!isAdmin} title={!isAdmin ? "Admin access required" : "Edit"}>
                       <PencilIcon className="h-4 w-4" />
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => handleDelete(cat.id)} disabled={!isAdmin} title={!isAdmin ? "Admin access required" : "Delete"}>
-                      <Trash2Icon className="h-4 w-4" />
-                    </Button>
+                    <span title={!isAdmin ? "Admin access required" : "Delete"}>
+                      <Button size="sm" variant="ghost" onClick={() => handleDelete(cat.id)} disabled={!isAdmin}>
+                        <Trash2Icon className="h-4 w-4" />
+                      </Button>
+                    </span>
                   </div>
                 </div>
               )}

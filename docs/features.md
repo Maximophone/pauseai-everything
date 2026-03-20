@@ -106,9 +106,10 @@ Emails sent through the system are stored and tracked:
 - Magic link email as fallback
 - Powered by NextAuth.js / Auth.js
 
-**Roles (v1 — keep it simple):**
-- **Admin:** Full access. Manage contacts, send campaigns, configure fields, manage users.
-- **Member:** Can view contacts, log interactions, edit contact fields. Cannot send campaigns, manage field definitions, or manage users.
+**Roles (3-tier):**
+- **Admin:** Full access. Manage contacts, send campaigns, configure fields/settings, manage users, create segments/scripts.
+- **Member:** Can view and edit contacts, tags, and interactions. Cannot send campaigns, create segments/scripts, manage fields, or access settings.
+- **Viewer:** Read-only access across the board. Cannot create, edit, or delete anything.
 
 **User management (admin only):**
 - Invite users by email
@@ -365,6 +366,111 @@ Captured ideas for future consideration. Not prioritized yet.
 - Rate limiting on Claude API calls
 - Logging all AI actions with full reasoning for auditability
 - Sandboxing: the agent should only have the permissions of the user who invoked it
+
+---
+
+### External data source sync (one-way import connectors)
+
+**Concept:** PauseAI's contact data lives in many places — Airtable (volunteers, journalists), Mailchimp (newsletter lists), Google Sheets (ad-hoc spreadsheets). Rather than doing one-off CSV imports, the system should support configurable, recurring, one-way syncs from external data sources.
+
+**How it would work:**
+1. Admin connects an external data source (e.g. an Airtable base/table, a Google Sheet, a Mailchimp audience)
+2. Admin defines a field mapping: which column in the source maps to which field in the CRM
+3. The system syncs contacts on a configurable schedule (e.g. every hour, every day)
+4. Synced contacts are marked with their source — fields pulled from the external source are **read-only** in the CRM UI (they can only be edited at the source)
+5. Contacts that exist in both the CRM and the external source are deduplicated (matching by email, with manual review for ambiguous matches)
+
+**Deduplication considerations:**
+- Primary match key: email address (exact match)
+- Secondary heuristics: name similarity + other fields (flagged for manual review, not auto-merged)
+- When a match is found: merge strategy per field — "source wins" for mapped fields, "CRM wins" for CRM-only fields
+- Audit log of all merge decisions
+- Ability to manually un-merge if a wrong match was made
+
+**Field ownership model:**
+- Each contact field can be "owned" by a source (e.g. `first_name` owned by `airtable:volunteers`)
+- Source-owned fields show a lock icon and tooltip in the UI ("Synced from Airtable — edit in Airtable")
+- CRM-native fields (added directly) remain fully editable
+- If a contact is synced from multiple sources, each source owns its own fields (no conflicts)
+
+**Supported sources (prioritized):**
+1. **Airtable** — most critical, multiple bases/tables already in use
+2. **Google Sheets** — common for ad-hoc lists
+3. **Mailchimp** — newsletter subscribers
+4. **CSV/URL** — point to a CSV URL that's re-fetched on schedule (simplest connector)
+
+**Technical considerations:**
+- Each connector needs: auth config, table/sheet selection, field mapping UI, sync schedule
+- Sync jobs run via Graphile Worker (already in place for campaigns)
+- Need a `contact_sources` table tracking provenance per contact per field
+- Incremental sync where possible (Airtable has `modifiedTime`, Sheets has revision history)
+- Error handling: if a sync fails, retry with backoff, notify admin
+- Rate limiting: respect API quotas (Airtable: 5 req/sec, Sheets: 300 req/min)
+
+---
+
+### Hosted API documentation
+
+**Concept:** The auto-generated API reference (from Zod schemas) should also be rendered and served from within the app itself, not just as a markdown file in the repo.
+
+**How it would work:**
+- A page at `/dashboard/settings/api-docs` (or similar, linked from Settings) renders the API reference
+- Could use a simple markdown renderer or a dedicated API docs component
+- Stays in sync because it's generated from the same Zod schemas that the API uses
+- Accessible to anyone with dashboard access (useful for members integrating with the API)
+
+---
+
+### In-app bug reports & feature requests
+
+**Concept:** Give every user the ability to submit bug reports or feature requests directly from the UI, and track their status.
+
+**How it would work:**
+- A small "Feedback" button (or menu item) accessible to all roles
+- Opens a minimal form: type (bug/feature), title, description
+- Submitted reports stored in the DB, visible to the submitter with status updates
+- Admin panel: see all submissions, respond with messages, change status (new → in progress → done → closed)
+- Minimalistic but functional — not a full ticketing system, just enough to capture feedback and close the loop
+- Could send email notifications to admins when new reports come in
+
+---
+
+### Public contact submission page
+
+**Concept:** A page (possibly public, or behind a simple link) that allows anyone to enter a new contact and optionally log an interaction.
+
+**How it would work:**
+- A simple form with configurable fields (name, email, notes, etc.)
+- Configurable in Settings: whether new contacts go directly into the CRM or into a **staging area**
+- Staging mode: new contacts appear in the contacts table with a "pending verification" flag and a `submittedBy` field showing who entered them
+- A member or admin must click "Approve" to promote them to full contacts
+- Could eventually support logging an interaction at the same time ("I met this person at X event")
+- Tracks who submitted each contact for accountability
+
+**Technical considerations:**
+- Need a `status` field on contacts (or a `verified` boolean) and a `submittedBy` field
+- Settings toggle: "Require approval for new contacts" (on/off)
+- Verification queue: filtered view in the contacts table, or a dedicated page
+
+---
+
+### Subscription opt-in model (neutral default)
+
+**Concept:** New contacts should NOT be automatically subscribed to all mailing lists. The current model (missing preference key = opted-in) is problematic — it means importing contacts automatically subscribes them to everything.
+
+**Proposed model:**
+- Three states per category per contact: **subscribed** (explicit opt-in), **unsubscribed** (explicit opt-out), **neutral** (no preference set)
+- New contacts start in **neutral** state for all categories
+- Neutral contacts are NOT included in campaign sends (conservative default)
+- Admins can bulk-subscribe neutral contacts to specific categories (with confirmation)
+- When a contact is being re-subscribed to something they previously **unsubscribed** from, the UI must show a warning: "This contact previously unsubscribed from [category]. Are you sure you want to re-subscribe them?"
+- Data entry forms can optionally set initial subscriptions explicitly
+
+**Technical considerations:**
+- Change `communicationPreferences` from `{ category: boolean }` to `{ category: "subscribed" | "unsubscribed" }` — absence of key means neutral
+- Update campaign send logic: only send to contacts where `prefs[category] === "subscribed"` (currently sends when not explicitly `false`)
+- Migration: existing `true` → "subscribed", existing `false` → "unsubscribed", missing → neutral
+- This is a **breaking change** to campaign behavior — needs careful rollout
 
 ---
 

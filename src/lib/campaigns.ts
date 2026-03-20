@@ -131,8 +131,8 @@ export async function sendCampaign(campaignId: string) {
 
     // If campaign has a category, skip contacts who opted out
     if (categoryName) {
-      const prefs = (contact.communicationPreferences as Record<string, boolean>) || {};
-      if (prefs[categoryName] === false) {
+      const prefs = (contact.communicationPreferences as Record<string, "subscribed" | "unsubscribed">) || {};
+      if (prefs[categoryName] !== "subscribed") {
         skippedCount++;
         continue;
       }
