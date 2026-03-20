@@ -10,6 +10,8 @@ type EmailParams = {
   tags?: string[];
   /** RFC 8058 one-click unsubscribe URL. Mailersend auto-adds List-Unsubscribe headers. */
   listUnsubscribe?: string;
+  /** Whether to actually send the list_unsubscribe param (requires Professional+ plan). */
+  includeListUnsubscribeHeader?: boolean;
 };
 
 type MailersendResponse = {
@@ -33,7 +35,10 @@ export async function sendEmail(params: EmailParams): Promise<MailersendResponse
     tags: params.tags,
   };
 
-  if (params.listUnsubscribe) {
+  // list_unsubscribe adds RFC 8058 one-click unsubscribe headers.
+  // Requires Mailersend Professional+ plan — enable via Settings > Email Categories in the UI.
+  // When disabled, the {{unsubscribe}} merge variable in the email body still works.
+  if (params.listUnsubscribe && params.includeListUnsubscribeHeader) {
     body.list_unsubscribe = params.listUnsubscribe;
   }
 

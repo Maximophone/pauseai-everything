@@ -1,8 +1,13 @@
 import { listCategories } from "@/lib/communication-categories";
+import { getAllSettings } from "@/lib/app-settings";
 import { CategoriesManager } from "@/components/categories-manager";
+import { EmailSettings } from "@/components/email-settings";
 
 export default async function EmailCategoriesPage() {
-  const categories = await listCategories();
+  const [categories, settings] = await Promise.all([
+    listCategories(),
+    getAllSettings(),
+  ]);
 
   return (
     <div>
@@ -16,6 +21,11 @@ export default async function EmailCategoriesPage() {
         <CategoriesManager
           initialCategories={JSON.parse(JSON.stringify(categories))}
         />
+      </div>
+
+      <h3 className="text-xl font-bold tracking-tight mt-10">Email Settings</h3>
+      <div className="mt-4">
+        <EmailSettings initialSettings={settings} />
       </div>
     </div>
   );

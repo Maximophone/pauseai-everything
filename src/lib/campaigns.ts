@@ -7,6 +7,7 @@ import { eq, asc, desc, sql } from "drizzle-orm";
 import { getSegment, getSegmentContactIds } from "./segments";
 import { sendEmail, renderTemplate } from "./mailersend";
 import { buildUnsubscribeUrl } from "./unsubscribe-tokens";
+import { getBooleanSetting, SETTING_KEYS } from "./app-settings";
 
 export async function listCampaigns() {
   return db.select().from(campaigns).orderBy(desc(campaigns.createdAt));
@@ -111,6 +112,11 @@ export async function sendCampaign(campaignId: string) {
     categoryName = cat?.name ?? null;
   }
 
+  // Check if list_unsubscribe header is enabled (requires Mailersend Professional+)
+  const includeListUnsubscribeHeader = await getBooleanSetting(
+    SETTING_KEYS.MAILERSEND_LIST_UNSUBSCRIBE
+  );
+
   let sentCount = 0;
   let bouncedCount = 0;
   let skippedCount = 0;
@@ -163,6 +169,7 @@ export async function sendCampaign(campaignId: string) {
       html: renderedBody,
       tags: [`campaign:${campaignId}`],
       listUnsubscribe,
+      includeListUnsubscribeHeader,
     });
 
     // Log the email
