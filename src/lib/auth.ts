@@ -33,13 +33,27 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (!email) return false;
 
       const [existingUser] = await db
-        .select({ id: users.id })
+        .select({ id: users.id, name: users.name })
         .from(users)
         .where(eq(users.email, email.toLowerCase()));
 
       if (!existingUser) {
         // Redirect to login with error message
         return "/login?error=not_invited";
+      }
+
+      // Update name and image from Google profile on first sign-in
+      // (invited users have name=null until they actually sign in)
+      if (!existingUser.name) {
+        const name = profile?.name || user.name;
+        const image = (profile?.picture as string) || user.image;
+        await db
+          .update(users)
+          .set({
+            ...(name ? { name } : {}),
+            ...(image ? { image } : {}),
+          })
+          .where(eq(users.id, existingUser.id));
       }
 
       return true;
