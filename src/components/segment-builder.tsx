@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useHasRole } from "@/lib/hooks/use-user-role";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PlusIcon, XIcon, SearchIcon, SaveIcon } from "lucide-react";
@@ -234,6 +235,7 @@ export function SegmentBuilder({
   initialSegments: Segment[];
 }) {
   const allFields = [...CORE_FIELDS, ...fieldDefinitions];
+  const isAdmin = useHasRole("admin");
   const [segments, setSegments] = useState<Segment[]>(initialSegments);
   const [selectedSegmentId, setSelectedSegmentId] = useState<string | null>(null);
 
@@ -381,6 +383,8 @@ export function SegmentBuilder({
             size="sm"
             className="w-full justify-start"
             onClick={resetForm}
+            disabled={!isAdmin}
+            title={!isAdmin ? "Admin access required" : undefined}
           >
             <PlusIcon className="mr-2 h-3 w-3" />
             New Segment
@@ -400,6 +404,8 @@ export function SegmentBuilder({
                 variant="ghost"
                 className="shrink-0"
                 onClick={() => handleDelete(seg.id)}
+                disabled={!isAdmin}
+                title={!isAdmin ? "Admin access required" : undefined}
               >
                 <XIcon className="h-3 w-3" />
               </Button>
@@ -482,7 +488,7 @@ export function SegmentBuilder({
             <SearchIcon className="mr-2 h-4 w-4" />
             {previewing ? "Previewing..." : "Preview"}
           </Button>
-          <Button onClick={saveSegment} disabled={saving || !name.trim()}>
+          <Button onClick={saveSegment} disabled={!isAdmin || saving || !name.trim()} title={!isAdmin ? "Admin access required" : undefined}>
             <SaveIcon className="mr-2 h-4 w-4" />
             {saving
               ? "Saving..."

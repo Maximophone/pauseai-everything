@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useHasRole } from "@/lib/hooks/use-user-role";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -100,6 +101,7 @@ function CampaignDetail({
   categories: Category[];
   onUpdated: () => void;
 }) {
+  const isAdmin = useHasRole("admin");
   const [emailList, setEmailList] = useState<CampaignEmail[] | null>(null);
   const [recipientList, setRecipientList] = useState<{ count: number; activeCount: number; unsubscribedCount: number; recipients: Recipient[] } | null>(null);
   const [loading, setLoading] = useState(false);
@@ -384,7 +386,7 @@ function CampaignDetail({
       {/* Edit + Send preview + Recipients for drafts */}
       {campaign.status === "draft" && (
         <div className="space-y-2">
-          <Button size="sm" variant="outline" onClick={startEditing} className="h-8 text-xs">
+          <Button size="sm" variant="outline" onClick={startEditing} className="h-8 text-xs" disabled={!isAdmin} title={!isAdmin ? "Admin access required" : undefined}>
             <PencilIcon className="mr-1 h-3 w-3" />
             Edit Campaign
           </Button>
@@ -528,6 +530,7 @@ export function CampaignManager({
   categories: Category[];
 }) {
   const router = useRouter();
+  const isAdmin = useHasRole("admin");
   const [campaigns, setCampaigns] = useState<Campaign[]>(initialCampaigns);
   const [showCreate, setShowCreate] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -652,7 +655,7 @@ export function CampaignManager({
       )}
 
       {!showCreate && (
-        <Button onClick={() => setShowCreate(true)}>
+        <Button onClick={() => setShowCreate(true)} disabled={!isAdmin} title={!isAdmin ? "Admin access required" : undefined}>
           <PlusIcon className="mr-2 h-4 w-4" />
           New Campaign
         </Button>
@@ -858,8 +861,8 @@ export function CampaignManager({
                         size="sm"
                         variant="ghost"
                         onClick={() => handleSend(campaign.id)}
-                        disabled={sending === campaign.id}
-                        title="Send campaign now"
+                        disabled={!isAdmin || sending === campaign.id}
+                        title={!isAdmin ? "Admin access required" : "Send campaign now"}
                       >
                         <SendIcon className="h-4 w-4" />
                       </Button>
@@ -869,7 +872,8 @@ export function CampaignManager({
                     size="sm"
                     variant="ghost"
                     onClick={() => handleDelete(campaign.id)}
-                    title="Delete campaign"
+                    disabled={!isAdmin}
+                    title={!isAdmin ? "Admin access required" : "Delete campaign"}
                   >
                     <Trash2Icon className="h-4 w-4" />
                   </Button>

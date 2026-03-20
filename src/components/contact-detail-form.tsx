@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useHasRole } from "@/lib/hooks/use-user-role";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,6 +36,8 @@ export function ContactDetailForm({
   fieldDefinitions: FieldDefinition[];
 }) {
   const router = useRouter();
+  const canEdit = useHasRole("member");
+  const isAdmin = useHasRole("admin");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -155,7 +158,7 @@ export function ContactDetailForm({
 
       {/* Actions */}
       <div className="flex items-center gap-4 pt-4 border-t">
-        <Button onClick={onSave} disabled={saving}>
+        <Button onClick={onSave} disabled={saving || !canEdit} title={!canEdit ? "Member access required" : undefined}>
           <SaveIcon className="mr-2 h-4 w-4" />
           {saving ? "Saving..." : "Save Changes"}
         </Button>
@@ -167,7 +170,8 @@ export function ContactDetailForm({
           <Button
             variant="destructive"
             onClick={onDelete}
-            disabled={deleting}
+            disabled={deleting || !isAdmin}
+            title={!isAdmin ? "Admin access required" : undefined}
           >
             <Trash2Icon className="mr-2 h-4 w-4" />
             {deleting ? "Deleting..." : "Delete"}

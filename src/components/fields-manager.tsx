@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useHasRole } from "@/lib/hooks/use-user-role";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -134,6 +135,7 @@ export function FieldsManager({
 }: {
   initialFields: FieldDefinition[];
 }) {
+  const isAdmin = useHasRole("admin");
   const [fields, setFields] = useState<FieldDefinition[]>(initialFields);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editData, setEditData] = useState<EditingField | null>(null);
@@ -273,7 +275,7 @@ export function FieldsManager({
 
       {/* Create button */}
       {!showCreate && (
-        <Button onClick={() => setShowCreate(true)}>
+        <Button onClick={() => setShowCreate(true)} disabled={!isAdmin} title={!isAdmin ? "Admin access required" : undefined}>
           <PlusIcon className="mr-2 h-4 w-4" />
           Add Field
         </Button>
@@ -370,9 +372,10 @@ export function FieldsManager({
             <Button
               onClick={createField}
               disabled={
-                !newField.name.trim() || !newField.label.trim() || saving
+                !isAdmin || !newField.name.trim() || !newField.label.trim() || saving
               }
               size="sm"
+              title={!isAdmin ? "Admin access required" : undefined}
             >
               {saving ? "Creating..." : "Create Field"}
             </Button>
@@ -468,7 +471,8 @@ export function FieldsManager({
                   <Button
                     size="sm"
                     onClick={() => saveEdit(field.id)}
-                    disabled={saving || !editData.label.trim()}
+                    disabled={!isAdmin || saving || !editData.label.trim()}
+                    title={!isAdmin ? "Admin access required" : undefined}
                   >
                     <CheckIcon className="mr-1 h-3 w-3" />
                     {saving ? "Saving..." : "Save"}
@@ -538,6 +542,8 @@ export function FieldsManager({
                     size="sm"
                     variant="ghost"
                     onClick={() => startEdit(field)}
+                    disabled={!isAdmin}
+                    title={!isAdmin ? "Admin access required" : undefined}
                   >
                     <PencilIcon className="h-4 w-4" />
                   </Button>
@@ -545,6 +551,8 @@ export function FieldsManager({
                     size="sm"
                     variant="ghost"
                     onClick={() => deleteField(field.id, field.label)}
+                    disabled={!isAdmin}
+                    title={!isAdmin ? "Admin access required" : undefined}
                   >
                     <Trash2Icon className="h-4 w-4" />
                   </Button>

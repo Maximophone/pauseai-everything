@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useHasRole } from "@/lib/hooks/use-user-role";
 import { AgGridReact } from "ag-grid-react";
 import {
   AllCommunityModule,
@@ -130,6 +131,7 @@ export function ContactsTable({
   initialTagsMap?: Record<string, string[]>;
 }) {
   const router = useRouter();
+  const canEdit = useHasRole("member");
   const gridRef = useRef<GridApi | null>(null);
   const [tagsMap, setTagsMap] = useState<Record<string, string[]>>(initialTagsMap);
   const [rowData, setRowData] = useState<FlatContact[]>(
@@ -166,7 +168,7 @@ export function ContactsTable({
       {
         field: "email",
         headerName: "Email",
-        editable: true,
+        editable: canEdit,
         width: 220,
       },
       {
@@ -236,7 +238,7 @@ export function ContactsTable({
     const customCols: ColDef[] = fieldDefinitions.map((field) => ({
       field: field.name,
       headerName: field.label,
-      editable: true,
+      editable: canEdit,
       type: getColumnType(field.fieldType),
       width: 150,
       ...getCellEditor(field),
@@ -262,7 +264,7 @@ export function ContactsTable({
     ];
 
     return [...coreCols, ...customCols, ...metaCols];
-  }, [fieldDefinitions]);
+  }, [fieldDefinitions, canEdit]);
 
   const defaultColDef = useMemo<ColDef>(
     () => ({

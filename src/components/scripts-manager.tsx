@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { useHasRole } from "@/lib/hooks/use-user-role";
 import CodeMirror from "@uiw/react-codemirror";
 import { javascript } from "@codemirror/lang-javascript";
 import { Button } from "@/components/ui/button";
@@ -57,6 +58,7 @@ const CRON_PRESETS = [
 ];
 
 export function ScriptsManager({ initialScripts }: { initialScripts: Script[] }) {
+  const isAdmin = useHasRole("admin");
   const [scripts, setScripts] = useState<Script[]>(initialScripts);
   const [editingScript, setEditingScript] = useState<Script | null>(null);
   const [showCreate, setShowCreate] = useState(false);
@@ -272,7 +274,7 @@ export function ScriptsManager({ initialScripts }: { initialScripts: Script[] })
       {/* Action buttons */}
       {!showCreate && !editingScript && (
         <div className="flex gap-2 flex-wrap">
-          <Button onClick={() => startFromTemplate(SCRIPT_TEMPLATES[0])}>
+          <Button onClick={() => startFromTemplate(SCRIPT_TEMPLATES[0])} disabled={!isAdmin} title={!isAdmin ? "Admin access required" : undefined}>
             <PlusIcon className="mr-2 h-4 w-4" />
             New Script
           </Button>
@@ -376,7 +378,7 @@ export function ScriptsManager({ initialScripts }: { initialScripts: Script[] })
           </div>
 
           <div className="flex gap-2">
-            <Button onClick={createNewScript} disabled={loading || !name.trim()} size="sm">
+            <Button onClick={createNewScript} disabled={!isAdmin || loading || !name.trim()} size="sm" title={!isAdmin ? "Admin access required" : undefined}>
               {loading ? "Creating..." : "Create Script"}
             </Button>
             <Button variant="ghost" size="sm" onClick={resetForm}>
@@ -494,15 +496,16 @@ export function ScriptsManager({ initialScripts }: { initialScripts: Script[] })
           </div>
 
           <div className="flex gap-2">
-            <Button onClick={saveScript} disabled={loading} size="sm">
+            <Button onClick={saveScript} disabled={!isAdmin || loading} size="sm" title={!isAdmin ? "Admin access required" : undefined}>
               <SaveIcon className="mr-1 h-3 w-3" />
               {loading ? "Saving..." : "Save"}
             </Button>
             <Button
               onClick={() => runScript(editingScript.id)}
-              disabled={loading}
+              disabled={!isAdmin || loading}
               size="sm"
               variant="outline"
+              title={!isAdmin ? "Admin access required" : undefined}
             >
               <PlayIcon className="mr-1 h-3 w-3" />
               {loading ? "Running..." : "Run Now"}
@@ -574,8 +577,8 @@ export function ScriptsManager({ initialScripts }: { initialScripts: Script[] })
                     size="sm"
                     variant="ghost"
                     onClick={() => runScript(script.id)}
-                    disabled={loading}
-                    title="Run now"
+                    disabled={!isAdmin || loading}
+                    title={!isAdmin ? "Admin access required" : "Run now"}
                   >
                     <PlayIcon className="h-4 w-4" />
                   </Button>
@@ -591,7 +594,8 @@ export function ScriptsManager({ initialScripts }: { initialScripts: Script[] })
                     size="sm"
                     variant="ghost"
                     onClick={() => toggleEnabled(script)}
-                    title={script.enabled ? "Disable" : "Enable"}
+                    disabled={!isAdmin}
+                    title={!isAdmin ? "Admin access required" : script.enabled ? "Disable" : "Enable"}
                   >
                     {script.enabled ? (
                       <PauseIcon className="h-4 w-4" />
@@ -603,7 +607,8 @@ export function ScriptsManager({ initialScripts }: { initialScripts: Script[] })
                     size="sm"
                     variant="ghost"
                     onClick={() => deleteScriptById(script.id)}
-                    title="Delete"
+                    disabled={!isAdmin}
+                    title={!isAdmin ? "Admin access required" : "Delete"}
                   >
                     <Trash2Icon className="h-4 w-4" />
                   </Button>

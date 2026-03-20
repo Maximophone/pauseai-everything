@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useHasRole } from "@/lib/hooks/use-user-role";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PlusIcon, Trash2Icon, CopyIcon, CheckIcon } from "lucide-react";
@@ -15,6 +16,7 @@ type ApiKey = {
 };
 
 export function ApiKeysManager() {
+  const isAdmin = useHasRole("admin");
   const [keys, setKeys] = useState<ApiKey[]>([]);
   const [loading, setLoading] = useState(true);
   const [newName, setNewName] = useState("");
@@ -87,7 +89,7 @@ export function ApiKeysManager() {
             if (e.key === "Enter") createKey();
           }}
         />
-        <Button onClick={createKey} disabled={!newName.trim() || creating}>
+        <Button onClick={createKey} disabled={!isAdmin || !newName.trim() || creating} title={!isAdmin ? "Admin access required" : undefined}>
           <PlusIcon className="mr-2 h-4 w-4" />
           Create
         </Button>
@@ -156,6 +158,8 @@ export function ApiKeysManager() {
                 size="sm"
                 variant="ghost"
                 onClick={() => deleteKey(key.id)}
+                disabled={!isAdmin}
+                title={!isAdmin ? "Admin access required" : undefined}
               >
                 <Trash2Icon className="h-4 w-4" />
               </Button>

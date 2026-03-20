@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useHasRole } from "@/lib/hooks/use-user-role";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -25,6 +26,7 @@ export function CategoriesManager({
 }: {
   initialCategories: Category[];
 }) {
+  const isAdmin = useHasRole("admin");
   const [categories, setCategories] = useState<Category[]>(initialCategories);
   const [showCreate, setShowCreate] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -154,7 +156,7 @@ export function CategoriesManager({
       )}
 
       {!showCreate && (
-        <Button onClick={() => { setNewSortOrder(categories.length); setShowCreate(true); }}>
+        <Button onClick={() => { setNewSortOrder(categories.length); setShowCreate(true); }} disabled={!isAdmin} title={!isAdmin ? "Admin access required" : undefined}>
           <PlusIcon className="mr-2 h-4 w-4" />
           Add Category
         </Button>
@@ -198,8 +200,9 @@ export function CategoriesManager({
           <div className="flex gap-2">
             <Button
               onClick={handleCreate}
-              disabled={creating || !newName.trim() || !newLabel.trim()}
+              disabled={!isAdmin || creating || !newName.trim() || !newLabel.trim()}
               size="sm"
+              title={!isAdmin ? "Admin access required" : undefined}
             >
               {creating ? "Creating..." : "Create Category"}
             </Button>
@@ -249,7 +252,7 @@ export function CategoriesManager({
                     />
                   </div>
                   <div className="flex gap-2">
-                    <Button size="sm" onClick={() => handleSave(cat.id)} disabled={saving || !editLabel.trim()}>
+                    <Button size="sm" onClick={() => handleSave(cat.id)} disabled={!isAdmin || saving || !editLabel.trim()} title={!isAdmin ? "Admin access required" : undefined}>
                       <SaveIcon className="mr-1 h-3 w-3" />
                       {saving ? "Saving..." : "Save"}
                     </Button>
@@ -271,10 +274,10 @@ export function CategoriesManager({
                     </div>
                   </div>
                   <div className="flex items-center gap-1">
-                    <Button size="sm" variant="ghost" onClick={() => startEdit(cat)} title="Edit">
+                    <Button size="sm" variant="ghost" onClick={() => startEdit(cat)} disabled={!isAdmin} title={!isAdmin ? "Admin access required" : "Edit"}>
                       <PencilIcon className="h-4 w-4" />
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => handleDelete(cat.id)} title="Delete">
+                    <Button size="sm" variant="ghost" onClick={() => handleDelete(cat.id)} disabled={!isAdmin} title={!isAdmin ? "Admin access required" : "Delete"}>
                       <Trash2Icon className="h-4 w-4" />
                     </Button>
                   </div>
