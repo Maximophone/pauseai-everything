@@ -11,6 +11,7 @@ import { db } from "@/db";
 import { contacts } from "@/db/schema/contacts";
 import { inArray } from "drizzle-orm";
 import { z } from "zod";
+import { getTagsForContacts } from "@/lib/tags";
 
 // GET /api/contacts — list contacts with search, pagination, sorting
 export async function GET(request: NextRequest) {
@@ -28,7 +29,14 @@ export async function GET(request: NextRequest) {
       (searchParams.get("sortOrder") as "asc" | "desc") || undefined,
   });
 
-  return NextResponse.json(result);
+  // Embed tags so the client doesn't need a separate request per page
+  const tagsMap = await getTagsForContacts(result.contacts.map((c) => c.id));
+  const contactsWithTags = result.contacts.map((c) => ({
+    ...c,
+    tags: tagsMap[c.id] ?? [],
+  }));
+
+  return NextResponse.json({ ...result, contacts: contactsWithTags });
 }
 
 // POST /api/contacts — create a contact

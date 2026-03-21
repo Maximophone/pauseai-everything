@@ -11,6 +11,8 @@ import {
   type GridReadyEvent,
   type GridApi,
   type SelectionChangedEvent,
+  type IDatasource,
+  type IGetRowsParams,
 } from "ag-grid-community";
 import { useRouter } from "next/navigation";
 import { Download, Trash2 } from "lucide-react";
@@ -18,6 +20,8 @@ import { TagCellEditor } from "./tag-cell-editor";
 import { SubscriptionCellEditor } from "./subscription-cell-editor";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
+
+const BLOCK_SIZE = 200;
 
 type FieldDefinition = {
   id: string;
@@ -38,6 +42,7 @@ type Contact = {
   communicationPreferences: Record<string, "subscribed" | "unsubscribed">;
   syncConfigurationId: string | null;
   syncedFields: string[] | null;
+  tags: string[];
   createdAt: string;
   updatedAt: string;
 };
@@ -51,40 +56,37 @@ type FlatContact = {
   updatedAt: string;
   _syncConfigurationId: string | null;
   _syncedFields: string[] | null;
+  _tags: string[];
+  _commPrefs: Record<string, "subscribed" | "unsubscribed">;
   [key: string]: unknown;
 };
 
-// Flatten customFields into top-level for AG Grid
 function flattenContact(contact: Contact): FlatContact {
-  const { customFields, communicationPreferences, syncConfigurationId, syncedFields, ...rest } = contact;
+  const { customFields, communicationPreferences, syncConfigurationId, syncedFields, tags, ...rest } = contact;
   return {
     ...rest,
     ...customFields,
     _commPrefs: communicationPreferences || {},
     _syncConfigurationId: syncConfigurationId ?? null,
     _syncedFields: syncedFields ?? null,
+    _tags: tags || [],
   };
 }
 
-// Returns true if this cell's field is locked because it's managed by a sync
 function isSyncedField(data: FlatContact, fieldName: string): boolean {
-  const syncedFields = data._syncedFields;
+  const syncedFields = data._syncedFields as string[] | null;
   if (!syncedFields) return false;
-  // Map AG Grid column field names to CRM target names used in syncedFields
   const crmTarget = fieldName === "email" ? "_email" : fieldName;
   return syncedFields.includes(crmTarget);
 }
 
-// Reconstruct contact from flat row
 function unflattenContact(
   flat: FlatContact,
   fieldNames: string[]
 ): { firstName: string | null; lastName: string | null; email: string | null; customFields: Record<string, unknown> } {
   const customFields: Record<string, unknown> = {};
   for (const name of fieldNames) {
-    if (flat[name] !== undefined) {
-      customFields[name] = flat[name];
-    }
+    if (flat[name] !== undefined) customFields[name] = flat[name];
   }
   return {
     firstName: flat.firstName as string | null,
@@ -96,31 +98,19 @@ function unflattenContact(
 
 function getColumnType(fieldType: string): string {
   switch (fieldType) {
-    case "number":
-      return "numericColumn";
-    case "date":
-      return "dateColumn";
-    default:
-      return "text";
+    case "number": return "numericColumn";
+    case "date": return "dateColumn";
+    default: return "text";
   }
 }
 
 function getCellEditor(field: FieldDefinition): Partial<ColDef> {
-  if (field.fieldType === "select" && field.options) {
-    return {
-      cellEditor: "agSelectCellEditor",
-      cellEditorParams: { values: field.options },
-    };
-  }
-  if (field.fieldType === "boolean") {
-    return {
-      cellEditor: "agSelectCellEditor",
-      cellEditorParams: { values: [true, false] },
-    };
-  }
-  if (field.fieldType === "number") {
+  if (field.fieldType === "select" && field.options)
+    return { cellEditor: "agSelectCellEditor", cellEditorParams: { values: field.options } };
+  if (field.fieldType === "boolean")
+    return { cellEditor: "agSelectCellEditor", cellEditorParams: { values: [true, false] } };
+  if (field.fieldType === "number")
     return { cellEditor: "agNumberCellEditor" };
-  }
   return {};
 }
 
@@ -149,49 +139,71 @@ function NameCellRenderer(params: { data: FlatContact; value: string }) {
   );
 }
 
-type Category = {
-  id: string;
-  name: string;
-  label: string;
-};
+type Category = { id: string; name: string; label: string };
 
 export function ContactsTable({
-  initialContacts,
   fieldDefinitions,
-  total,
-  initialTagsMap = {},
   categories = [],
 }: {
-  initialContacts: Contact[];
   fieldDefinitions: FieldDefinition[];
-  total: number;
-  initialTagsMap?: Record<string, string[]>;
   categories?: Category[];
 }) {
   const router = useRouter();
   const canEdit = useHasRole("member");
   const isAdmin = useHasRole("admin");
   const gridRef = useRef<GridApi | null>(null);
-  const [tagsMap, setTagsMap] = useState<Record<string, string[]>>(initialTagsMap);
-  const [rowData, setRowData] = useState<FlatContact[]>(
-    initialContacts.map((c) => ({ ...flattenContact(c), _tags: initialTagsMap[c.id] || [] }))
-  );
+
+  // Search is read inside the datasource via ref to keep the datasource stable
+  const searchRef = useRef("");
   const [search, setSearch] = useState("");
+  const [total, setTotal] = useState<number | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [deleting, setDeleting] = useState(false);
   const [editingTagsFor, setEditingTagsFor] = useState<{ contactId: string; rect: DOMRect } | null>(null);
   const [editingSubsFor, setEditingSubsFor] = useState<{ contactId: string; rect: DOMRect } | null>(null);
 
-  // Sync rowData when server re-renders with new initialContacts
-  useEffect(() => {
-    setRowData(initialContacts.map((c) => ({ ...flattenContact(c), _tags: initialTagsMap[c.id] || [] })));
-    setTagsMap(initialTagsMap);
-  }, [initialContacts, initialTagsMap]);
+  // Stable datasource — reads search from ref, refreshed explicitly when search changes
+  const datasource: IDatasource = useMemo(() => ({
+    getRows: async (params: IGetRowsParams) => {
+      const { startRow, endRow, sortModel } = params;
+      const pageSize = endRow - startRow;
+      const page = Math.floor(startRow / pageSize) + 1;
 
-  const fieldNames = useMemo(
-    () => fieldDefinitions.map((f) => f.name),
-    [fieldDefinitions]
-  );
+      const urlParams = new URLSearchParams({
+        page: String(page),
+        pageSize: String(pageSize),
+      });
+
+      if (searchRef.current) urlParams.set("search", searchRef.current);
+
+      // Map AG Grid sort model → API params (only supported fields)
+      const sortMap: Record<string, string> = { firstName: "firstName", email: "email", createdAt: "createdAt" };
+      if (sortModel?.length > 0) {
+        const s = sortModel[0];
+        const sortBy = sortMap[s.colId];
+        if (sortBy) {
+          urlParams.set("sortBy", sortBy);
+          urlParams.set("sortOrder", s.sort as string);
+        }
+      }
+
+      try {
+        const res = await fetch(`/api/contacts?${urlParams}`);
+        if (!res.ok) { params.failCallback(); return; }
+        const data = await res.json() as { contacts: Contact[]; total: number };
+        setTotal(data.total);
+        params.successCallback(data.contacts.map(flattenContact), data.total);
+      } catch {
+        params.failCallback();
+      }
+    },
+  }), []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // When search changes: update ref, then refresh the infinite cache
+  useEffect(() => {
+    searchRef.current = search;
+    gridRef.current?.refreshInfiniteCache();
+  }, [search]);
 
   const onSelectionChanged = useCallback((event: SelectionChangedEvent) => {
     const selected = event.api.getSelectedRows() as FlatContact[];
@@ -201,7 +213,6 @@ export function ContactsTable({
   const deleteSelected = useCallback(async () => {
     if (selectedIds.length === 0) return;
     if (!confirm(`Permanently delete ${selectedIds.length} contact${selectedIds.length !== 1 ? "s" : ""}? This cannot be undone.`)) return;
-
     setDeleting(true);
     try {
       const res = await fetch("/api/contacts", {
@@ -210,16 +221,17 @@ export function ContactsTable({
         body: JSON.stringify({ ids: selectedIds }),
       });
       if (res.ok) {
-        setRowData((prev) => prev.filter((r) => !selectedIds.includes(r.id)));
         gridRef.current?.deselectAll();
         setSelectedIds([]);
+        gridRef.current?.refreshInfiniteCache();
       }
     } finally {
       setDeleting(false);
     }
   }, [selectedIds]);
 
-  // Build column definitions from field definitions
+  const fieldNames = useMemo(() => fieldDefinitions.map((f) => f.name), [fieldDefinitions]);
+
   const columnDefs = useMemo<ColDef[]>(() => {
     const checkboxCol: ColDef = {
       colId: "_checkbox",
@@ -238,9 +250,11 @@ export function ContactsTable({
 
     const coreCols: ColDef[] = [
       {
+        colId: "firstName",
         headerName: "Name",
         pinned: "left",
         width: 200,
+        sortable: true,
         editable: false,
         valueGetter: (params: { data: FlatContact }) => {
           const first = params.data?.firstName ?? "";
@@ -252,6 +266,7 @@ export function ContactsTable({
       {
         field: "email",
         headerName: "Email",
+        sortable: true,
         editable: canEdit
           ? (params: { data: FlatContact }) => !isSyncedField(params.data, "email")
           : false,
@@ -265,6 +280,7 @@ export function ContactsTable({
         field: "_tags",
         headerName: "Tags",
         editable: false,
+        sortable: false,
         width: 180,
         valueFormatter: (params: { value: unknown }) =>
           Array.isArray(params.value) ? params.value.join(", ") : "",
@@ -280,20 +296,13 @@ export function ContactsTable({
               className={`flex gap-1 flex-wrap items-center h-full ${canEdit ? "cursor-pointer" : ""}`}
               onClick={handleClick}
             >
-              {tagList.length === 0 ? (
-                canEdit ? (
-                  <span className="text-xs text-muted-foreground">+ Add tags</span>
-                ) : null
-              ) : (
-                tagList.map((tag: string) => (
-                  <span
-                    key={tag}
-                    className="inline-flex items-center rounded-full bg-primary/10 text-primary px-2 py-0.5 text-xs font-medium"
-                  >
+              {tagList.length === 0
+                ? canEdit ? <span className="text-xs text-muted-foreground">+ Add tags</span> : null
+                : tagList.map((tag: string) => (
+                  <span key={tag} className="inline-flex items-center rounded-full bg-primary/10 text-primary px-2 py-0.5 text-xs font-medium">
                     {tag}
                   </span>
-                ))
-              )}
+                ))}
             </div>
           );
         },
@@ -302,19 +311,13 @@ export function ContactsTable({
         field: "_commPrefs",
         headerName: "Subscriptions",
         editable: false,
+        sortable: false,
         width: Math.max(180, categories.length * 90),
-        valueGetter: (params: { data: FlatContact }) => {
-          return (params.data?._commPrefs || {}) as Record<string, "subscribed" | "unsubscribed">;
-        },
+        valueGetter: (params: { data: FlatContact }) =>
+          (params.data?._commPrefs || {}) as Record<string, "subscribed" | "unsubscribed">,
         valueFormatter: (params: { value: unknown }) => {
           const prefs = (params.value || {}) as Record<string, "subscribed" | "unsubscribed">;
-          return categories
-            .map((c) => {
-              const s = prefs[c.name];
-              return s ? `${c.label}: ${s}` : "";
-            })
-            .filter(Boolean)
-            .join(", ") || "";
+          return categories.map((c) => prefs[c.name] ? `${c.label}: ${prefs[c.name]}` : "").filter(Boolean).join(", ") || "";
         },
         cellRenderer: (params: { value: unknown; data: FlatContact; eGridCell: HTMLElement }) => {
           const prefs = (params.value || {}) as Record<string, "subscribed" | "unsubscribed">;
@@ -323,40 +326,24 @@ export function ContactsTable({
             const rect = params.eGridCell.getBoundingClientRect();
             setEditingSubsFor({ contactId: params.data.id, rect });
           };
-
-          if (categories.length === 0) {
-            return <span className="text-xs text-gray-400">No categories</span>;
-          }
-
+          if (categories.length === 0) return <span className="text-xs text-gray-400">No categories</span>;
           const hasAnyPref = categories.some((c) => prefs[c.name]);
-
           return (
             <div
               className={`flex gap-1 flex-wrap items-center h-full ${canEdit ? "cursor-pointer" : ""}`}
               onClick={handleClick}
             >
-              {!hasAnyPref ? (
-                <span className="text-xs text-gray-400">
-                  {canEdit ? "Click to set" : "—"}
-                </span>
-              ) : (
-                categories.map((cat) => {
+              {!hasAnyPref
+                ? <span className="text-xs text-gray-400">{canEdit ? "Click to set" : "—"}</span>
+                : categories.map((cat) => {
                   const status = prefs[cat.name];
-                  if (!status) return null; // neutral — don't show
+                  if (!status) return null;
                   return (
-                    <span
-                      key={cat.name}
-                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                        status === "subscribed"
-                          ? "bg-green-50 text-green-700"
-                          : "bg-red-50 text-red-600"
-                      }`}
-                    >
+                    <span key={cat.name} className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${status === "subscribed" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>
                       {cat.label}
                     </span>
                   );
-                })
-              )}
+                })}
             </div>
           );
         },
@@ -366,6 +353,7 @@ export function ContactsTable({
     const customCols: ColDef[] = fieldDefinitions.map((field) => ({
       field: field.name,
       headerName: field.label,
+      sortable: false,
       editable: field.fieldType === "multiselect"
         ? false
         : canEdit
@@ -378,126 +366,103 @@ export function ContactsTable({
         isSyncedField(params.data, field.name)
           ? { color: "var(--muted-foreground)", fontStyle: "italic" }
           : null,
-      // For multiselect, show as comma-separated
       ...(field.fieldType === "multiselect" && {
         valueFormatter: (params: { value: unknown }) =>
           Array.isArray(params.value) ? params.value.join(", ") : "",
       }),
     }));
 
-    const metaCols: ColDef[] = [
-      {
-        field: "createdAt",
-        headerName: "Created",
-        editable: false,
-        width: 160,
-        valueFormatter: (params: { value: unknown }) =>
-          params.value
-            ? new Date(params.value as string).toLocaleDateString()
-            : "",
-      },
-    ];
+    const metaCols: ColDef[] = [{
+      field: "createdAt",
+      colId: "createdAt",
+      headerName: "Created",
+      sortable: true,
+      editable: false,
+      width: 160,
+      valueFormatter: (params: { value: unknown }) =>
+        params.value ? new Date(params.value as string).toLocaleDateString() : "",
+    }];
 
     return [checkboxCol, ...coreCols, ...customCols, ...metaCols];
   }, [fieldDefinitions, canEdit, categories]);
 
-  const defaultColDef = useMemo<ColDef>(
-    () => ({
-      sortable: true,
-      filter: true,
-      resizable: true,
-    }),
-    []
-  );
+  const defaultColDef = useMemo<ColDef>(() => ({
+    sortable: false,
+    filter: false,
+    resizable: true,
+  }), []);
 
-  // Handle inline cell edit
-  const onCellValueChanged = useCallback(
-    async (event: CellValueChangedEvent) => {
-      const row = event.data as FlatContact;
-      const contactData = unflattenContact(row, fieldNames);
-
-      try {
-        await fetch(`/api/contacts/${row.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(contactData),
-        });
-      } catch (err) {
-        console.error("Failed to save:", err);
-        // TODO: show error toast and revert
-      }
-    },
-    [fieldNames]
-  );
+  const onCellValueChanged = useCallback(async (event: CellValueChangedEvent) => {
+    const row = event.data as FlatContact;
+    const contactData = unflattenContact(row, fieldNames);
+    try {
+      await fetch(`/api/contacts/${row.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(contactData),
+      });
+    } catch (err) {
+      console.error("Failed to save:", err);
+    }
+  }, [fieldNames]);
 
   const onGridReady = useCallback((event: GridReadyEvent) => {
     gridRef.current = event.api;
   }, []);
 
-  const exportCsv = useCallback(() => {
-    gridRef.current?.exportDataAsCsv({
-      fileName: `pauseai-contacts-${new Date().toISOString().slice(0, 10)}.csv`,
-    });
-  }, []);
+  // Export: fetch all matching contacts server-side for a complete CSV
+  const exportCsv = useCallback(async () => {
+    const params = new URLSearchParams({ pageSize: "100000" });
+    if (searchRef.current) params.set("search", searchRef.current);
+    const res = await fetch(`/api/contacts?${params}`);
+    if (!res.ok) return;
+    const { contacts: rows } = await res.json() as { contacts: Contact[] };
 
-  // Search: refetch from server (skip when empty — server-rendered data already covers that)
-  useEffect(() => {
-    if (!search) return;
-    const timer = setTimeout(async () => {
-      const params = new URLSearchParams({ search, pageSize: "10000" });
+    // Build CSV manually so we always export the full set
+    const headers = ["id", "email", "firstName", "lastName", ...fieldDefinitions.map((f) => f.name), "createdAt"];
+    const csvRows = [
+      headers.join(","),
+      ...rows.map((c) => headers.map((h) => {
+        const v = h === "firstName" ? c.firstName
+          : h === "lastName" ? c.lastName
+          : h === "email" ? c.email
+          : h === "id" ? c.id
+          : h === "createdAt" ? c.createdAt
+          : c.customFields[h];
+        return v == null ? "" : `"${String(v).replace(/"/g, '""')}"`;
+      }).join(",")),
+    ];
+    const blob = new Blob([csvRows.join("\n")], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `pauseai-contacts-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [fieldDefinitions]);
 
-      const res = await fetch(`/api/contacts?${params}`);
-      const data = await res.json();
-      // Fetch tags for filtered results (count is small enough for URL)
-      const ids = data.contacts.map((c: Contact) => c.id);
-      let newTagsMap: Record<string, string[]> = {};
-      if (ids.length > 0) {
-        const tagsRes = await fetch(`/api/contacts/tags?ids=${ids.join(",")}`);
-        if (tagsRes.ok) newTagsMap = await tagsRes.json();
-      }
-      setTagsMap(newTagsMap);
-      setRowData(data.contacts.map((c: Contact) => ({ ...flattenContact(c), _tags: newTagsMap[c.id] || [] })));
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [search, initialContacts, initialTagsMap]);
-
-  // When search is cleared, restore the full server-rendered dataset
-  useEffect(() => {
-    if (search) return;
-    setRowData(initialContacts.map((c) => ({ ...flattenContact(c), _tags: initialTagsMap[c.id] || [] })));
-    setTagsMap(initialTagsMap);
-  }, [search]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Get current prefs for the editing contact
+  // Get current prefs for the subscription editor from the row node
   const editingSubsPrefs = editingSubsFor
-    ? ((rowData.find((r) => r.id === editingSubsFor.contactId)?._commPrefs || {}) as Record<string, "subscribed" | "unsubscribed">)
+    ? ((gridRef.current?.getRowNode(editingSubsFor.contactId)?.data?._commPrefs ?? {}) as Record<string, "subscribed" | "unsubscribed">)
     : {};
+
+  // Get current tags for the tag editor from the row node
+  const editingTagsCurrent = editingTagsFor
+    ? ((gridRef.current?.getRowNode(editingTagsFor.contactId)?.data?._tags ?? []) as string[])
+    : [];
 
   return (
     <div className="flex flex-col gap-4 relative">
       {/* Tag editor popup */}
       {editingTagsFor && (
-        <div
-          style={{
-            position: "fixed",
-            top: editingTagsFor.rect.bottom + 4,
-            left: editingTagsFor.rect.left,
-            zIndex: 100,
-          }}
-        >
+        <div style={{ position: "fixed", top: editingTagsFor.rect.bottom + 4, left: editingTagsFor.rect.left, zIndex: 100 }}>
           <TagCellEditor
             contactId={editingTagsFor.contactId}
-            currentTags={
-              (rowData.find((r) => r.id === editingTagsFor.contactId)?._tags as string[]) || []
-            }
+            currentTags={editingTagsCurrent}
             onClose={() => setEditingTagsFor(null)}
             onSave={(newTags) => {
-              setRowData((prev) =>
-                prev.map((r) =>
-                  r.id === editingTagsFor.contactId ? { ...r, _tags: newTags } : r
-                )
-              );
+              const node = gridRef.current?.getRowNode(editingTagsFor.contactId);
+              if (node) node.setData({ ...node.data, _tags: newTags });
             }}
           />
         </div>
@@ -505,29 +470,20 @@ export function ContactsTable({
 
       {/* Subscription editor popup */}
       {editingSubsFor && (
-        <div
-          style={{
-            position: "fixed",
-            top: editingSubsFor.rect.bottom + 4,
-            left: editingSubsFor.rect.left,
-            zIndex: 100,
-          }}
-        >
+        <div style={{ position: "fixed", top: editingSubsFor.rect.bottom + 4, left: editingSubsFor.rect.left, zIndex: 100 }}>
           <SubscriptionCellEditor
             contactId={editingSubsFor.contactId}
             currentPrefs={editingSubsPrefs}
             onClose={() => setEditingSubsFor(null)}
             onSave={(newPrefs) => {
-              setRowData((prev) =>
-                prev.map((r) =>
-                  r.id === editingSubsFor.contactId ? { ...r, _commPrefs: newPrefs } : r
-                )
-              );
+              const node = gridRef.current?.getRowNode(editingSubsFor.contactId);
+              if (node) node.setData({ ...node.data, _commPrefs: newPrefs });
             }}
           />
         </div>
       )}
 
+      {/* Toolbar */}
       <div className="flex items-center justify-between">
         <input
           type="text"
@@ -545,12 +501,12 @@ export function ContactsTable({
             Export CSV
           </button>
           <span className="text-sm text-muted-foreground">
-            {total} contact{total !== 1 ? "s" : ""}
+            {total === null ? "Loading…" : `${total.toLocaleString()} contact${total !== 1 ? "s" : ""}`}
           </span>
         </div>
       </div>
 
-      {/* Contextual action bar — appears when rows are selected */}
+      {/* Contextual action bar */}
       {selectedIds.length > 0 && (
         <div className="flex items-center gap-3 rounded-lg border border-red-100 bg-red-50 px-4 py-2">
           <span className="text-sm font-medium text-red-800">
@@ -578,7 +534,11 @@ export function ContactsTable({
 
       <div className="ag-theme-alpine" style={{ height: "calc(100vh - 260px)", width: "100%" }}>
         <AgGridReact
-          rowData={rowData}
+          rowModelType="infinite"
+          datasource={datasource}
+          getRowId={(params) => params.data.id}
+          cacheBlockSize={BLOCK_SIZE}
+          maxBlocksInCache={50}
           columnDefs={columnDefs}
           defaultColDef={defaultColDef}
           onCellValueChanged={onCellValueChanged}

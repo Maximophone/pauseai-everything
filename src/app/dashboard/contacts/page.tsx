@@ -1,18 +1,13 @@
-import { listContacts, listFieldDefinitions } from "@/lib/contacts";
-import { getTagsForContacts } from "@/lib/tags";
+import { listFieldDefinitions } from "@/lib/contacts";
 import { listCategories } from "@/lib/communication-categories";
 import { ContactsTable } from "@/components/contacts-table";
 import { AddContactButton } from "@/components/add-contact-button";
 
 export default async function ContactsPage() {
-  const [contactsResult, fields, categories] = await Promise.all([
-    listContacts({ pageSize: 10000 }),
+  const [fields, categories] = await Promise.all([
     listFieldDefinitions(),
     listCategories(),
   ]);
-
-  const contactIds = contactsResult.contacts.map((c) => c.id);
-  const tagsMap = await getTagsForContacts(contactIds);
 
   return (
     <div>
@@ -27,10 +22,7 @@ export default async function ContactsPage() {
       </div>
       <div className="mt-4">
         <ContactsTable
-          initialContacts={JSON.parse(JSON.stringify(contactsResult.contacts))}
           fieldDefinitions={JSON.parse(JSON.stringify(fields))}
-          total={contactsResult.total}
-          initialTagsMap={tagsMap}
           categories={JSON.parse(JSON.stringify(categories))}
         />
       </div>
