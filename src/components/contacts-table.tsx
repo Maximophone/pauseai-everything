@@ -234,21 +234,6 @@ export function ContactsTable({
   const fieldNames = useMemo(() => fieldDefinitions.map((f) => f.name), [fieldDefinitions]);
 
   const columnDefs = useMemo<ColDef[]>(() => {
-    const checkboxCol: ColDef = {
-      colId: "_checkbox",
-      headerCheckboxSelection: true,
-      checkboxSelection: true,
-      pinned: "left",
-      width: 40,
-      minWidth: 40,
-      maxWidth: 40,
-      resizable: false,
-      sortable: false,
-      filter: false,
-      editable: false,
-      suppressMovable: true,
-    };
-
     const coreCols: ColDef[] = [
       {
         colId: "firstName",
@@ -384,7 +369,7 @@ export function ContactsTable({
         params.value ? new Date(params.value as string).toLocaleDateString() : "",
     }];
 
-    return [checkboxCol, ...coreCols, ...customCols, ...metaCols];
+    return [...coreCols, ...customCols, ...metaCols];
   }, [fieldDefinitions, canEdit, categories]);
 
   const defaultColDef = useMemo<ColDef>(() => ({
@@ -545,7 +530,13 @@ export function ContactsTable({
           onCellValueChanged={onCellValueChanged}
           onGridReady={onGridReady}
           onSelectionChanged={onSelectionChanged}
-          rowSelection="multiple"
+          rowSelection={{
+            mode: "multiRow",
+            headerCheckbox: true,
+            checkboxes: true,
+            enableClickSelection: false,
+            selectAll: "currentPage",
+          }}
           animateRows
           pagination
           paginationPageSize={50}
