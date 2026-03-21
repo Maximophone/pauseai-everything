@@ -35,6 +35,8 @@ type Contact = {
   lastName: string | null;
   customFields: Record<string, unknown>;
   communicationPreferences: Record<string, "subscribed" | "unsubscribed">;
+  syncConfigurationId: string | null;
+  syncedFields: string[] | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -46,13 +48,30 @@ type FlatContact = {
   lastName: string | null;
   createdAt: string;
   updatedAt: string;
+  _syncConfigurationId: string | null;
+  _syncedFields: string[] | null;
   [key: string]: unknown;
 };
 
 // Flatten customFields into top-level for AG Grid
 function flattenContact(contact: Contact): FlatContact {
-  const { customFields, communicationPreferences, ...rest } = contact;
-  return { ...rest, ...customFields, _commPrefs: communicationPreferences || {} };
+  const { customFields, communicationPreferences, syncConfigurationId, syncedFields, ...rest } = contact;
+  return {
+    ...rest,
+    ...customFields,
+    _commPrefs: communicationPreferences || {},
+    _syncConfigurationId: syncConfigurationId ?? null,
+    _syncedFields: syncedFields ?? null,
+  };
+}
+
+// Returns true if this cell's field is locked because it's managed by a sync
+function isSyncedField(data: FlatContact, fieldName: string): boolean {
+  const syncedFields = data._syncedFields;
+  if (!syncedFields) return false;
+  // Map AG Grid column field names to CRM target names used in syncedFields
+  const crmTarget = fieldName === "email" ? "_email" : fieldName;
+  return syncedFields.includes(crmTarget);
 }
 
 // Reconstruct contact from flat row
@@ -107,17 +126,25 @@ function getCellEditor(field: FieldDefinition): Partial<ColDef> {
 function NameCellRenderer(params: { data: FlatContact; value: string }) {
   const router = useRouter();
   if (!params.data) return params.value;
+  const isSynced = !!params.data._syncConfigurationId;
   return (
-    <a
-      href={`/dashboard/contacts/${params.data.id}`}
-      onClick={(e) => {
-        e.preventDefault();
-        router.push(`/dashboard/contacts/${params.data.id}`);
-      }}
-      className="text-blue-600 underline cursor-pointer"
-    >
-      {params.value}
-    </a>
+    <div className="flex items-center gap-1.5 h-full">
+      <a
+        href={`/dashboard/contacts/${params.data.id}`}
+        onClick={(e) => {
+          e.preventDefault();
+          router.push(`/dashboard/contacts/${params.data.id}`);
+        }}
+        className="text-blue-600 underline cursor-pointer"
+      >
+        {params.value}
+      </a>
+      {isSynced && (
+        <span className="inline-flex items-center rounded-full bg-blue-50 text-blue-600 px-1.5 py-0.5 text-[10px] font-medium leading-none border border-blue-100 shrink-0">
+          synced
+        </span>
+      )}
+    </div>
   );
 }
 
@@ -180,8 +207,14 @@ export function ContactsTable({
       {
         field: "email",
         headerName: "Email",
-        editable: canEdit,
+        editable: canEdit
+          ? (params: { data: FlatContact }) => !isSyncedField(params.data, "email")
+          : false,
         width: 220,
+        cellStyle: (params: { data: FlatContact }) =>
+          isSyncedField(params.data, "email")
+            ? { color: "var(--muted-foreground)", fontStyle: "italic" }
+            : null,
       },
       {
         field: "_tags",
@@ -288,15 +321,22 @@ export function ContactsTable({
     const customCols: ColDef[] = fieldDefinitions.map((field) => ({
       field: field.name,
       headerName: field.label,
-      editable: canEdit,
+      editable: field.fieldType === "multiselect"
+        ? false
+        : canEdit
+          ? (params: { data: FlatContact }) => !isSyncedField(params.data, field.name)
+          : false,
       type: getColumnType(field.fieldType),
       width: 150,
       ...getCellEditor(field),
+      cellStyle: (params: { data: FlatContact }) =>
+        isSyncedField(params.data, field.name)
+          ? { color: "var(--muted-foreground)", fontStyle: "italic" }
+          : null,
       // For multiselect, show as comma-separated
       ...(field.fieldType === "multiselect" && {
         valueFormatter: (params: { value: unknown }) =>
           Array.isArray(params.value) ? params.value.join(", ") : "",
-        editable: false, // multiselect needs a custom editor — disable inline for now
       }),
     }));
 

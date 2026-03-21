@@ -269,6 +269,9 @@ async function processRecords(
     mappingByExternalName.set(entry.externalFieldName, entry);
   }
 
+  // The CRM target names that this sync owns (e.g. "_email", "_firstName", "country")
+  const syncedFieldsList = mapping.mappings.map((m) => m.crmTarget);
+
   for (let i = 0; i < records.length; i++) {
     try {
       const record = records[i];
@@ -302,6 +305,8 @@ async function processRecords(
             firstName: mapped.firstName || existing.firstName,
             lastName: mapped.lastName || existing.lastName,
             customFields: mergedFields,
+            syncConfigurationId: config.id,
+            syncedFields: syncedFieldsList,
             updatedAt: new Date(),
           })
           .where(eq(contacts.id, existing.id));
@@ -313,6 +318,8 @@ async function processRecords(
           firstName: mapped.firstName,
           lastName: mapped.lastName,
           customFields: mapped.customFields,
+          syncConfigurationId: config.id,
+          syncedFields: syncedFieldsList,
         });
         ctx.counts.created++;
       }

@@ -6,7 +6,7 @@ import { useHasRole } from "@/lib/hooks/use-user-role";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { SaveIcon, Trash2Icon } from "lucide-react";
+import { SaveIcon, Trash2Icon, LinkIcon } from "lucide-react";
 
 type FieldDefinition = {
   id: string;
@@ -24,20 +24,45 @@ type Contact = {
   firstName: string | null;
   lastName: string | null;
   customFields: Record<string, unknown>;
+  syncConfigurationId: string | null;
+  syncedFields: string[] | null;
   createdAt: string;
   updatedAt: string;
+};
+
+type SyncSource = {
+  connectionId: string;
+  connectionName: string;
+  connectorType: string;
+  syncId: string;
+  syncName: string;
+};
+
+const CONNECTOR_LABELS: Record<string, string> = {
+  airtable: "Airtable",
+  notion: "Notion",
+  google_sheets: "Google Sheets",
+  mailchimp: "Mailchimp",
+  demo: "Demo",
 };
 
 export function ContactDetailForm({
   contact,
   fieldDefinitions,
+  syncSource = null,
 }: {
   contact: Contact;
   fieldDefinitions: FieldDefinition[];
+  syncSource?: SyncSource | null;
 }) {
   const router = useRouter();
   const canEdit = useHasRole("member");
   const isAdmin = useHasRole("admin");
+
+  // Helper: is this CRM target field locked by a sync?
+  function isSynced(crmTarget: string): boolean {
+    return !!contact.syncedFields?.includes(crmTarget);
+  }
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -104,34 +129,84 @@ export function ContactDetailForm({
 
   return (
     <div className="max-w-2xl space-y-8">
+      {/* Sync provenance banner */}
+      {contact.syncConfigurationId && (
+        <div className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2.5 text-sm text-blue-800 space-y-1">
+          <div className="flex items-center gap-2 font-medium">
+            <LinkIcon className="h-4 w-4 shrink-0" />
+            Synced contact
+          </div>
+          {syncSource ? (
+            <div className="pl-6 space-y-0.5 text-blue-700">
+              <div>
+                <span className="text-blue-500">Connection: </span>
+                <a
+                  href={`/dashboard/settings/connections/${syncSource.connectionId}`}
+                  className="underline hover:text-blue-900"
+                >
+                  {CONNECTOR_LABELS[syncSource.connectorType] ?? syncSource.connectorType} — {syncSource.connectionName}
+                </a>
+              </div>
+              <div>
+                <span className="text-blue-500">Sync: </span>
+                <a
+                  href={`/dashboard/settings/connections/${syncSource.connectionId}/syncs/${syncSource.syncId}`}
+                  className="underline hover:text-blue-900"
+                >
+                  {syncSource.syncName}
+                </a>
+              </div>
+            </div>
+          ) : null}
+          <p className="pl-6 text-xs text-blue-600 pt-0.5">
+            Highlighted fields are managed by the sync and cannot be edited here.
+          </p>
+        </div>
+      )}
+
       {/* Core fields */}
       <section className="space-y-4">
         <h3 className="text-lg font-semibold">Basic Information</h3>
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="firstName">First Name</Label>
+            <Label htmlFor="firstName" className="flex items-center gap-1.5">
+              First Name
+              {isSynced("_firstName") && <SyncedBadge />}
+            </Label>
             <Input
               id="firstName"
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
+              disabled={isSynced("_firstName")}
+              className={isSynced("_firstName") ? "opacity-60 cursor-not-allowed" : ""}
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="lastName">Last Name</Label>
+            <Label htmlFor="lastName" className="flex items-center gap-1.5">
+              Last Name
+              {isSynced("_lastName") && <SyncedBadge />}
+            </Label>
             <Input
               id="lastName"
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
+              disabled={isSynced("_lastName")}
+              className={isSynced("_lastName") ? "opacity-60 cursor-not-allowed" : ""}
             />
           </div>
         </div>
         <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
+          <Label htmlFor="email" className="flex items-center gap-1.5">
+            Email
+            {isSynced("_email") && <SyncedBadge />}
+          </Label>
           <Input
             id="email"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            disabled={isSynced("_email")}
+            className={isSynced("_email") ? "opacity-60 cursor-not-allowed" : ""}
           />
         </div>
       </section>
@@ -142,14 +217,16 @@ export function ContactDetailForm({
         <div className="grid grid-cols-2 gap-4">
           {fieldDefinitions.map((field) => (
             <div key={field.id} className="space-y-2">
-              <Label htmlFor={field.name}>
+              <Label htmlFor={field.name} className="flex items-center gap-1.5">
                 {field.label}
                 {field.required && (
                   <span className="text-red-500 ml-1">*</span>
                 )}
+                {isSynced(field.name) && <SyncedBadge />}
               </Label>
               {renderField(field, customFields[field.name], (v) =>
-                setField(field.name, v)
+                setField(field.name, v),
+                isSynced(field.name)
               )}
             </div>
           ))}
@@ -191,11 +268,22 @@ export function ContactDetailForm({
   );
 }
 
+function SyncedBadge() {
+  return (
+    <span className="inline-flex items-center rounded-full bg-blue-50 text-blue-600 px-1.5 py-0.5 text-[10px] font-medium leading-none border border-blue-100">
+      synced
+    </span>
+  );
+}
+
 function renderField(
   field: FieldDefinition,
   value: unknown,
-  onChange: (v: unknown) => void
+  onChange: (v: unknown) => void,
+  disabled = false
 ) {
+  const disabledClass = disabled ? "opacity-60 cursor-not-allowed" : "";
+
   switch (field.fieldType) {
     case "select":
       return (
@@ -203,7 +291,8 @@ function renderField(
           id={field.name}
           value={(value as string) ?? ""}
           onChange={(e) => onChange(e.target.value || null)}
-          className="flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          disabled={disabled}
+          className={`flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${disabledClass}`}
         >
           <option value="">—</option>
           {field.options?.map((opt) => (
@@ -217,20 +306,21 @@ function renderField(
     case "multiselect":
       const selected = Array.isArray(value) ? (value as string[]) : [];
       return (
-        <div className="flex flex-wrap gap-1">
+        <div className={`flex flex-wrap gap-1 ${disabled ? "pointer-events-none opacity-60" : ""}`}>
           {field.options?.map((opt) => (
             <label
               key={opt}
-              className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs cursor-pointer transition-colors ${
+              className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs transition-colors ${
                 selected.includes(opt)
                   ? "bg-primary text-primary-foreground border-primary"
-                  : "hover:bg-muted"
+                  : disabled ? "bg-muted" : "cursor-pointer hover:bg-muted"
               }`}
             >
               <input
                 type="checkbox"
                 className="sr-only"
                 checked={selected.includes(opt)}
+                disabled={disabled}
                 onChange={(e) => {
                   if (e.target.checked) {
                     onChange([...selected, opt]);
@@ -259,7 +349,8 @@ function renderField(
                   : null
             )
           }
-          className="flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          disabled={disabled}
+          className={`flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${disabledClass}`}
         >
           <option value="">—</option>
           <option value="true">Yes</option>
@@ -276,6 +367,8 @@ function renderField(
           onChange={(e) =>
             onChange(e.target.value ? Number(e.target.value) : null)
           }
+          disabled={disabled}
+          className={disabledClass}
         />
       );
 
@@ -286,6 +379,8 @@ function renderField(
           type="date"
           value={(value as string) ?? ""}
           onChange={(e) => onChange(e.target.value || null)}
+          disabled={disabled}
+          className={disabledClass}
         />
       );
 
@@ -295,6 +390,8 @@ function renderField(
           id={field.name}
           value={(value as string) ?? ""}
           onChange={(e) => onChange(e.target.value || null)}
+          disabled={disabled}
+          className={disabledClass}
         />
       );
   }

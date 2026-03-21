@@ -7,6 +7,17 @@ import { ContactPreferences } from "@/components/contact-preferences";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowLeftIcon } from "lucide-react";
+import { db } from "@/db";
+import { syncConfigurations, connections } from "@/db/schema/connections";
+import { eq } from "drizzle-orm";
+
+type SyncSource = {
+  connectionId: string;
+  connectionName: string;
+  connectorType: string;
+  syncId: string;
+  syncName: string;
+};
 
 export default async function ContactDetailPage({
   params,
@@ -22,6 +33,24 @@ export default async function ContactDetailPage({
 
   if (!contact) {
     notFound();
+  }
+
+  // Fetch sync source info if this contact was synced
+  let syncSource: SyncSource | null = null;
+  if (contact.syncConfigurationId) {
+    const [row] = await db
+      .select({
+        connectionId: connections.id,
+        connectionName: connections.name,
+        connectorType: connections.connectorType,
+        syncId: syncConfigurations.id,
+        syncName: syncConfigurations.name,
+      })
+      .from(syncConfigurations)
+      .innerJoin(connections, eq(connections.id, syncConfigurations.connectionId))
+      .where(eq(syncConfigurations.id, contact.syncConfigurationId));
+
+    syncSource = row ?? null;
   }
 
   return (
@@ -52,6 +81,7 @@ export default async function ContactDetailPage({
           <ContactDetailForm
             contact={JSON.parse(JSON.stringify(contact))}
             fieldDefinitions={JSON.parse(JSON.stringify(fields))}
+            syncSource={syncSource}
           />
           <div className="border-t pt-6">
             <ContactTags contactId={contact.id} />

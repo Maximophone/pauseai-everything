@@ -15,6 +15,9 @@ export const contacts = pgTable(
       .$type<Record<string, "subscribed" | "unsubscribed">>()
       .default({})
       .notNull(),
+    // Sync provenance — set when a contact is created or updated via a sync
+    syncConfigurationId: uuid("sync_configuration_id"), // FK to sync_configurations(id), SET NULL on delete
+    syncedFields: jsonb("synced_fields").$type<string[]>(), // CRM target names locked by the sync
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
