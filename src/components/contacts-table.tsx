@@ -73,7 +73,8 @@ function flattenContact(contact: Contact): FlatContact {
   };
 }
 
-function isSyncedField(data: FlatContact, fieldName: string): boolean {
+function isSyncedField(data: FlatContact | undefined, fieldName: string): boolean {
+  if (!data) return false;
   const syncedFields = data._syncedFields as string[] | null;
   if (!syncedFields) return false;
   const crmTarget = fieldName === "email" ? "_email" : fieldName;
@@ -268,10 +269,10 @@ export function ContactsTable({
         headerName: "Email",
         sortable: true,
         editable: canEdit
-          ? (params: { data: FlatContact }) => !isSyncedField(params.data, "email")
+          ? (params: { data: FlatContact | undefined }) => !isSyncedField(params.data, "email")
           : false,
         width: 220,
-        cellStyle: (params: { data: FlatContact }) =>
+        cellStyle: (params: { data: FlatContact | undefined }) =>
           isSyncedField(params.data, "email")
             ? { color: "var(--muted-foreground)", fontStyle: "italic" }
             : null,
@@ -357,12 +358,12 @@ export function ContactsTable({
       editable: field.fieldType === "multiselect"
         ? false
         : canEdit
-          ? (params: { data: FlatContact }) => !isSyncedField(params.data, field.name)
+          ? (params: { data: FlatContact | undefined }) => !isSyncedField(params.data, field.name)
           : false,
       type: getColumnType(field.fieldType),
       width: 150,
       ...getCellEditor(field),
-      cellStyle: (params: { data: FlatContact }) =>
+      cellStyle: (params: { data: FlatContact | undefined }) =>
         isSyncedField(params.data, field.name)
           ? { color: "var(--muted-foreground)", fontStyle: "italic" }
           : null,
