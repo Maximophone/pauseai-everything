@@ -210,22 +210,34 @@ export function ConnectionDetail({
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => triggerSync(sync.id)}
-                    disabled={
-                      runningSync === sync.id ||
-                      sync.status === "needs_repair"
-                    }
-                    title="Run sync now"
-                  >
-                    {runningSync === sync.id ? (
-                      <Loader2Icon className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <PlayIcon className="h-4 w-4" />
-                    )}
-                  </Button>
+                  {sync.status === "needs_repair" ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-amber-700 border-amber-300 hover:bg-amber-50"
+                      onClick={() => {
+                        window.location.href = `/dashboard/settings/connections/${connectionId}/syncs/${sync.id}`;
+                      }}
+                      title="Repair field mapping"
+                    >
+                      <AlertTriangleIcon className="mr-1 h-3 w-3" />
+                      Repair
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => triggerSync(sync.id)}
+                      disabled={runningSync === sync.id}
+                      title="Run sync now"
+                    >
+                      {runningSync === sync.id ? (
+                        <Loader2Icon className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <PlayIcon className="h-4 w-4" />
+                      )}
+                    </Button>
+                  )}
                   <Button
                     size="sm"
                     variant="ghost"
