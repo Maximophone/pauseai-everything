@@ -10,9 +10,10 @@ import {
   type CellValueChangedEvent,
   type GridReadyEvent,
   type GridApi,
+  type SelectionChangedEvent,
 } from "ag-grid-community";
 import { useRouter } from "next/navigation";
-import { Download } from "lucide-react";
+import { Download, Trash2 } from "lucide-react";
 import { TagCellEditor } from "./tag-cell-editor";
 import { SubscriptionCellEditor } from "./subscription-cell-editor";
 
@@ -169,12 +170,15 @@ export function ContactsTable({
 }) {
   const router = useRouter();
   const canEdit = useHasRole("member");
+  const isAdmin = useHasRole("admin");
   const gridRef = useRef<GridApi | null>(null);
   const [tagsMap, setTagsMap] = useState<Record<string, string[]>>(initialTagsMap);
   const [rowData, setRowData] = useState<FlatContact[]>(
     initialContacts.map((c) => ({ ...flattenContact(c), _tags: initialTagsMap[c.id] || [] }))
   );
   const [search, setSearch] = useState("");
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [deleting, setDeleting] = useState(false);
   const [editingTagsFor, setEditingTagsFor] = useState<{ contactId: string; rect: DOMRect } | null>(null);
   const [editingSubsFor, setEditingSubsFor] = useState<{ contactId: string; rect: DOMRect } | null>(null);
 
@@ -189,8 +193,49 @@ export function ContactsTable({
     [fieldDefinitions]
   );
 
+  const onSelectionChanged = useCallback((event: SelectionChangedEvent) => {
+    const selected = event.api.getSelectedRows() as FlatContact[];
+    setSelectedIds(selected.map((r) => r.id));
+  }, []);
+
+  const deleteSelected = useCallback(async () => {
+    if (selectedIds.length === 0) return;
+    if (!confirm(`Permanently delete ${selectedIds.length} contact${selectedIds.length !== 1 ? "s" : ""}? This cannot be undone.`)) return;
+
+    setDeleting(true);
+    try {
+      const res = await fetch("/api/contacts", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: selectedIds }),
+      });
+      if (res.ok) {
+        setRowData((prev) => prev.filter((r) => !selectedIds.includes(r.id)));
+        gridRef.current?.deselectAll();
+        setSelectedIds([]);
+      }
+    } finally {
+      setDeleting(false);
+    }
+  }, [selectedIds]);
+
   // Build column definitions from field definitions
   const columnDefs = useMemo<ColDef[]>(() => {
+    const checkboxCol: ColDef = {
+      colId: "_checkbox",
+      headerCheckboxSelection: true,
+      checkboxSelection: true,
+      pinned: "left",
+      width: 40,
+      minWidth: 40,
+      maxWidth: 40,
+      resizable: false,
+      sortable: false,
+      filter: false,
+      editable: false,
+      suppressMovable: true,
+    };
+
     const coreCols: ColDef[] = [
       {
         headerName: "Name",
@@ -353,7 +398,7 @@ export function ContactsTable({
       },
     ];
 
-    return [...coreCols, ...customCols, ...metaCols];
+    return [checkboxCol, ...coreCols, ...customCols, ...metaCols];
   }, [fieldDefinitions, canEdit, categories]);
 
   const defaultColDef = useMemo<ColDef>(
@@ -498,6 +543,33 @@ export function ContactsTable({
           </span>
         </div>
       </div>
+
+      {/* Contextual action bar — appears when rows are selected */}
+      {selectedIds.length > 0 && (
+        <div className="flex items-center gap-3 rounded-lg border border-red-100 bg-red-50 px-4 py-2">
+          <span className="text-sm font-medium text-red-800">
+            {selectedIds.length} contact{selectedIds.length !== 1 ? "s" : ""} selected
+          </span>
+          <div className="flex-1" />
+          <button
+            onClick={() => { gridRef.current?.deselectAll(); setSelectedIds([]); }}
+            className="text-sm text-red-600 hover:text-red-800 underline"
+          >
+            Clear selection
+          </button>
+          {isAdmin && (
+            <button
+              onClick={deleteSelected}
+              disabled={deleting}
+              className="inline-flex items-center gap-1.5 rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50 transition-colors"
+            >
+              <Trash2 className="h-4 w-4" />
+              {deleting ? "Deleting…" : `Delete ${selectedIds.length}`}
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="ag-theme-alpine" style={{ height: "calc(100vh - 260px)", width: "100%" }}>
         <AgGridReact
           rowData={rowData}
@@ -505,6 +577,7 @@ export function ContactsTable({
           defaultColDef={defaultColDef}
           onCellValueChanged={onCellValueChanged}
           onGridReady={onGridReady}
+          onSelectionChanged={onSelectionChanged}
           rowSelection="multiple"
           animateRows
           pagination

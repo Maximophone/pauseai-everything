@@ -6,7 +6,11 @@ import {
 } from "@/lib/contacts";
 import { validateBody } from "@/lib/api-validate";
 import { CreateContactInput } from "@/lib/schemas";
-import { checkAuth, requireAuth, requireMember } from "@/lib/api-auth";
+import { checkAuth, requireAuth, requireMember, requireAdmin } from "@/lib/api-auth";
+import { db } from "@/db";
+import { contacts } from "@/db/schema/contacts";
+import { inArray } from "drizzle-orm";
+import { z } from "zod";
 
 // GET /api/contacts — list contacts with search, pagination, sorting
 export async function GET(request: NextRequest) {
@@ -69,4 +73,24 @@ export async function POST(request: NextRequest) {
     }
     throw err;
   }
+}
+
+const BatchDeleteInput = z.object({
+  ids: z.array(z.string().uuid()).min(1).max(500),
+});
+
+// DELETE /api/contacts — batch delete contacts by IDs (admin only)
+export async function DELETE(request: NextRequest) {
+  const authResult = await checkAuth(request);
+  const authError = requireAdmin(authResult);
+  if (authError) return authError;
+
+  const body = await request.json();
+  const parsed = validateBody(BatchDeleteInput, body);
+  if (!parsed.success) return parsed.error;
+
+  const { ids } = parsed.data;
+  await db.delete(contacts).where(inArray(contacts.id, ids));
+
+  return NextResponse.json({ deleted: ids.length });
 }
