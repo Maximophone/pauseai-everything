@@ -67,7 +67,7 @@ export class AirtableConnector implements Connector {
 
   async testConnection(credentials: Record<string, unknown>): Promise<string> {
     const { apiKey } = AirtableCredentialsSchema.parse(credentials);
-    const res = await airtableFetch("/meta/bases", apiKey, { pageSize: "1" });
+    const res = await airtableFetch("/meta/bases", apiKey);
     const data = (await res.json()) as { bases: { id: string; name: string }[] };
     return `Connected. Found ${data.bases.length} base(s).`;
   }
