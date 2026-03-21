@@ -537,6 +537,15 @@ export function ContactsTable({
             enableClickSelection: false,
             selectAll: "currentPage",
           }}
+          selectionColumnDef={{
+            pinned: "left",
+            width: 48,
+            minWidth: 48,
+            maxWidth: 48,
+            resizable: false,
+            suppressMovable: true,
+            suppressHeaderMenuButton: true,
+          }}
           animateRows
           pagination
           paginationPageSize={50}
