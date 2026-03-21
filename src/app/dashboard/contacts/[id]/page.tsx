@@ -17,6 +17,7 @@ type SyncSource = {
   connectorType: string;
   syncId: string;
   syncName: string;
+  lastSyncAt: string | null;
 };
 
 export default async function ContactDetailPage({
@@ -45,12 +46,18 @@ export default async function ContactDetailPage({
         connectorType: connections.connectorType,
         syncId: syncConfigurations.id,
         syncName: syncConfigurations.name,
+        lastSyncAt: syncConfigurations.lastSyncAt,
       })
       .from(syncConfigurations)
       .innerJoin(connections, eq(connections.id, syncConfigurations.connectionId))
       .where(eq(syncConfigurations.id, contact.syncConfigurationId));
 
-    syncSource = row ?? null;
+    if (row) {
+      syncSource = {
+        ...row,
+        lastSyncAt: row.lastSyncAt?.toISOString() ?? null,
+      };
+    }
   }
 
   return (

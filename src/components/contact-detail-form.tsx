@@ -36,6 +36,7 @@ type SyncSource = {
   connectorType: string;
   syncId: string;
   syncName: string;
+  lastSyncAt: string | null;
 };
 
 const CONNECTOR_LABELS: Record<string, string> = {
@@ -155,6 +156,12 @@ export function ContactDetailForm({
                 >
                   {syncSource.syncName}
                 </a>
+              </div>
+              <div>
+                <span className="text-blue-500">Last synced: </span>
+                {syncSource.lastSyncAt
+                  ? new Date(syncSource.lastSyncAt).toLocaleString()
+                  : "never"}
               </div>
             </div>
           ) : null}
