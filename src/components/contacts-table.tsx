@@ -440,16 +440,15 @@ export function ContactsTable({
     });
   }, []);
 
-  // Search: refetch from server
+  // Search: refetch from server (skip when empty — server-rendered data already covers that)
   useEffect(() => {
+    if (!search) return;
     const timer = setTimeout(async () => {
-      const params = new URLSearchParams();
-      if (search) params.set("search", search);
-      params.set("pageSize", "200");
+      const params = new URLSearchParams({ search, pageSize: "10000" });
 
       const res = await fetch(`/api/contacts?${params}`);
       const data = await res.json();
-      // Fetch tags for these contacts
+      // Fetch tags for filtered results (count is small enough for URL)
       const ids = data.contacts.map((c: Contact) => c.id);
       let newTagsMap: Record<string, string[]> = {};
       if (ids.length > 0) {
@@ -461,7 +460,14 @@ export function ContactsTable({
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [search]);
+  }, [search, initialContacts, initialTagsMap]);
+
+  // When search is cleared, restore the full server-rendered dataset
+  useEffect(() => {
+    if (search) return;
+    setRowData(initialContacts.map((c) => ({ ...flattenContact(c), _tags: initialTagsMap[c.id] || [] })));
+    setTagsMap(initialTagsMap);
+  }, [search]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Get current prefs for the editing contact
   const editingSubsPrefs = editingSubsFor

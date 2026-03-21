@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
 }
 
 const BatchDeleteInput = z.object({
-  ids: z.array(z.string().uuid()).min(1).max(500),
+  ids: z.array(z.string().uuid()).min(1).max(10000),
 });
 
 // DELETE /api/contacts — batch delete contacts by IDs (admin only)

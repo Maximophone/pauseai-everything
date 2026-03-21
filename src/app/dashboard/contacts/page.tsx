@@ -6,7 +6,7 @@ import { AddContactButton } from "@/components/add-contact-button";
 
 export default async function ContactsPage() {
   const [contactsResult, fields, categories] = await Promise.all([
-    listContacts({ pageSize: 200 }),
+    listContacts({ pageSize: 10000 }),
     listFieldDefinitions(),
     listCategories(),
   ]);
