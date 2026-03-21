@@ -26,11 +26,18 @@ export const connections = pgTable("connections", {
 
 // ---------- sync_configurations ----------
 
+export type FieldMappingSource =
+  | {
+      type: "field";
+      externalFieldId: string;
+      externalFieldName: string;
+      transform?: "none" | "to_string" | "to_number" | "to_date" | "to_boolean";
+    }
+  | { type: "constant"; value: unknown };
+
 export type FieldMappingEntry = {
-  externalFieldId: string;
-  externalFieldName: string;
-  crmTarget: string; // "_email" | "_firstName" | "_lastName" | field definition name
-  transform?: "none" | "to_string" | "to_number" | "to_date" | "to_boolean";
+  crmTarget: string; // "_email" | "_firstName" | "_lastName" | "_tags" | field definition name
+  source: FieldMappingSource;
 };
 
 export type FieldMapping = {

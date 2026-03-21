@@ -73,9 +73,8 @@ describe("Connection Zod schemas", () => {
       fieldMapping: {
         mappings: [
           {
-            externalFieldId: "fld1",
-            externalFieldName: "Email",
             crmTarget: "_email",
+            source: { type: "field", externalFieldId: "fld1", externalFieldName: "Email" },
           },
         ],
       },
@@ -99,9 +98,8 @@ describe("Connection Zod schemas", () => {
       fieldMapping: {
         mappings: [
           {
-            externalFieldId: "fld1",
-            externalFieldName: "Email",
             crmTarget: "_email",
+            source: { type: "field", externalFieldId: "fld1", externalFieldName: "Email" },
           },
         ],
       },
@@ -127,7 +125,7 @@ describe("Connection Zod schemas", () => {
         externalResource: { baseId: "app1", tableId: "tbl1" },
         fieldMapping: {
           mappings: [
-            { externalFieldId: "f1", externalFieldName: "Email", crmTarget: "_email" },
+            { crmTarget: "_email", source: { type: "field", externalFieldId: "f1", externalFieldName: "Email" } },
           ],
         },
         syncFrequency: freq,
@@ -140,7 +138,7 @@ describe("Connection Zod schemas", () => {
       externalResource: { baseId: "app1", tableId: "tbl1" },
       fieldMapping: {
         mappings: [
-          { externalFieldId: "f1", externalFieldName: "Email", crmTarget: "_email" },
+          { crmTarget: "_email", source: { type: "field", externalFieldId: "f1", externalFieldName: "Email" } },
         ],
       },
       syncFrequency: "every_5_minutes",

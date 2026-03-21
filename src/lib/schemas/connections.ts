@@ -17,11 +17,22 @@ export type UpdateConnectionInput = z.infer<typeof UpdateConnectionInput>;
 
 // ── Sync Configurations ───────────────────────────────────
 
+const FieldMappingSourceSchema = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("field"),
+    externalFieldId: z.string(),
+    externalFieldName: z.string(),
+    transform: z.enum(["none", "to_string", "to_number", "to_date", "to_boolean"]).optional(),
+  }),
+  z.object({
+    type: z.literal("constant"),
+    value: z.unknown(),
+  }),
+]);
+
 const FieldMappingEntrySchema = z.object({
-  externalFieldId: z.string(),
-  externalFieldName: z.string(),
-  crmTarget: z.string(),
-  transform: z.enum(["none", "to_string", "to_number", "to_date", "to_boolean"]).optional(),
+  crmTarget: z.string().min(1),
+  source: FieldMappingSourceSchema,
 });
 
 const FieldMappingSchema = z.object({

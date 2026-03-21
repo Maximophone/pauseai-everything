@@ -8,9 +8,11 @@ import {
   type ExternalSchemaField,
 } from "@/db/schema/connections";
 import { contacts } from "@/db/schema/contacts";
+import { tags } from "@/db/schema/tags";
 import { fieldDefinitions } from "@/db/schema/field-definitions";
 import { eq, and, asc } from "drizzle-orm";
 import { getConnector } from "./connectors";
+import { addTagToContact } from "./tags";
 
 // ── Types ──────────────────────────────────────────────────
 
@@ -26,45 +28,50 @@ type SyncRunContext = {
   };
 };
 
+// ── Backward-compat normalizer ─────────────────────────────
+// Syncs saved before the target-centric redesign used a flat format:
+//   { externalFieldId, externalFieldName, crmTarget, transform? }
+// Normalise on read so the rest of the engine only deals with the new shape.
+function normalizeEntry(raw: unknown): FieldMappingEntry {
+  const e = raw as Record<string, unknown>;
+  if (e.source !== undefined) return raw as FieldMappingEntry;
+  return {
+    crmTarget: e.crmTarget as string,
+    source: {
+      type: "field",
+      externalFieldId: e.externalFieldId as string,
+      externalFieldName: e.externalFieldName as string,
+      transform: e.transform as ("none" | "to_string" | "to_number" | "to_date" | "to_boolean") | undefined,
+    },
+  };
+}
+
 // ── Public API ─────────────────────────────────────────────
 
 export async function executeSyncRun(
   syncConfigurationId: string,
   triggeredBy: "manual" | "scheduled"
 ): Promise<{ runId: string; status: string }> {
-  // Load sync config + connection
   const [config] = await db
     .select()
     .from(syncConfigurations)
     .where(eq(syncConfigurations.id, syncConfigurationId));
 
-  if (!config) {
-    throw new Error(`Sync configuration ${syncConfigurationId} not found`);
-  }
+  if (!config) throw new Error(`Sync configuration ${syncConfigurationId} not found`);
 
   const [connection] = await db
     .select()
     .from(connections)
     .where(eq(connections.id, config.connectionId));
 
-  if (!connection) {
-    throw new Error(`Connection ${config.connectionId} not found`);
-  }
+  if (!connection) throw new Error(`Connection ${config.connectionId} not found`);
 
-  // Lock check: skip if another run is in progress
   const activeRun = await checkForActiveRun(syncConfigurationId);
-  if (activeRun) {
-    return { runId: activeRun, status: "skipped_active_run" };
-  }
+  if (activeRun) return { runId: activeRun, status: "skipped_active_run" };
 
-  // Create sync run record
   const [run] = await db
     .insert(syncRuns)
-    .values({
-      syncConfigurationId,
-      status: "running",
-      triggeredBy,
-    })
+    .values({ syncConfigurationId, status: "running", triggeredBy })
     .returning();
 
   const ctx: SyncRunContext = {
@@ -76,7 +83,6 @@ export async function executeSyncRun(
   try {
     const connector = getConnector(connection.connectorType as Parameters<typeof getConnector>[0]);
 
-    // Step 1: Test connection
     log(ctx, "Testing connection...");
     try {
       await connector.testConnection(connection.credentials);
@@ -89,12 +95,8 @@ export async function executeSyncRun(
       throw new Error(`Connection test failed: ${errorMessage(err)}`);
     }
 
-    // Step 2: Validate external schema
     log(ctx, "Validating external schema...");
-    const currentSchema = await connector.getSchema(
-      connection.credentials,
-      config.externalResource
-    );
+    const currentSchema = await connector.getSchema(connection.credentials, config.externalResource);
     log(ctx, `Found ${currentSchema.length} external fields`);
 
     const schemaIssues = validateExternalSchema(config, currentSchema);
@@ -103,7 +105,6 @@ export async function executeSyncRun(
       throw new Error(`Schema validation failed: ${schemaIssues.join("; ")}`);
     }
 
-    // Step 3: Validate CRM schema
     log(ctx, "Validating CRM schema...");
     const crmIssues = await validateCrmSchema(config);
     if (crmIssues.length > 0) {
@@ -112,27 +113,20 @@ export async function executeSyncRun(
     }
     log(ctx, "Schema validation passed");
 
-    // Step 4: Fetch all records
     log(ctx, "Fetching records...");
     const allRecords = await fetchAllRecords(connector, connection.credentials, config.externalResource, ctx);
     ctx.counts.fetched = allRecords.length;
     log(ctx, `Fetched ${allRecords.length} records total`);
 
-    // Step 5: Process records
     log(ctx, "Processing records...");
     await processRecords(allRecords, config, ctx);
 
-    // Finalize as success or partial
     const finalStatus = ctx.counts.errored > 0 ? "partial" : "success";
-    log(
-      ctx,
-      `Complete: ${ctx.counts.created} created, ${ctx.counts.updated} updated, ${ctx.counts.skipped} skipped, ${ctx.counts.errored} errored`
-    );
+    log(ctx, `Complete: ${ctx.counts.created} created, ${ctx.counts.updated} updated, ${ctx.counts.skipped} skipped, ${ctx.counts.errored} errored`);
 
     await finalizeRun(ctx, finalStatus);
     await updateSyncConfigAfterRun(config.id, finalStatus);
 
-    // Update connection status to connected on success
     await db
       .update(connections)
       .set({ status: "connected", statusMessage: "OK", lastTestedAt: new Date(), updatedAt: new Date() })
@@ -153,25 +147,15 @@ async function checkForActiveRun(syncConfigurationId: string): Promise<string | 
   const [activeRun] = await db
     .select()
     .from(syncRuns)
-    .where(
-      and(
-        eq(syncRuns.syncConfigurationId, syncConfigurationId),
-        eq(syncRuns.status, "running")
-      )
-    );
+    .where(and(eq(syncRuns.syncConfigurationId, syncConfigurationId), eq(syncRuns.status, "running")));
 
   if (!activeRun) return null;
 
-  // If older than 30 minutes, mark as timed out
   const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
   if (activeRun.startedAt < thirtyMinutesAgo) {
     await db
       .update(syncRuns)
-      .set({
-        status: "error",
-        error: "Timed out (exceeded 30 minutes)",
-        completedAt: new Date(),
-      })
+      .set({ status: "error", error: "Timed out (exceeded 30 minutes)", completedAt: new Date() })
       .where(eq(syncRuns.id, activeRun.id));
     return null;
   }
@@ -186,13 +170,15 @@ function validateExternalSchema(
   const issues: string[] = [];
   const currentFieldIds = new Set(currentSchema.map((f) => f.id));
   const mapping = config.fieldMapping;
-
   if (!mapping?.mappings) return issues;
 
-  for (const entry of mapping.mappings) {
-    if (!currentFieldIds.has(entry.externalFieldId)) {
+  for (const rawEntry of mapping.mappings) {
+    const entry = normalizeEntry(rawEntry);
+    // Only field-type sources reference the external schema; constants are always valid
+    if (entry.source.type !== "field") continue;
+    if (!currentFieldIds.has(entry.source.externalFieldId)) {
       issues.push(
-        `External field "${entry.externalFieldName}" (ID: ${entry.externalFieldId}) no longer exists`
+        `External field "${entry.source.externalFieldName}" (ID: ${entry.source.externalFieldId}) no longer exists`
       );
     }
   }
@@ -203,20 +189,17 @@ function validateExternalSchema(
 async function validateCrmSchema(config: SyncConfiguration): Promise<string[]> {
   const issues: string[] = [];
   const mapping = config.fieldMapping;
-
   if (!mapping?.mappings) return issues;
 
-  const coreFields = new Set(["_email", "_firstName", "_lastName"]);
+  // Core + special fields are always valid
+  const coreFields = new Set(["_email", "_firstName", "_lastName", "_tags"]);
   const customTargets = mapping.mappings
-    .map((m) => m.crmTarget)
+    .map((e) => normalizeEntry(e).crmTarget)
     .filter((t) => !coreFields.has(t));
 
   if (customTargets.length === 0) return issues;
 
-  const definitions = await db
-    .select()
-    .from(fieldDefinitions)
-    .orderBy(asc(fieldDefinitions.sortOrder));
+  const definitions = await db.select().from(fieldDefinitions).orderBy(asc(fieldDefinitions.sortOrder));
   const definedNames = new Set(definitions.map((d) => d.name));
 
   for (const target of customTargets) {
@@ -257,25 +240,15 @@ async function processRecords(
   const mapping = config.fieldMapping;
   if (!mapping?.mappings) return;
 
-  // Build a lookup from external field ID → mapping entry
-  const mappingByExternalId = new Map<string, FieldMappingEntry>();
-  for (const entry of mapping.mappings) {
-    mappingByExternalId.set(entry.externalFieldId, entry);
-  }
+  const normalizedMappings = mapping.mappings.map(normalizeEntry);
 
-  // Build a lookup from external field name → mapping entry (fallback)
-  const mappingByExternalName = new Map<string, FieldMappingEntry>();
-  for (const entry of mapping.mappings) {
-    mappingByExternalName.set(entry.externalFieldName, entry);
-  }
-
-  // The CRM target names that this sync owns (e.g. "_email", "_firstName", "country")
-  const syncedFieldsList = mapping.mappings.map((m) => m.crmTarget);
+  // The CRM target names this sync owns (drives the read-only badge in the UI)
+  const syncedFieldsList = normalizedMappings.map((m) => m.crmTarget);
 
   for (let i = 0; i < records.length; i++) {
     try {
       const record = records[i];
-      const mapped = applyMapping(record.fields, mappingByExternalId, mappingByExternalName, ctx, i);
+      const mapped = applyMapping(record.fields, normalizedMappings);
 
       if (!mapped.email) {
         log(ctx, `Row ${i + 1}: skipped (no email)`);
@@ -284,20 +257,15 @@ async function processRecords(
       }
 
       const email = mapped.email.toLowerCase().trim();
+      const [existing] = await db.select().from(contacts).where(eq(contacts.email, email));
 
-      // Check for existing contact
-      const [existing] = await db
-        .select()
-        .from(contacts)
-        .where(eq(contacts.email, email));
+      let contactId: string;
 
       if (existing) {
         if (config.duplicateStrategy === "skip") {
           ctx.counts.skipped++;
           continue;
         }
-
-        // Update: external wins for mapped fields
         const mergedFields = { ...existing.customFields, ...mapped.customFields };
         await db
           .update(contacts)
@@ -310,18 +278,26 @@ async function processRecords(
             updatedAt: new Date(),
           })
           .where(eq(contacts.id, existing.id));
+        contactId = existing.id;
         ctx.counts.updated++;
       } else {
-        // Create new contact
-        await db.insert(contacts).values({
-          email,
-          firstName: mapped.firstName,
-          lastName: mapped.lastName,
-          customFields: mapped.customFields,
-          syncConfigurationId: config.id,
-          syncedFields: syncedFieldsList,
-        });
+        const [created] = await db
+          .insert(contacts)
+          .values({
+            email,
+            firstName: mapped.firstName,
+            lastName: mapped.lastName,
+            customFields: mapped.customFields,
+            syncConfigurationId: config.id,
+            syncedFields: syncedFieldsList,
+          })
+          .returning({ id: contacts.id });
+        contactId = created.id;
         ctx.counts.created++;
+      }
+
+      if (mapped.tags.length > 0) {
+        await applyTagsToContact(contactId, mapped.tags);
       }
     } catch (err) {
       log(ctx, `Row ${i + 1}: error — ${errorMessage(err)}`);
@@ -332,28 +308,35 @@ async function processRecords(
 
 function applyMapping(
   fields: Record<string, unknown>,
-  mappingByExternalId: Map<string, FieldMappingEntry>,
-  mappingByExternalName: Map<string, FieldMappingEntry>,
-  ctx: SyncRunContext,
-  rowIndex: number
+  mappings: FieldMappingEntry[]
 ): {
   email: string | null;
   firstName: string | null;
   lastName: string | null;
   customFields: Record<string, unknown>;
+  tags: string[];
 } {
   let email: string | null = null;
   let firstName: string | null = null;
   let lastName: string | null = null;
   const customFields: Record<string, unknown> = {};
+  const tags: string[] = [];
 
-  for (const [fieldKey, rawValue] of Object.entries(fields)) {
-    // Try to find mapping by external field ID first, then by name
-    const entry = mappingByExternalId.get(fieldKey) || mappingByExternalName.get(fieldKey);
-    if (!entry) continue;
+  for (const entry of mappings) {
+    let value: unknown;
 
-    const value = coerceValue(rawValue, entry.transform);
-    if (value === null || value === undefined) continue;
+    if (entry.source.type === "field") {
+      // Look up by external field ID first (stable), then by name (fallback)
+      const rawValue =
+        fields[entry.source.externalFieldId] ?? fields[entry.source.externalFieldName];
+      if (rawValue === null || rawValue === undefined) continue;
+      value = coerceValue(rawValue, entry.source.transform);
+      if (value === null || value === undefined) continue;
+    } else {
+      // Constant — applied to every record regardless of its fields
+      value = entry.source.value;
+      if (value === null || value === undefined) continue;
+    }
 
     switch (entry.crmTarget) {
       case "_email":
@@ -365,18 +348,35 @@ function applyMapping(
       case "_lastName":
         lastName = String(value);
         break;
+      case "_tags":
+        if (Array.isArray(value)) {
+          tags.push(...(value as unknown[]).map(String).filter(Boolean));
+        } else if (typeof value === "string" && value) {
+          tags.push(...value.split(",").map((s) => s.trim()).filter(Boolean));
+        }
+        break;
       default:
         customFields[entry.crmTarget] = value;
     }
   }
 
-  return { email, firstName, lastName, customFields };
+  return { email, firstName, lastName, customFields, tags };
 }
 
-function coerceValue(
-  value: unknown,
-  transform?: string
-): unknown {
+async function applyTagsToContact(contactId: string, tagNames: string[]) {
+  for (const name of tagNames) {
+    const trimmed = name.trim();
+    if (!trimmed) continue;
+    // Find or create tag by name
+    let [tag] = await db.select().from(tags).where(eq(tags.name, trimmed));
+    if (!tag) {
+      [tag] = await db.insert(tags).values({ name: trimmed }).returning();
+    }
+    await addTagToContact(contactId, tag.id);
+  }
+}
+
+function coerceValue(value: unknown, transform?: string): unknown {
   if (value === null || value === undefined || value === "") return null;
 
   switch (transform) {
@@ -393,7 +393,6 @@ function coerceValue(
     case "to_boolean":
       return Boolean(value);
     default:
-      // Pass through — handle arrays, objects, etc.
       if (Array.isArray(value)) return value.join(", ");
       if (typeof value === "object") return JSON.stringify(value);
       return value;
@@ -425,22 +424,14 @@ async function finalizeRun(ctx: SyncRunContext, status: string, error?: string) 
 async function updateSyncConfigAfterRun(configId: string, status: string) {
   await db
     .update(syncConfigurations)
-    .set({
-      lastSyncAt: new Date(),
-      lastSyncStatus: status,
-      updatedAt: new Date(),
-    })
+    .set({ lastSyncAt: new Date(), lastSyncStatus: status, updatedAt: new Date() })
     .where(eq(syncConfigurations.id, configId));
 }
 
 async function markNeedsRepair(configId: string, message: string) {
   await db
     .update(syncConfigurations)
-    .set({
-      status: "needs_repair",
-      statusMessage: message,
-      updatedAt: new Date(),
-    })
+    .set({ status: "needs_repair", statusMessage: message, updatedAt: new Date() })
     .where(eq(syncConfigurations.id, configId));
 }
 
