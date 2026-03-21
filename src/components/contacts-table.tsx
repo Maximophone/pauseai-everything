@@ -13,6 +13,7 @@ import {
   type SelectionChangedEvent,
   type IDatasource,
   type IGetRowsParams,
+  type IHeaderParams,
 } from "ag-grid-community";
 import { useRouter } from "next/navigation";
 import { Download, Trash2 } from "lucide-react";
@@ -20,6 +21,70 @@ import { TagCellEditor } from "./tag-cell-editor";
 import { SubscriptionCellEditor } from "./subscription-cell-editor";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
+
+// Header checkbox for Infinite Row Model (AG Grid doesn't support headerCheckbox
+// in this row model, so we implement it manually with a custom header component).
+function SelectPageHeaderCheckbox(params: IHeaderParams) {
+  const [checked, setChecked] = useState(false);
+  const [indeterminate, setIndeterminate] = useState(false);
+  const checkboxRef = useRef<HTMLInputElement>(null);
+
+  const updateState = useCallback(() => {
+    const api = params.api;
+    const currentPage = api.paginationGetCurrentPage();
+    const pageSize = api.paginationGetPageSize();
+    const startRow = currentPage * pageSize;
+    const endRow = startRow + pageSize;
+    let selected = 0;
+    let total = 0;
+    api.forEachNode((node) => {
+      if (node.rowIndex !== null && node.rowIndex >= startRow && node.rowIndex < endRow) {
+        total++;
+        if (node.isSelected()) selected++;
+      }
+    });
+    setChecked(total > 0 && selected === total);
+    setIndeterminate(selected > 0 && selected < total);
+  }, [params.api]);
+
+  useEffect(() => {
+    params.api.addEventListener("selectionChanged", updateState);
+    params.api.addEventListener("paginationChanged", updateState);
+    return () => {
+      params.api.removeEventListener("selectionChanged", updateState);
+      params.api.removeEventListener("paginationChanged", updateState);
+    };
+  }, [params.api, updateState]);
+
+  useEffect(() => {
+    if (checkboxRef.current) checkboxRef.current.indeterminate = indeterminate;
+  }, [indeterminate]);
+
+  const handleChange = () => {
+    const api = params.api;
+    const currentPage = api.paginationGetCurrentPage();
+    const pageSize = api.paginationGetPageSize();
+    const startRow = currentPage * pageSize;
+    const endRow = startRow + pageSize;
+    const shouldSelect = !checked && !indeterminate;
+    api.forEachNode((node) => {
+      if (node.rowIndex !== null && node.rowIndex >= startRow && node.rowIndex < endRow) {
+        node.setSelected(shouldSelect);
+      }
+    });
+  };
+
+  return (
+    <input
+      ref={checkboxRef}
+      type="checkbox"
+      checked={checked}
+      onChange={handleChange}
+      style={{ cursor: "pointer", accentColor: "var(--primary)" }}
+      aria-label="Select all on page"
+    />
+  );
+}
 
 const BLOCK_SIZE = 200;
 
@@ -234,6 +299,22 @@ export function ContactsTable({
   const fieldNames = useMemo(() => fieldDefinitions.map((f) => f.name), [fieldDefinitions]);
 
   const columnDefs = useMemo<ColDef[]>(() => {
+    const checkboxCol: ColDef = {
+      colId: "_checkbox",
+      headerComponent: SelectPageHeaderCheckbox,
+      checkboxSelection: true,
+      pinned: "left",
+      width: 48,
+      minWidth: 48,
+      maxWidth: 48,
+      resizable: false,
+      sortable: false,
+      filter: false,
+      editable: false,
+      suppressMovable: true,
+      suppressHeaderMenuButton: true,
+    };
+
     const coreCols: ColDef[] = [
       {
         colId: "firstName",
@@ -369,7 +450,7 @@ export function ContactsTable({
         params.value ? new Date(params.value as string).toLocaleDateString() : "",
     }];
 
-    return [...coreCols, ...customCols, ...metaCols];
+    return [checkboxCol, ...coreCols, ...customCols, ...metaCols];
   }, [fieldDefinitions, canEdit, categories]);
 
   const defaultColDef = useMemo<ColDef>(() => ({
@@ -530,22 +611,8 @@ export function ContactsTable({
           onCellValueChanged={onCellValueChanged}
           onGridReady={onGridReady}
           onSelectionChanged={onSelectionChanged}
-          rowSelection={{
-            mode: "multiRow",
-            headerCheckbox: true,
-            checkboxes: true,
-            enableClickSelection: false,
-            selectAll: "currentPage",
-          }}
-          selectionColumnDef={{
-            pinned: "left",
-            width: 48,
-            minWidth: 48,
-            maxWidth: 48,
-            resizable: false,
-            suppressMovable: true,
-            suppressHeaderMenuButton: true,
-          }}
+          rowSelection="multiple"
+          suppressRowClickSelection
           animateRows
           pagination
           paginationPageSize={50}
