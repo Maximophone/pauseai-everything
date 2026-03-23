@@ -9,6 +9,8 @@ CRM and operations platform for PauseAI Global. Built with Next.js 16 (App Route
 - **API validation schemas:** `src/lib/schemas/*.ts` (Zod — source of truth for request validation)
 - **Route handlers:** `src/app/api/**/route.ts`
 - **Business logic:** `src/lib/*.ts`
+- **Connectors:** `src/lib/connectors/` (Airtable, Notion, Demo)
+- **Sync engine:** `src/lib/sync-engine.ts`
 - **Background workers:** `src/worker/` (Graphile Worker)
 - **UI components:** `src/components/` (React + shadcn/ui)
 

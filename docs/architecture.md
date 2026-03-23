@@ -1,6 +1,6 @@
 # PauseAI Everything App — Architecture
 
-> Living document. Last updated: 2026-03-20.
+> Living document. Last updated: 2026-03-23.
 
 ## Vision
 
@@ -14,13 +14,15 @@ A custom-built platform for PauseAI Global that starts as a CRM and grows into t
 │                                                      │
 │  Contacts, lifecycle stages, interactions,           │
 │  segments, campaigns, email orchestration,           │
-│  admin dashboard, background jobs, scripts           │
-└──────────┬──────────────┬───────────────┬────────────┘
-           │              │               │
-     ┌─────▼─────┐ ┌─────▼─────┐  ┌──────▼──────┐
-     │ Mailersend│ │   Tally   │  │   Notion    │
-     │ (email)   │ │ (forms)   │  │ (docs/wiki) │
-     └───────────┘ └───────────┘  └─────────────┘
+│  admin dashboard, background jobs, scripts,          │
+│  external data sync (connections)                    │
+└──┬──────────┬──────────────┬───────────────┬─────────┘
+   │          │              │               │
+┌──▼───┐ ┌───▼─────┐ ┌─────▼─────┐  ┌──────▼──────┐
+│Airt- │ │Mailer-  │ │   Tally   │  │   Notion    │
+│able  │ │send     │ │  (forms)  │  │ (data sync  │
+│(sync)│ │ (email) │ │           │  │  + wiki)    │
+└──────┘ └─────────┘ └───────────┘  └─────────────┘
 ```
 
 **The app owns:**
@@ -31,11 +33,13 @@ A custom-built platform for PauseAI Global that starts as a CRM and grows into t
 - Email campaign orchestration (compose, target, schedule, track)
 - Communication preferences and unsubscribe management
 - Background jobs and automations (JavaScript scripts with cron scheduling)
+- External data sync — one-way import from connected data sources
 
 **External services:**
 - **Mailersend** — sends the actual emails
 - **Tally** — collects form submissions via webhooks
-- **Notion** — stays as docs/wiki, not a data store
+- **Airtable** — data sync source (one-way import of contacts)
+- **Notion** — data sync source + docs/wiki
 
 ## Tech stack
 
@@ -109,6 +113,9 @@ Two processes from the same codebase, sharing the same Postgres database.
 | `automation_rules` | Simple if/then automation rules |
 | `communication_categories` | Email categories (newsletter, events, etc.) |
 | `app_settings` | Key-value store for app-level settings |
+| `connections` | External data source credentials and status |
+| `sync_configurations` | Per-resource sync settings, field mapping, schedule |
+| `sync_runs` | Sync execution history with statistics |
 
 ### NextAuth tables
 
@@ -302,6 +309,23 @@ GET    /api/api-keys              list API keys (admin only)
 GET    /api/settings              get app settings
 PUT    /api/settings              update app settings (admin only)
 
+# Connections & Sync
+GET    /api/connections                                    list connections
+POST   /api/connections                                    create connection
+GET    /api/connections/:id                                get connection
+PUT    /api/connections/:id                                update connection
+DELETE /api/connections/:id                                delete connection
+POST   /api/connections/:id/test                           test connection credentials
+GET    /api/connections/:id/resources                      list external resources (tables/databases)
+GET    /api/connections/:id/resources/schema                get schema of a resource
+GET    /api/connections/:id/syncs                           list sync configurations
+POST   /api/connections/:id/syncs                           create sync configuration
+GET    /api/connections/:id/syncs/:syncId                   get sync config
+PUT    /api/connections/:id/syncs/:syncId                   update sync config
+DELETE /api/connections/:id/syncs/:syncId                   delete sync config
+POST   /api/connections/:id/syncs/:syncId/run               trigger sync run
+GET    /api/connections/:id/syncs/:syncId/runs              list sync runs
+
 # Inbound webhooks
 POST   /api/webhooks/tally        Tally form submission intake
 POST   /api/webhooks/mailersend   Mailersend delivery/tracking/unsubscribe events
@@ -316,6 +340,8 @@ POST   /api/webhooks/mailersend   Mailersend delivery/tracking/unsubscribe event
 | `detect_churn` | Cron: `0 6 * * *` | Flags contacts with no interaction in 90+ days |
 | `dispatch_campaigns` | Cron: `* * * * *` | Enqueues campaigns whose `scheduledAt` has passed |
 | `dispatch_scripts` | Cron: `* * * * *` | Enqueues scripts whose cron schedule matches current time |
+| `run_sync` | On-demand | Fetches records from external source and syncs to contacts |
+| `dispatch_syncs` | Cron: `* * * * *` | Enqueues sync configs whose schedule is due |
 
 ## Hosting and deployment
 
@@ -358,6 +384,57 @@ Contacts can opt out of specific email categories while still receiving others.
 - Mailersend's `list_unsubscribe` API parameter adds native `List-Unsubscribe` headers
 - Requires Mailersend Professional+ plan — configurable via a UI toggle in Settings > Email Categories
 - When disabled, the in-body `{{unsubscribe}}` link still works on all plans
+
+## External data sync (Connections)
+
+The connection system enables one-way data import from external sources into the CRM.
+
+### Connector abstraction
+
+Each data source implements the `Connector` interface (`src/lib/connectors/types.ts`):
+
+```typescript
+interface Connector {
+  testConnection(credentials): Promise<string>;
+  listResources(credentials): Promise<ExternalResource[]>;
+  getSchema(credentials, resource): Promise<ExternalField[]>;
+  fetchRecords(credentials, resource, cursor?): Promise<FetchResult>;
+}
+```
+
+Connectors are registered in `src/lib/connectors/index.ts`. Currently implemented: `airtable`, `notion`, `demo` (dev only). Planned: `google_sheets`, `mailchimp`.
+
+### Field mapping (target-centric)
+
+The field mapping schema is target-centric — each entry describes how to populate one CRM field:
+
+```typescript
+type FieldMappingEntry = {
+  crmTarget: string;              // "_email" | "_firstName" | "_lastName" | "_tags" | field name
+  source:
+    | { type: "field"; externalFieldId: string; externalFieldName: string; transform?: string }
+    | { type: "constant"; value: unknown };
+};
+```
+
+This allows: one external field → multiple CRM fields, hardcoded constant values (e.g., always apply certain tags), and future support for expression-based sources combining multiple fields.
+
+### Sync provenance
+
+Contacts carry two columns for sync attribution:
+- `sync_configuration_id` (UUID, FK → `sync_configurations`, SET NULL on delete) — which sync created/last updated this contact
+- `synced_fields` (JSONB `string[]`) — list of CRM target names written by the sync (e.g., `["_email", "_firstName", "country"]`)
+
+Synced fields are **read-only** in the UI. The contact detail page shows an attribution banner linking to the connection and sync, with a "Last synced" timestamp.
+
+### Contacts table (Infinite Row Model)
+
+The contacts table uses AG Grid's **Infinite Row Model** to handle 10k–100k contacts without loading them all into memory. Key design choices:
+- Stable `IDatasource` created once via `useMemo([])`; reads search term from a `useRef` to avoid reinitializing on every keystroke
+- Tags embedded in the `/api/contacts` API response to avoid per-page URL-based requests
+- Row updates (tags, subscriptions) via `getRowNode(id).setData()` — no full grid refresh needed
+- CSV export fetches all contacts server-side; AG Grid's built-in export only covers cached rows
+- Custom `headerComponent` for select-all checkbox (AG Grid's native `headerCheckbox` is not supported with Infinite Row Model)
 
 ## What's not in v1
 

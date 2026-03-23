@@ -1,6 +1,6 @@
 # PauseAI Everything App — Features
 
-> Living document. Last updated: 2026-03-20.
+> Living document. Last updated: 2026-03-23.
 
 ## Milestone 1: Core CRM (launch target)
 
@@ -298,6 +298,87 @@ GET    /api/auth/...              — NextAuth.js routes
 
 ---
 
+## Milestone 1b: External Data Sync (Connections)
+
+### 1b.1 Connection management
+
+**Connections** are authenticated links to external data sources. Each connection stores credentials and can host multiple sync configurations.
+
+**Supported connectors:**
+| Connector | Status | Credentials |
+|-----------|--------|-------------|
+| **Airtable** | Available | Personal Access Token (PAT) with `data.records:read` + `schema.bases:read` scopes |
+| **Notion** | Available | Integration token |
+| **Google Sheets** | Planned | — |
+| **Mailchimp** | Planned | — |
+| **Demo** | Dev only | None (generates fake data) |
+
+**Connection lifecycle:**
+- Create connection → test credentials → status: `connected` / `error` / `untested`
+- Each connection shows its syncs, status, and last test result
+- Connector interface: `testConnection()`, `listResources()`, `getSchema()`, `fetchRecords()` (cursor-based pagination)
+
+### 1b.2 Sync configurations
+
+A sync defines how data flows from one external resource (e.g. an Airtable table, a Notion database) into the CRM.
+
+**Configuration:**
+- **External resource:** which table/database to pull from (discovered via `listResources()`)
+- **Field mapping (target-centric):** for each CRM field, define how to populate it:
+  - `field` source — maps an external column to the CRM field (with optional transform: `to_string`, `to_number`, `to_date`, `to_boolean`)
+  - `constant` source — hardcode a value for all synced contacts (e.g., always tag as "airtable-import")
+- **Duplicate strategy:** `update` (overwrite matched contacts) or `skip` (ignore existing)
+- **Frequency:** `manual`, `hourly`, `daily`, `weekly`
+- **Status:** `active` | `paused` | `needs_repair` | `error`
+
+**Schema validation:**
+- External schema is cached on the sync configuration at save time
+- Before each sync run, the engine validates that mapped external fields still exist
+- If the external schema changed (fields renamed/deleted), the sync goes into `needs_repair` status with a descriptive error message
+
+**Supported CRM targets:**
+- Built-in fields: `_email`, `_firstName`, `_lastName`, `_tags`
+- Any custom field definition name (e.g., `country`, `lifecycle_stage`)
+- `_tags` is a special target: values are added via the tag system, not written to `customFields`
+
+### 1b.3 Sync execution
+
+**Sync engine** (`src/lib/sync-engine.ts`):
+- Fetches all records from the external source via cursor-based pagination
+- For each record, resolves the field mapping (external field lookups + constant values)
+- Deduplicates by email: if a contact with the same email exists, update; otherwise create
+- Tags (via `_tags` target) are added cumulatively — never removed by sync
+- Sets sync provenance on each contact: `syncConfigurationId` + `syncedFields` (list of CRM target names written by this sync)
+
+**Worker tasks:**
+- `run_sync` — executes a single sync run (triggered manually or by scheduler)
+- `dispatch_syncs` — cron job (every minute) that enqueues due syncs based on their frequency
+
+**Sync runs** are logged with full statistics: records fetched, created, updated, skipped, errored, plus a text log and any error message.
+
+### 1b.4 Sync provenance & read-only fields
+
+Contacts imported via sync carry provenance metadata:
+- `sync_configuration_id` (UUID, FK → `sync_configurations`, SET NULL on delete)
+- `synced_fields` (JSONB string array of CRM target names, e.g., `["_email", "_firstName", "country"]`)
+
+**UI indicators:**
+- **Contacts table:** "Synced" badge next to synced contact names; synced fields are non-editable (greyed out cells)
+- **Contact detail page:** Attribution banner showing connection name + link, sync name + link, and "Last synced" timestamp; synced field labels show a lock badge; synced field inputs are disabled
+- **Repair button:** Syncs in `needs_repair` status show a Repair button on the connection detail page that links to the sync configuration for re-mapping
+
+### 1b.5 Contacts table at scale
+
+The contacts table uses **AG Grid Infinite Row Model** to handle 10k–100k contacts:
+- Server-side pagination: 200 rows per block, up to 50 blocks cached (10k rows in memory max)
+- Server-side search and sort
+- Tags embedded in the `/api/contacts` response (no separate request per page)
+- Batch delete: checkbox selection + contextual action bar, up to 10,000 contacts at once
+- CSV export: full server-side fetch (not limited to cached rows)
+- Custom header checkbox for select-all on current page (AG Grid's built-in `headerCheckbox` is not supported with Infinite Row Model)
+
+---
+
 ## Ideas / Backlog
 
 Captured ideas for future consideration. Not prioritized yet.
@@ -366,46 +447,6 @@ Captured ideas for future consideration. Not prioritized yet.
 - Rate limiting on Claude API calls
 - Logging all AI actions with full reasoning for auditability
 - Sandboxing: the agent should only have the permissions of the user who invoked it
-
----
-
-### External data source sync (one-way import connectors)
-
-**Concept:** PauseAI's contact data lives in many places — Airtable (volunteers, journalists), Mailchimp (newsletter lists), Google Sheets (ad-hoc spreadsheets). Rather than doing one-off CSV imports, the system should support configurable, recurring, one-way syncs from external data sources.
-
-**How it would work:**
-1. Admin connects an external data source (e.g. an Airtable base/table, a Google Sheet, a Mailchimp audience)
-2. Admin defines a field mapping: which column in the source maps to which field in the CRM
-3. The system syncs contacts on a configurable schedule (e.g. every hour, every day)
-4. Synced contacts are marked with their source — fields pulled from the external source are **read-only** in the CRM UI (they can only be edited at the source)
-5. Contacts that exist in both the CRM and the external source are deduplicated (matching by email, with manual review for ambiguous matches)
-
-**Deduplication considerations:**
-- Primary match key: email address (exact match)
-- Secondary heuristics: name similarity + other fields (flagged for manual review, not auto-merged)
-- When a match is found: merge strategy per field — "source wins" for mapped fields, "CRM wins" for CRM-only fields
-- Audit log of all merge decisions
-- Ability to manually un-merge if a wrong match was made
-
-**Field ownership model:**
-- Each contact field can be "owned" by a source (e.g. `first_name` owned by `airtable:volunteers`)
-- Source-owned fields show a lock icon and tooltip in the UI ("Synced from Airtable — edit in Airtable")
-- CRM-native fields (added directly) remain fully editable
-- If a contact is synced from multiple sources, each source owns its own fields (no conflicts)
-
-**Supported sources (prioritized):**
-1. **Airtable** — most critical, multiple bases/tables already in use
-2. **Google Sheets** — common for ad-hoc lists
-3. **Mailchimp** — newsletter subscribers
-4. **CSV/URL** — point to a CSV URL that's re-fetched on schedule (simplest connector)
-
-**Technical considerations:**
-- Each connector needs: auth config, table/sheet selection, field mapping UI, sync schedule
-- Sync jobs run via Graphile Worker (already in place for campaigns)
-- Need a `contact_sources` table tracking provenance per contact per field
-- Incremental sync where possible (Airtable has `modifiedTime`, Sheets has revision history)
-- Error handling: if a sync fails, retry with backoff, notify admin
-- Rate limiting: respect API quotas (Airtable: 5 req/sec, Sheets: 300 req/min)
 
 ---
 

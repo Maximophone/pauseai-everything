@@ -1,6 +1,6 @@
 # Development Guide
 
-> Last updated: 2026-03-20.
+> Last updated: 2026-03-23.
 
 ## Prerequisites
 
@@ -154,6 +154,43 @@ await addJob("my_task", { someData: 123 });
 { task: "my_task", match: "0 8 * * *", identifier: "daily_my_task" }
 ```
 
+### Adding a new connector (external data source)
+
+1. Create `src/lib/connectors/my-source.ts` implementing the `Connector` interface:
+
+```typescript
+import { Connector, ExternalField, ExternalResource, FetchResult } from "./types";
+import { z } from "zod";
+
+const CredentialsSchema = z.object({ apiKey: z.string() });
+
+export const mySourceConnector: Connector = {
+  type: "my_source",
+  label: "My Source",
+  credentialsSchema: CredentialsSchema,
+
+  async testConnection(credentials) { /* validate creds, return success message */ },
+  async listResources(credentials) { /* return available tables/databases */ },
+  async getSchema(credentials, resource) { /* return field definitions */ },
+  async fetchRecords(credentials, resource, cursor?) { /* return records + optional next cursor */ },
+};
+```
+
+2. Register it in `src/lib/connectors/index.ts`:
+
+```typescript
+import { mySourceConnector } from "./my-source";
+// Add to the connectors map
+```
+
+3. Add the type to `CONNECTOR_TYPES` in `src/lib/connectors/types.ts`:
+
+```typescript
+{ type: "my_source", label: "My Source", available: true },
+```
+
+4. Add credential fields to the connection creation UI in `src/components/connections-manager.tsx` (the credential form is connector-specific).
+
 ### Running tests
 
 ```bash
@@ -216,6 +253,7 @@ All table definitions are in `src/db/schema/`:
 | `automations.ts` | `automation_rules` |
 | `communication-categories.ts` | `communication_categories` |
 | `app-settings.ts` | `app_settings` (key-value store) |
+| `connections.ts` | `connections`, `sync_configurations`, `sync_runs` |
 | `users.ts` | `user`, `account`, `session`, `verificationToken` (NextAuth tables) |
 | `index.ts` | Re-exports all schemas |
 

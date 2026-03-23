@@ -1,6 +1,6 @@
 # PauseAI Everything App — Build Plan
 
-> Living document. Last updated: 2026-03-20.
+> Living document. Last updated: 2026-03-23.
 
 ## Tech decisions
 
@@ -125,6 +125,29 @@
 - [x] App settings system with UI toggle for RFC 8058 List-Unsubscribe header
 - [x] Unsubscribe token tests
 
+### Phase 8c: External data sync (Connections) ✅
+
+- [x] Schema: `connections`, `sync_configurations`, `sync_runs` tables
+- [x] Connector abstraction (`Connector` interface with `testConnection`, `listResources`, `getSchema`, `fetchRecords`)
+- [x] Airtable connector (PAT auth, cursor-based pagination, schema introspection)
+- [x] Notion connector (integration token, database queries, property mapping)
+- [x] Demo connector (fake data generator, dev only)
+- [x] Connection management UI: create, test, delete connections
+- [x] Sync configuration UI: resource picker, field mapping, schedule, duplicate strategy
+- [x] Target-centric field mapping: external field sources + constant value sources
+- [x] Sync engine (`src/lib/sync-engine.ts`): fetch, deduplicate by email, create/update contacts
+- [x] Worker tasks: `run_sync` (on-demand) + `dispatch_syncs` (cron, every minute)
+- [x] Sync runs with full statistics (fetched, created, updated, skipped, errored) and log
+- [x] Schema validation: detect external field changes, set sync to `needs_repair`
+- [x] Sync provenance on contacts: `sync_configuration_id` + `synced_fields` columns
+- [x] UI: "Synced" badge in contacts table, read-only synced fields
+- [x] UI: Attribution banner in contact detail (connection + sync links, last synced timestamp)
+- [x] UI: Repair button for broken syncs on connection detail page
+- [x] Batch contact deletion: checkbox selection + contextual action bar (up to 10k)
+- [x] AG Grid Infinite Row Model for 10k–100k contacts (server-side pagination, search, sort)
+- [x] Custom header checkbox for select-all on current page
+- [x] CSV export via full server-side fetch (not limited to cached rows)
+
 ### Phase 9: Dashboard & reporting 🔲
 
 - [ ] Dashboard page with overview stats cards
@@ -169,5 +192,6 @@ Every phase ships with tests. The core data layer and API must be robust.
 - **After Phase 4:** New joiners flow in automatically. You can import your Airtable data. The system is live.
 - **After Phase 5:** Team can log in with their own accounts. Permissions enforced.
 - **After Phase 7:** You can send targeted emails to segments. Full Airtable+Mailersend replacement.
-- **After Phase 8b:** Contacts can manage their email subscriptions. Compliant unsubscribe system. ← *we are here*
+- **After Phase 8b:** Contacts can manage their email subscriptions. Compliant unsubscribe system.
+- **After Phase 8c:** External data flows in automatically. Airtable and Notion contacts sync on schedule with provenance tracking. Table scales to 100k contacts. ← *we are here*
 - **After Phase 9:** You have visibility into how the org is doing. Full v1.
