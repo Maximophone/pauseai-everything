@@ -1,5 +1,6 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
+import Credentials from "next-auth/providers/credentials";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import { db } from "@/db";
 import {
@@ -10,6 +11,65 @@ import {
 } from "@/db/schema/users";
 import { eq } from "drizzle-orm";
 import type { UserRole } from "@/db/schema/users";
+import type { Provider } from "next-auth/providers";
+
+const isDev = process.env.NODE_ENV === "development";
+
+const providers: Provider[] = [
+  Google({
+    allowDangerousEmailAccountLinking: true,
+  }),
+];
+
+// Dev-only Credentials provider — lets you sign in as any email
+if (isDev) {
+  providers.push(
+    Credentials({
+      id: "dev-login",
+      name: "Dev Login",
+      credentials: {
+        email: { label: "Email", type: "email" },
+        name: { label: "Name", type: "text" },
+        role: { label: "Role", type: "text" },
+      },
+      async authorize(credentials) {
+        if (!credentials?.email) return null;
+        const email = (credentials.email as string).toLowerCase().trim();
+        const name = (credentials.name as string) || email.split("@")[0];
+        const role = (credentials.role as UserRole) || "viewer";
+
+        // Find or create the user
+        let [user] = await db
+          .select()
+          .from(users)
+          .where(eq(users.email, email));
+
+        if (!user) {
+          // Auto-create in dev mode
+          const [created] = await db
+            .insert(users)
+            .values({ email, name, role })
+            .returning();
+          user = created;
+        } else if (user.role !== role) {
+          // Update role if different
+          await db
+            .update(users)
+            .set({ role, name: user.name || name })
+            .where(eq(users.id, user.id));
+          user = { ...user, role, name: user.name || name };
+        }
+
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          image: user.image,
+        };
+      },
+    })
+  );
+}
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: DrizzleAdapter(db, {
@@ -21,13 +81,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   session: {
     strategy: "jwt",
   },
-  providers: [
-    Google({
-      allowDangerousEmailAccountLinking: true,
-    }),
-  ],
+  providers,
   callbacks: {
-    async signIn({ user, profile }) {
+    async signIn({ user, profile, account }) {
+      // Skip invite check for dev credentials provider
+      if (account?.provider === "dev-login") {
+        return true;
+      }
+
       // Invite-only: only allow sign-in if the user's email already exists in the DB
       const email = user.email || profile?.email;
       if (!email) return false;

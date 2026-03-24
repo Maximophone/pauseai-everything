@@ -1,4 +1,5 @@
 import { signIn } from "@/lib/auth";
+import { DevLoginForm } from "./dev-login-form";
 
 export default async function LoginPage({
   searchParams,
@@ -8,6 +9,7 @@ export default async function LoginPage({
   const params = await searchParams;
   const notInvited = params.error === "not_invited";
   const hasError = params.error && !notInvited;
+  const isDev = process.env.NODE_ENV === "development";
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50">
@@ -73,6 +75,22 @@ export default async function LoginPage({
             Sign in with Google
           </button>
         </form>
+
+        {isDev && (
+          <>
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-200" />
+              </div>
+              <div className="relative flex justify-center text-xs">
+                <span className="bg-white px-2 text-muted-foreground">
+                  Dev Mode
+                </span>
+              </div>
+            </div>
+            <DevLoginForm />
+          </>
+        )}
 
         <p className="text-center text-xs text-muted-foreground">
           Access is invite-only. Contact an administrator if you need access.

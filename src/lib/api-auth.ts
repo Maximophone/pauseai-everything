@@ -29,7 +29,18 @@ export async function checkAuth(request: NextRequest): Promise<AuthResult> {
     };
   }
 
-  // Check dev bypass
+  // Check session auth (works for both Google OAuth and dev login)
+  const session = await auth();
+  if (session?.user?.id) {
+    return {
+      authenticated: true,
+      userId: session.user.id,
+      // @ts-expect-error - role is added in auth callbacks
+      role: (session.user.role as UserRole) ?? "viewer",
+    };
+  }
+
+  // Check dev bypass (fallback when no session)
   if (
     process.env.NODE_ENV === "development" &&
     process.env.DEV_BYPASS_AUTH === "true"
@@ -37,20 +48,9 @@ export async function checkAuth(request: NextRequest): Promise<AuthResult> {
     return { authenticated: true, userId: undefined, role: "admin" };
   }
 
-  // Check session auth
-  const session = await auth();
-  if (!session?.user?.id) {
-    return {
-      authenticated: false,
-      error: NextResponse.json({ error: "Not authenticated" }, { status: 401 }),
-    };
-  }
-
   return {
-    authenticated: true,
-    userId: session.user.id,
-    // @ts-expect-error - role is added in auth callbacks
-    role: (session.user.role as UserRole) ?? "viewer",
+    authenticated: false,
+    error: NextResponse.json({ error: "Not authenticated" }, { status: 401 }),
   };
 }
 

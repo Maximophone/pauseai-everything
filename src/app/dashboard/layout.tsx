@@ -20,33 +20,32 @@ export default async function DashboardLayout({
 }) {
   const devBypass = process.env.NODE_ENV === "development" && process.env.DEV_BYPASS_AUTH === "true";
 
+  // Try to get a real session first (works with dev login + Google)
+  const session = await auth()
+
   let user = {
     name: "Dev User",
     email: "dev@pauseai.info",
     avatar: "",
     role: "admin" as UserRole,
+    id: undefined as string | undefined,
   };
 
   let initialWorkspaces: WorkspaceInfo[] = [];
 
-  if (!devBypass) {
-    const session = await auth()
-
-    if (!session?.user) {
-      redirect("/login")
-    }
-
+  if (session?.user) {
+    // Real session — use it (works for both dev login and Google OAuth)
     user = {
       name: session.user.name ?? "User",
       email: session.user.email ?? "",
       avatar: session.user.image ?? "",
       // @ts-expect-error - role is added in auth callbacks
       role: (session.user.role as UserRole) ?? "viewer",
+      id: session.user.id,
     };
 
     // Get workspaces for this user
     if (user.role === "admin") {
-      // Admins see all workspaces
       const all = await listWorkspaces();
       initialWorkspaces = all.map((ws) => ({
         ...ws,
@@ -60,14 +59,16 @@ export default async function DashboardLayout({
         type: ws.type as "global" | "chapter",
       }));
     }
-  } else {
-    // Dev bypass: load all workspaces
+  } else if (devBypass) {
+    // No session but dev bypass enabled: use hardcoded admin
     const all = await listWorkspaces();
     initialWorkspaces = all.map((ws) => ({
       ...ws,
       type: ws.type as "global" | "chapter",
       workspaceRole: "admin",
     }));
+  } else {
+    redirect("/login")
   }
 
   return (
