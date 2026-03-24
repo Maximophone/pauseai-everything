@@ -148,17 +148,17 @@
 - [x] Custom header checkbox for select-all on current page
 - [x] CSV export via full server-side fetch (not limited to cached rows)
 
-### Phase 9: Dashboard & reporting 🔲
+### Phase 9: Dashboard & reporting ✅
 
-- [ ] Dashboard page with overview stats cards
+- [x] Dashboard page with overview stats cards
   - Total contacts / new this month / active / dormant
-  - Contacts by lifecycle stage (funnel view)
-  - Contacts by country (top N)
-- [ ] Intake trend chart (new contacts over time)
-- [ ] Recent activity feed (latest interactions, campaign sends)
-- [ ] Campaign performance metrics (open rate, click rate, bounces)
-- [ ] CSV export from contacts table and any segment view
-- [ ] Mailersend webhook tracking (delivery/open/click events → `emails` table status updates)
+  - Contacts by lifecycle stage (donut chart)
+  - Contacts by country (top 10 horizontal bar chart)
+- [x] Intake trend chart (6-month bar chart of new contacts over time)
+- [x] Recent activity feed (last 20 interactions with contact links)
+- [x] Campaign performance metrics (sent, delivered, opened, clicked, bounced counts + open rate)
+- [x] CSV export from contacts table and any segment view
+- [x] Mailersend webhook tracking (delivery/open/click/bounce/unsubscribe events → `emails` table status updates + campaign aggregate recalculation)
 
 ---
 
@@ -193,5 +193,5 @@ Every phase ships with tests. The core data layer and API must be robust.
 - **After Phase 5:** Team can log in with their own accounts. Permissions enforced.
 - **After Phase 7:** You can send targeted emails to segments. Full Airtable+Mailersend replacement.
 - **After Phase 8b:** Contacts can manage their email subscriptions. Compliant unsubscribe system.
-- **After Phase 8c:** External data flows in automatically. Airtable and Notion contacts sync on schedule with provenance tracking. Table scales to 100k contacts. ← *we are here*
-- **After Phase 9:** You have visibility into how the org is doing. Full v1.
+- **After Phase 8c:** External data flows in automatically. Airtable and Notion contacts sync on schedule with provenance tracking. Table scales to 100k contacts.
+- **After Phase 9:** You have visibility into how the org is doing. Full v1. ← *we are here*

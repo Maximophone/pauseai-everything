@@ -439,7 +439,7 @@ The contacts table uses AG Grid's **Infinite Row Model** to handle 10k–100k co
 ## What's not in v1
 
 - Email template rich-text editor (using string interpolation for now)
-- Dashboard analytics (Phase 9 — planned next)
+- Dashboard analytics ✅ (Phase 9 — complete)
 - Discord integration
 - AI-powered features (planned — see features.md)
 - Drip/sequence campaigns
