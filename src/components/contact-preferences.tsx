@@ -2,13 +2,24 @@
 
 import { useState, useEffect } from "react";
 import { CheckCircleIcon, XCircleIcon, MinusCircleIcon } from "lucide-react";
+import { useWorkspaceId } from "./workspace-provider";
 
 type Category = {
   id: string;
   name: string;
   label: string;
   description: string | null;
+  workspaceId: string | null;
 };
+
+/**
+ * Build the namespaced preference key for a category.
+ * Format: "workspaceId:categoryName"
+ */
+function prefKey(cat: Category, fallbackWorkspaceId: string | null | undefined): string {
+  const wsId = cat.workspaceId ?? fallbackWorkspaceId;
+  return wsId ? `${wsId}:${cat.name}` : cat.name;
+}
 
 export function ContactPreferences({
   contactId,
@@ -17,6 +28,7 @@ export function ContactPreferences({
   contactId: string;
   initialPreferences: Record<string, "subscribed" | "unsubscribed">;
 }) {
+  const workspaceId = useWorkspaceId();
   const [categories, setCategories] = useState<Category[]>([]);
   const [prefs, setPrefs] = useState<Record<string, "subscribed" | "unsubscribed">>(initialPreferences);
   const [loading, setLoading] = useState(true);
@@ -31,23 +43,24 @@ export function ContactPreferences({
       .catch(() => setLoading(false));
   }, []);
 
-  async function togglePref(categoryName: string, categoryLabel: string) {
-    const current = prefs[categoryName]; // "subscribed" | "unsubscribed" | undefined (neutral)
+  async function togglePref(cat: Category) {
+    const key = prefKey(cat, workspaceId);
+    const current = prefs[key]; // "subscribed" | "unsubscribed" | undefined (neutral)
     const newPrefs = { ...prefs };
 
     if (current === undefined) {
       // neutral -> subscribed
-      newPrefs[categoryName] = "subscribed";
+      newPrefs[key] = "subscribed";
     } else if (current === "subscribed") {
       // subscribed -> unsubscribed
-      newPrefs[categoryName] = "unsubscribed";
+      newPrefs[key] = "unsubscribed";
     } else {
       // unsubscribed -> neutral (with confirmation)
       const confirmed = confirm(
-        `This contact previously unsubscribed from ${categoryLabel}. Are you sure you want to change their preference?`
+        `This contact previously unsubscribed from ${cat.label}. Are you sure you want to change their preference?`
       );
       if (!confirmed) return;
-      delete newPrefs[categoryName];
+      delete newPrefs[key];
     }
 
     setPrefs(newPrefs);
@@ -76,7 +89,9 @@ export function ContactPreferences({
     );
   }
 
-  const hasAnyOptOut = categories.some((c) => prefs[c.name] === "unsubscribed");
+  const hasAnyOptOut = categories.some(
+    (c) => prefs[prefKey(c, workspaceId)] === "unsubscribed"
+  );
 
   return (
     <div className="space-y-2">
@@ -90,11 +105,12 @@ export function ContactPreferences({
       </div>
       <div className="space-y-1">
         {categories.map((cat) => {
-          const status = prefs[cat.name]; // "subscribed" | "unsubscribed" | undefined
+          const key = prefKey(cat, workspaceId);
+          const status = prefs[key]; // "subscribed" | "unsubscribed" | undefined
           return (
             <button
-              key={cat.name}
-              onClick={() => togglePref(cat.name, cat.label)}
+              key={cat.id}
+              onClick={() => togglePref(cat)}
               className="flex items-center gap-2 w-full rounded-md px-2 py-1.5 text-left hover:bg-muted/50 transition-colors"
             >
               {status === "unsubscribed" ? (

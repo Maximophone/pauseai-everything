@@ -34,6 +34,7 @@ export const automationRules = pgTable("automation_rules", {
   description: text("description"),
   config: jsonb("config").$type<AutomationRuleConfig>().notNull(),
   isActive: boolean("is_active").default(true).notNull(),
+  workspaceId: uuid("workspace_id"), // FK to workspaces(id)
   lastRunAt: timestamp("last_run_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

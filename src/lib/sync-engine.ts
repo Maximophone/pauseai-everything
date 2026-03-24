@@ -8,6 +8,7 @@ import {
   type ExternalSchemaField,
 } from "@/db/schema/connections";
 import { contacts } from "@/db/schema/contacts";
+import { contactWorkspaces } from "@/db/schema/workspaces";
 import { tags } from "@/db/schema/tags";
 import { fieldDefinitions } from "@/db/schema/field-definitions";
 import { eq, and, asc } from "drizzle-orm";
@@ -245,6 +246,9 @@ async function processRecords(
   // The CRM target names this sync owns (drives the read-only badge in the UI)
   const syncedFieldsList = normalizedMappings.map((m) => m.crmTarget);
 
+  // Get the workspace ID from the connection (for contact-workspace linking)
+  const workspaceId = await getConnectionWorkspaceId(config.connectionId);
+
   for (let i = 0; i < records.length; i++) {
     try {
       const record = records[i];
@@ -263,6 +267,13 @@ async function processRecords(
 
       if (existing) {
         if (config.duplicateStrategy === "skip") {
+          // Still ensure workspace link exists even when skipping
+          if (workspaceId) {
+            await db
+              .insert(contactWorkspaces)
+              .values({ contactId: existing.id, workspaceId, subscriptionStatus: "neutral" })
+              .onConflictDoNothing();
+          }
           ctx.counts.skipped++;
           continue;
         }
@@ -288,12 +299,21 @@ async function processRecords(
             firstName: mapped.firstName,
             lastName: mapped.lastName,
             customFields: mapped.customFields,
+            createdByWorkspaceId: workspaceId,
             syncConfigurationId: config.id,
             syncedFields: syncedFieldsList,
           })
           .returning({ id: contacts.id });
         contactId = created.id;
         ctx.counts.created++;
+      }
+
+      // Ensure contact is linked to the connection's workspace
+      if (workspaceId) {
+        await db
+          .insert(contactWorkspaces)
+          .values({ contactId, workspaceId, subscriptionStatus: "neutral" })
+          .onConflictDoNothing();
       }
 
       if (mapped.tags.length > 0) {
@@ -304,6 +324,16 @@ async function processRecords(
       ctx.counts.errored++;
     }
   }
+}
+
+async function getConnectionWorkspaceId(
+  connectionId: string
+): Promise<string | null> {
+  const [conn] = await db
+    .select({ workspaceId: connections.workspaceId })
+    .from(connections)
+    .where(eq(connections.id, connectionId));
+  return conn?.workspaceId ?? null;
 }
 
 function applyMapping(

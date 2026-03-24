@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { connections } from "@/db/schema/connections";
-import { desc } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { checkAuth, requireAdmin } from "@/lib/api-auth";
 import { validateBody } from "@/lib/api-validate";
 import { CreateConnectionInput } from "@/lib/schemas";
 import { getConnector } from "@/lib/connectors";
+import { getActiveWorkspaceId } from "@/lib/workspace-context";
 
 // GET /api/connections — list all connections
 export async function GET(request: NextRequest) {
@@ -13,6 +14,7 @@ export async function GET(request: NextRequest) {
   const authError = requireAdmin(authResult);
   if (authError) return authError;
 
+  const workspaceId = await getActiveWorkspaceId(request);
   const rows = await db
     .select({
       id: connections.id,
@@ -25,6 +27,7 @@ export async function GET(request: NextRequest) {
       updatedAt: connections.updatedAt,
     })
     .from(connections)
+    .where(eq(connections.workspaceId, workspaceId))
     .orderBy(desc(connections.createdAt));
 
   return NextResponse.json(rows);
@@ -50,12 +53,14 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const workspaceId = await getActiveWorkspaceId(request);
   const [connection] = await db
     .insert(connections)
     .values({
       name: parsed.data.name,
       connectorType: parsed.data.connectorType,
       credentials: parsed.data.credentials,
+      workspaceId,
     })
     .returning();
 

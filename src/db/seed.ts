@@ -1,7 +1,9 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
+import { eq } from "drizzle-orm";
 import { fieldDefinitions } from "./schema/field-definitions";
 import { communicationCategories } from "./schema/communication-categories";
+import { workspaces } from "./schema/workspaces";
 
 const connectionString = process.env.DATABASE_URL!;
 const client = postgres(connectionString);
@@ -148,18 +150,43 @@ const defaultFields = [
 ];
 
 async function seed() {
-  console.log("Seeding field definitions...");
+  // 1. Ensure the Global workspace exists
+  console.log("Seeding Global workspace...");
+  const existing = await db
+    .select()
+    .from(workspaces)
+    .where(eq(workspaces.type, "global"))
+    .limit(1);
 
+  let globalWorkspace;
+  if (existing.length > 0) {
+    globalWorkspace = existing[0];
+    console.log("Global workspace already exists:", globalWorkspace.id);
+  } else {
+    const [created] = await db
+      .insert(workspaces)
+      .values({
+        name: "PauseAI Global",
+        slug: "global",
+        type: "global",
+        defaultLanguage: "en",
+      })
+      .returning();
+    globalWorkspace = created;
+    console.log("Created Global workspace:", globalWorkspace.id);
+  }
+
+  // 2. Seed field definitions (scope = "core", no workspace)
+  console.log("Seeding field definitions...");
   for (const field of defaultFields) {
     await db
       .insert(fieldDefinitions)
-      .values(field)
-      .onConflictDoNothing({ target: fieldDefinitions.name });
+      .values({ ...field, scope: "core", workspaceId: null })
+      .onConflictDoNothing();
   }
-
   console.log(`Seeded ${defaultFields.length} field definitions.`);
 
-  // Seed default communication categories
+  // 3. Seed communication categories (linked to Global workspace)
   const defaultCategories = [
     { name: "newsletter", label: "Newsletter", description: "Regular newsletters and updates", sortOrder: 1 },
     { name: "events", label: "Events", description: "Event invitations and reminders", sortOrder: 2 },
@@ -170,8 +197,8 @@ async function seed() {
   for (const cat of defaultCategories) {
     await db
       .insert(communicationCategories)
-      .values(cat)
-      .onConflictDoNothing({ target: communicationCategories.name });
+      .values({ ...cat, workspaceId: globalWorkspace.id })
+      .onConflictDoNothing();
   }
   console.log(`Seeded ${defaultCategories.length} communication categories.`);
 

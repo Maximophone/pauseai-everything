@@ -2,11 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   listContacts,
   createContact,
+  findContactByEmail,
   validateCustomFields,
 } from "@/lib/contacts";
 import { validateBody } from "@/lib/api-validate";
 import { CreateContactInput } from "@/lib/schemas";
 import { checkAuth, requireAuth, requireMember, requireAdmin } from "@/lib/api-auth";
+import { getActiveWorkspaceId, requireWorkspaceMember } from "@/lib/workspace-context";
+import { addContactToWorkspace } from "@/lib/workspaces";
 import { db } from "@/db";
 import { contacts } from "@/db/schema/contacts";
 import { inArray } from "drizzle-orm";
@@ -18,6 +21,8 @@ export async function GET(request: NextRequest) {
   const authResult = await checkAuth(request);
   const authError = requireAuth(authResult);
   if (authError) return authError;
+
+  const workspaceId = await getActiveWorkspaceId(request);
   const searchParams = request.nextUrl.searchParams;
 
   const result = await listContacts({
@@ -27,6 +32,7 @@ export async function GET(request: NextRequest) {
     sortBy: searchParams.get("sortBy") || undefined,
     sortOrder:
       (searchParams.get("sortOrder") as "asc" | "desc") || undefined,
+    workspaceId,
   });
 
   // Embed tags so the client doesn't need a separate request per page
@@ -42,8 +48,10 @@ export async function GET(request: NextRequest) {
 // POST /api/contacts — create a contact
 export async function POST(request: NextRequest) {
   const authResult = await checkAuth(request);
-  const authError = requireMember(authResult);
+  const workspaceId = await getActiveWorkspaceId(request);
+  const authError = await requireWorkspaceMember(authResult, workspaceId);
   if (authError) return authError;
+
   const body = await request.json();
   const parsed = validateBody(CreateContactInput, body);
   if (!parsed.success) return parsed.error;
@@ -61,18 +69,40 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // Dedup check: if email is provided, check if contact already exists
+  if (email) {
+    const existing = await findContactByEmail(email);
+    if (existing) {
+      // If addToWorkspace flag is set, link existing contact to this workspace
+      if (body.addToWorkspace) {
+        await addContactToWorkspace(existing.id, workspaceId);
+        return NextResponse.json(existing, { status: 200 });
+      }
+      return NextResponse.json(
+        {
+          error: "A contact with this email already exists in the PauseAI network.",
+          existsInNetwork: true,
+          contactId: existing.id,
+        },
+        { status: 409 }
+      );
+    }
+  }
+
   try {
-    const contact = await createContact({
-      email: email ?? undefined,
-      firstName: firstName ?? undefined,
-      lastName: lastName ?? undefined,
-      customFields,
-    });
+    const contact = await createContact(
+      {
+        email: email ?? undefined,
+        firstName: firstName ?? undefined,
+        lastName: lastName ?? undefined,
+        customFields,
+      },
+      workspaceId
+    );
     return NextResponse.json(contact, { status: 201 });
   } catch (err: unknown) {
     const message =
       err instanceof Error ? err.message : "Unknown error";
-    // Handle unique constraint violation on email
     if (message.includes("unique") || message.includes("duplicate")) {
       return NextResponse.json(
         { error: "A contact with this email already exists." },

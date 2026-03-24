@@ -1,16 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { contacts } from "@/db/schema/contacts";
+import { contactWorkspaces } from "@/db/schema/workspaces";
 import { eq } from "drizzle-orm";
 import { validateBody } from "@/lib/api-validate";
 import { ImportContactsInput } from "@/lib/schemas";
 import { checkAuth, requireAdmin } from "@/lib/api-auth";
+import { getActiveWorkspaceId } from "@/lib/workspace-context";
 
 // POST /api/contacts/import
 export async function POST(request: NextRequest) {
   const authResult = await checkAuth(request);
   const authError = requireAdmin(authResult);
   if (authError) return authError;
+  const workspaceId = await getActiveWorkspaceId(request);
   const body = await request.json();
   const parsed = validateBody(ImportContactsInput, body);
   if (!parsed.success) return parsed.error;
@@ -67,6 +70,12 @@ export async function POST(request: NextRequest) {
           .where(eq(contacts.email, email));
 
         if (existing) {
+          // Ensure workspace link exists regardless of skip/update
+          await db
+            .insert(contactWorkspaces)
+            .values({ contactId: existing.id, workspaceId, subscriptionStatus: "neutral" })
+            .onConflictDoNothing();
+
           if (skipDuplicates) {
             skipped++;
             continue;
@@ -88,12 +97,19 @@ export async function POST(request: NextRequest) {
       }
 
       // Create new contact
-      await db.insert(contacts).values({
+      const [newContact] = await db.insert(contacts).values({
         email,
         firstName,
         lastName,
         customFields,
-      });
+        createdByWorkspaceId: workspaceId,
+      }).returning({ id: contacts.id });
+
+      // Link to workspace
+      await db
+        .insert(contactWorkspaces)
+        .values({ contactId: newContact.id, workspaceId, subscriptionStatus: "neutral" })
+        .onConflictDoNothing();
       created++;
     } catch (err) {
       errors.push({

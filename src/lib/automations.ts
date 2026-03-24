@@ -13,7 +13,14 @@ import { buildSegmentWhere } from "./segments";
 
 // ─── CRUD ──────────────────────────────────────────────────
 
-export async function listAutomationRules() {
+export async function listAutomationRules(workspaceId?: string) {
+  if (workspaceId) {
+    return db
+      .select()
+      .from(automationRules)
+      .where(eq(automationRules.workspaceId, workspaceId))
+      .orderBy(asc(automationRules.name));
+  }
   return db.select().from(automationRules).orderBy(asc(automationRules.name));
 }
 
@@ -26,6 +33,7 @@ export async function createAutomationRule(data: {
   name: string;
   description?: string;
   config: AutomationRuleConfig;
+  workspaceId?: string;
 }) {
   const [rule] = await db.insert(automationRules).values(data).returning();
   return rule;

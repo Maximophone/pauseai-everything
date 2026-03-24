@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, jsonb, index } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, boolean, timestamp, jsonb, index } from "drizzle-orm/pg-core";
 
 export const contacts = pgTable(
   "contacts",
@@ -7,6 +7,9 @@ export const contacts = pgTable(
     email: text("email").unique(),
     firstName: text("first_name"),
     lastName: text("last_name"),
+    language: text("language"),
+    globallyUnsubscribed: boolean("globally_unsubscribed").default(false).notNull(),
+    createdByWorkspaceId: uuid("created_by_workspace_id"), // FK to workspaces(id), set on creation
     customFields: jsonb("custom_fields")
       .$type<Record<string, unknown>>()
       .default({})

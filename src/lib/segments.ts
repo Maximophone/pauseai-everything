@@ -7,7 +7,14 @@ import { eq, and, or, sql, asc, desc, ilike, inArray } from "drizzle-orm";
 
 // ─── Segment CRUD ──────────────────────────────────────────
 
-export async function listSegments() {
+export async function listSegments(workspaceId?: string) {
+  if (workspaceId) {
+    return db
+      .select()
+      .from(segments)
+      .where(eq(segments.workspaceId, workspaceId))
+      .orderBy(asc(segments.name));
+  }
   return db.select().from(segments).orderBy(asc(segments.name));
 }
 
@@ -20,6 +27,8 @@ export async function createSegment(data: {
   name: string;
   description?: string;
   filter: SegmentFilter;
+  workspaceId?: string;
+  crossWorkspace?: boolean;
   createdBy?: string;
 }) {
   const [segment] = await db.insert(segments).values(data).returning();
@@ -28,7 +37,12 @@ export async function createSegment(data: {
 
 export async function updateSegment(
   id: string,
-  data: Partial<{ name: string; description: string; filter: SegmentFilter }>
+  data: Partial<{
+    name: string;
+    description: string;
+    filter: SegmentFilter;
+    crossWorkspace: boolean;
+  }>
 ) {
   const [updated] = await db
     .update(segments)
@@ -160,36 +174,80 @@ export function buildSegmentWhere(filter: SegmentFilter): ReturnType<typeof sql>
   return sql`(${sql.join(clauses, sql` AND `)})`;
 }
 
+/**
+ * Build the workspace scoping SQL clause.
+ * When workspaceId is provided, restricts to contacts linked to that workspace.
+ */
+function buildWorkspaceScope(workspaceId?: string): ReturnType<typeof sql> | undefined {
+  if (!workspaceId) return undefined;
+  return sql`contacts.id IN (
+    SELECT contact_id FROM contact_workspaces WHERE workspace_id = ${workspaceId}
+  )`;
+}
+
 // ─── Preview a segment (count + sample) ────────────────────
 
-export async function previewSegment(filter: SegmentFilter) {
+export async function previewSegment(
+  filter: SegmentFilter,
+  workspaceId?: string
+) {
   const where = buildSegmentWhere(filter);
+  const wsScope = buildWorkspaceScope(workspaceId);
 
-  const countQuery = where
-    ? sql`SELECT count(*) as count FROM contacts WHERE ${where}`
+  // Combine conditions
+  const allConditions = [where, wsScope].filter(Boolean);
+  const combined =
+    allConditions.length === 0
+      ? undefined
+      : allConditions.length === 1
+        ? allConditions[0]
+        : sql`${sql.join(allConditions as ReturnType<typeof sql>[], sql` AND `)}`;
+
+  const countQuery = combined
+    ? sql`SELECT count(*) as count FROM contacts WHERE ${combined}`
     : sql`SELECT count(*) as count FROM contacts`;
 
   const [countResult] = await db.execute(countQuery);
   const count = Number((countResult as Record<string, unknown>).count);
 
-  const sampleQuery = where
-    ? sql`SELECT id, email, first_name, last_name FROM contacts WHERE ${where} LIMIT 10`
+  const sampleQuery = combined
+    ? sql`SELECT id, email, first_name, last_name FROM contacts WHERE ${combined} LIMIT 10`
     : sql`SELECT id, email, first_name, last_name FROM contacts LIMIT 10`;
 
   const sample = await db.execute(sampleQuery);
 
-  return { count, sample: sample as unknown as Array<{ id: string; email: string; first_name: string; last_name: string }> };
+  return {
+    count,
+    sample: sample as unknown as Array<{
+      id: string;
+      email: string;
+      first_name: string;
+      last_name: string;
+    }>,
+  };
 }
 
 // ─── Get all contact IDs matching a segment ────────────────
 
-export async function getSegmentContactIds(filter: SegmentFilter): Promise<string[]> {
+export async function getSegmentContactIds(
+  filter: SegmentFilter,
+  workspaceId?: string
+): Promise<string[]> {
   const where = buildSegmentWhere(filter);
+  const wsScope = buildWorkspaceScope(workspaceId);
 
-  const query = where
-    ? sql`SELECT id FROM contacts WHERE ${where}`
+  const allConditions = [where, wsScope].filter(Boolean);
+  const combined =
+    allConditions.length === 0
+      ? undefined
+      : allConditions.length === 1
+        ? allConditions[0]
+        : sql`${sql.join(allConditions as ReturnType<typeof sql>[], sql` AND `)}`;
+
+  const query = combined
+    ? sql`SELECT id FROM contacts WHERE ${combined}`
     : sql`SELECT id FROM contacts`;
 
-  const rows = await db.execute(query) as unknown as Array<{ id: string }>;
+  const rows = (await db.execute(query)) as unknown as Array<{ id: string }>;
   return rows.map((r) => r.id);
 }

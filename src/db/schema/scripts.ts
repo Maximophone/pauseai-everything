@@ -7,6 +7,7 @@ export const scripts = pgTable("scripts", {
   code: text("code").notNull().default(""),
   cronSchedule: text("cron_schedule"), // null = manual only, e.g. "0 6 * * *"
   enabled: boolean("enabled").default(true).notNull(),
+  workspaceId: uuid("workspace_id"), // FK to workspaces(id)
   lastRunAt: timestamp("last_run_at"),
   lastRunStatus: text("last_run_status"), // "success" | "error"
   createdAt: timestamp("created_at").defaultNow().notNull(),

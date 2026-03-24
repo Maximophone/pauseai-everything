@@ -1,15 +1,23 @@
 import { db } from "@/db";
 import { campaigns } from "@/db/schema/campaigns";
 import { contacts } from "@/db/schema/contacts";
+import { contactWorkspaces } from "@/db/schema/workspaces";
 import { emails } from "@/db/schema/emails";
 import { communicationCategories } from "@/db/schema/communication-categories";
-import { eq, asc, desc, sql } from "drizzle-orm";
+import { eq, and, asc, desc, sql } from "drizzle-orm";
 import { getSegment, getSegmentContactIds } from "./segments";
 import { sendEmail, renderTemplate } from "./mailersend";
 import { buildUnsubscribeUrl } from "./unsubscribe-tokens";
 import { getBooleanSetting, SETTING_KEYS } from "./app-settings";
 
-export async function listCampaigns() {
+export async function listCampaigns(workspaceId?: string) {
+  if (workspaceId) {
+    return db
+      .select()
+      .from(campaigns)
+      .where(eq(campaigns.workspaceId, workspaceId))
+      .orderBy(desc(campaigns.createdAt));
+  }
   return db.select().from(campaigns).orderBy(desc(campaigns.createdAt));
 }
 
@@ -26,6 +34,7 @@ export async function createCampaign(data: {
   fromEmail?: string;
   segmentId?: string;
   categoryId?: string | null;
+  workspaceId?: string;
   scheduledAt?: Date | null;
   createdBy?: string;
 }) {
@@ -85,14 +94,29 @@ export async function sendCampaign(campaignId: string) {
     .set({ status: "sending", updatedAt: new Date() })
     .where(eq(campaigns.id, campaignId));
 
+  const campaignWorkspaceId = campaign.workspaceId;
+
   let contactIds: string[] = [];
 
   if (campaign.segmentId) {
     const segment = await getSegment(campaign.segmentId);
     if (!segment) throw new Error("Segment not found");
-    contactIds = await getSegmentContactIds(segment.filter);
+    // Cross-workspace segments bypass workspace scoping; but cross-workspace segments
+    // cannot be used as campaign targets per spec. Enforce that here.
+    if (segment.crossWorkspace) {
+      throw new Error("Cross-workspace segments cannot be used as campaign targets");
+    }
+    // Scope to campaign workspace
+    contactIds = await getSegmentContactIds(segment.filter, campaignWorkspaceId ?? undefined);
+  } else if (campaignWorkspaceId) {
+    // No segment = all contacts in this workspace
+    const wsContacts = await db
+      .select({ contactId: contactWorkspaces.contactId })
+      .from(contactWorkspaces)
+      .where(eq(contactWorkspaces.workspaceId, campaignWorkspaceId));
+    contactIds = wsContacts.map((c) => c.contactId);
   } else {
-    // No segment = all contacts
+    // Legacy: no workspace, all contacts
     const allContacts = await db
       .select({ id: contacts.id })
       .from(contacts);
@@ -129,10 +153,38 @@ export async function sendCampaign(campaignId: string) {
 
     if (!contact || !contact.email) continue;
 
-    // If campaign has a category, skip contacts who opted out
+    // 1. Skip globally unsubscribed contacts
+    if (contact.globallyUnsubscribed) {
+      skippedCount++;
+      continue;
+    }
+
+    // 2. Skip contacts unsubscribed from this workspace
+    if (campaignWorkspaceId) {
+      const [cwRow] = await db
+        .select({ subscriptionStatus: contactWorkspaces.subscriptionStatus })
+        .from(contactWorkspaces)
+        .where(
+          and(
+            eq(contactWorkspaces.contactId, contactId),
+            eq(contactWorkspaces.workspaceId, campaignWorkspaceId)
+          )
+        );
+      if (!cwRow || cwRow.subscriptionStatus === "unsubscribed") {
+        skippedCount++;
+        continue;
+      }
+    }
+
+    // 3. If campaign has a category, skip contacts who opted out (workspace-namespaced key)
     if (categoryName) {
       const prefs = (contact.communicationPreferences as Record<string, "subscribed" | "unsubscribed">) || {};
-      if (prefs[categoryName] !== "subscribed") {
+      const prefKey = campaignWorkspaceId
+        ? `${campaignWorkspaceId}:${categoryName}`
+        : categoryName;
+      // Also check legacy flat key for backward compatibility
+      const status = prefs[prefKey] ?? prefs[categoryName];
+      if (status !== "subscribed") {
         skippedCount++;
         continue;
       }
@@ -141,9 +193,9 @@ export async function sendCampaign(campaignId: string) {
     // Build unsubscribe URL if campaign has a category
     let listUnsubscribe: string | undefined;
     let unsubscribeUrl = "";
-    if (categoryName) {
+    if (categoryName && campaignWorkspaceId) {
       try {
-        unsubscribeUrl = buildUnsubscribeUrl(contact.id, categoryName);
+        unsubscribeUrl = buildUnsubscribeUrl(contact.id, campaignWorkspaceId, categoryName);
         listUnsubscribe = unsubscribeUrl;
       } catch {
         // UNSUBSCRIBE_SECRET not configured — send without unsubscribe

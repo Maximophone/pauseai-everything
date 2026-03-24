@@ -57,6 +57,8 @@ export async function PUT(
     ...(parsed.data.email !== undefined && { email: parsed.data.email }),
     ...(parsed.data.firstName !== undefined && { firstName: parsed.data.firstName }),
     ...(parsed.data.lastName !== undefined && { lastName: parsed.data.lastName }),
+    ...(parsed.data.language !== undefined && { language: parsed.data.language }),
+    ...(parsed.data.globallyUnsubscribed !== undefined && { globallyUnsubscribed: parsed.data.globallyUnsubscribed }),
     ...(parsed.data.customFields !== undefined && { customFields: parsed.data.customFields }),
     ...(parsed.data.communicationPreferences !== undefined && { communicationPreferences: parsed.data.communicationPreferences }),
   });

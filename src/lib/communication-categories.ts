@@ -2,7 +2,14 @@ import { db } from "@/db";
 import { communicationCategories } from "@/db/schema/communication-categories";
 import { eq, asc } from "drizzle-orm";
 
-export async function listCategories() {
+export async function listCategories(workspaceId?: string) {
+  if (workspaceId) {
+    return db
+      .select()
+      .from(communicationCategories)
+      .where(eq(communicationCategories.workspaceId, workspaceId))
+      .orderBy(asc(communicationCategories.sortOrder));
+  }
   return db
     .select()
     .from(communicationCategories)
@@ -30,6 +37,7 @@ export async function createCategory(data: {
   label: string;
   description?: string;
   sortOrder?: number;
+  workspaceId?: string;
 }) {
   const [cat] = await db
     .insert(communicationCategories)

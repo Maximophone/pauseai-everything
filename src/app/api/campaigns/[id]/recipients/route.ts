@@ -6,6 +6,7 @@ import { db } from "@/db";
 import { contacts } from "@/db/schema/contacts";
 import { communicationCategories } from "@/db/schema/communication-categories";
 import { eq, inArray } from "drizzle-orm";
+import { getActiveWorkspaceId } from "@/lib/workspace-context";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -18,6 +19,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
   const authResult = await checkAuth(request);
   if (!authResult.authenticated) return authResult.error!;
 
+  const workspaceId = await getActiveWorkspaceId(request);
   const { id } = await context.params;
   const campaign = await getCampaign(id);
   if (!campaign) {
@@ -31,7 +33,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
     if (!segment) {
       return NextResponse.json({ error: "Segment not found" }, { status: 404 });
     }
-    contactIds = await getSegmentContactIds(segment.filter);
+    contactIds = await getSegmentContactIds(segment.filter, workspaceId);
   }
 
   // Look up the category name for this campaign (if any)

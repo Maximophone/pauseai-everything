@@ -3,12 +3,14 @@ import { checkAuth, requireAdmin } from "@/lib/api-auth";
 import { listCampaigns, createCampaign } from "@/lib/campaigns";
 import { validateBody } from "@/lib/api-validate";
 import { CreateCampaignInput } from "@/lib/schemas";
+import { getActiveWorkspaceId } from "@/lib/workspace-context";
 
 export async function GET(request: NextRequest) {
   const authResult = await checkAuth(request);
   if (!authResult.authenticated) return authResult.error!;
 
-  const campaigns = await listCampaigns();
+  const workspaceId = await getActiveWorkspaceId(request);
+  const campaigns = await listCampaigns(workspaceId);
   return NextResponse.json(campaigns);
 }
 
@@ -17,6 +19,7 @@ export async function POST(request: NextRequest) {
   const adminError = requireAdmin(authResult);
   if (adminError) return adminError;
 
+  const workspaceId = await getActiveWorkspaceId(request);
   const body = await request.json();
   const parsed = validateBody(CreateCampaignInput, body);
   if (!parsed.success) return parsed.error;
@@ -31,6 +34,7 @@ export async function POST(request: NextRequest) {
     categoryId: parsed.data.categoryId,
     scheduledAt: parsed.data.scheduledAt ? new Date(parsed.data.scheduledAt) : null,
     createdBy: authResult.userId,
+    workspaceId,
   });
 
   return NextResponse.json(campaign, { status: 201 });

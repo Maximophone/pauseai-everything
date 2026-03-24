@@ -16,6 +16,8 @@ export const UpdateContactInput = z.object({
   email: z.string().email().nullable().optional(),
   firstName: z.string().nullable().optional(),
   lastName: z.string().nullable().optional(),
+  language: z.string().nullable().optional(),
+  globallyUnsubscribed: z.boolean().optional(),
   customFields: z.record(z.string(), z.unknown()).optional(),
   communicationPreferences: z.record(z.string(), z.enum(["subscribed", "unsubscribed"])).optional(),
 });

@@ -5,16 +5,19 @@ import { asc } from "drizzle-orm";
 import { validateBody } from "@/lib/api-validate";
 import { CreateFieldInput } from "@/lib/schemas";
 import { checkAuth, requireAuth, requireAdmin } from "@/lib/api-auth";
+import { getActiveWorkspaceId } from "@/lib/workspace-context";
+import { listFieldDefinitions } from "@/lib/contacts";
+import { isWorkspaceGlobal } from "@/lib/workspaces";
 
-// GET /api/fields — list all field definitions
+// GET /api/fields — list field definitions visible to active workspace
 export async function GET(request: NextRequest) {
   const authResult = await checkAuth(request);
   const authError = requireAuth(authResult);
   if (authError) return authError;
-  const fields = await db
-    .select()
-    .from(fieldDefinitions)
-    .orderBy(asc(fieldDefinitions.sortOrder));
+
+  const workspaceId = await getActiveWorkspaceId(request);
+  const isGlobal = await isWorkspaceGlobal(workspaceId);
+  const fields = await listFieldDefinitions(workspaceId, isGlobal);
 
   return NextResponse.json(fields);
 }
@@ -24,6 +27,7 @@ export async function POST(request: NextRequest) {
   const authResult = await checkAuth(request);
   const authError = requireAdmin(authResult);
   if (authError) return authError;
+  const workspaceId = await getActiveWorkspaceId(request);
   const body = await request.json();
   const parsed = validateBody(CreateFieldInput, body);
   if (!parsed.success) return parsed.error;
@@ -38,6 +42,8 @@ export async function POST(request: NextRequest) {
         options: parsed.data.options || null,
         required: parsed.data.required,
         sortOrder: parsed.data.sortOrder,
+        scope: parsed.data.scope,
+        workspaceId: parsed.data.workspaceId,
       })
       .returning();
 

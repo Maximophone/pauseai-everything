@@ -17,6 +17,7 @@ export const connections = pgTable("connections", {
   credentials: jsonb("credentials")
     .$type<Record<string, unknown>>()
     .notNull(),
+  workspaceId: uuid("workspace_id"), // FK to workspaces(id)
   status: text("status").notNull().default("untested"), // "connected" | "error" | "untested"
   statusMessage: text("status_message"),
   lastTestedAt: timestamp("last_tested_at"),

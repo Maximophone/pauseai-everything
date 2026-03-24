@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { getContact, listFieldDefinitions } from "@/lib/contacts";
+import { getServerWorkspaceId, isServerWorkspaceGlobal } from "@/lib/workspace-server";
 import { ContactDetailForm } from "@/components/contact-detail-form";
 import { InteractionTimeline } from "@/components/interaction-timeline";
 import { ContactTags } from "@/components/contact-tags";
@@ -27,9 +28,11 @@ export default async function ContactDetailPage({
 }) {
   const { id } = await params;
 
+  const workspaceId = await getServerWorkspaceId();
+  const isGlobal = await isServerWorkspaceGlobal();
   const [contact, fields] = await Promise.all([
     getContact(id),
-    listFieldDefinitions(),
+    listFieldDefinitions(workspaceId, isGlobal),
   ]);
 
   if (!contact) {

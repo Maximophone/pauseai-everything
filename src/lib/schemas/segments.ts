@@ -19,6 +19,7 @@ export const CreateSegmentInput = z.object({
   name: z.string().min(1, "name is required."),
   description: z.string().nullable().optional(),
   filter: SegmentFilter,
+  crossWorkspace: z.boolean().optional(),
 });
 export type CreateSegmentInput = z.infer<typeof CreateSegmentInput>;
 
@@ -26,6 +27,7 @@ export const UpdateSegmentInput = z.object({
   name: z.string().min(1).optional(),
   description: z.string().nullable().optional(),
   filter: SegmentFilter.optional(),
+  crossWorkspace: z.boolean().optional(),
 });
 export type UpdateSegmentInput = z.infer<typeof UpdateSegmentInput>;
 

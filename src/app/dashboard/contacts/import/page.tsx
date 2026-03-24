@@ -2,6 +2,7 @@ import { listFieldDefinitions } from "@/lib/contacts";
 import { CsvImporter } from "@/components/csv-importer";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getServerWorkspaceId, isServerWorkspaceGlobal } from "@/lib/workspace-server";
 
 export default async function ImportContactsPage() {
   const devBypass =
@@ -17,7 +18,9 @@ export default async function ImportContactsPage() {
     }
   }
 
-  const fields = await listFieldDefinitions();
+  const workspaceId = await getServerWorkspaceId();
+  const isGlobal = await isServerWorkspaceGlobal();
+  const fields = await listFieldDefinitions(workspaceId, isGlobal);
 
   return (
     <div>

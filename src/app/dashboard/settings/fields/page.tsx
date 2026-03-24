@@ -1,8 +1,11 @@
 import { listFieldDefinitions } from "@/lib/contacts";
 import { FieldsManager } from "@/components/fields-manager";
+import { getServerWorkspaceId, isServerWorkspaceGlobal } from "@/lib/workspace-server";
 
 export default async function FieldDefinitionsPage() {
-  const fields = await listFieldDefinitions();
+  const workspaceId = await getServerWorkspaceId();
+  const isGlobal = await isServerWorkspaceGlobal();
+  const fields = await listFieldDefinitions(workspaceId, isGlobal);
 
   return (
     <div>

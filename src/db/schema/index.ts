@@ -12,3 +12,4 @@ export * from "./scripts";
 export * from "./communication-categories";
 export * from "./app-settings";
 export * from "./connections";
+export * from "./workspaces";

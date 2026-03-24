@@ -1,11 +1,14 @@
 import { listFieldDefinitions } from "@/lib/contacts";
 import { listSegments } from "@/lib/segments";
 import { SegmentBuilder } from "@/components/segment-builder";
+import { getServerWorkspaceId, isServerWorkspaceGlobal } from "@/lib/workspace-server";
 
 export default async function SegmentsPage() {
+  const workspaceId = await getServerWorkspaceId();
+  const isGlobal = await isServerWorkspaceGlobal();
   const [fieldDefinitions, segments] = await Promise.all([
-    listFieldDefinitions(),
-    listSegments(),
+    listFieldDefinitions(workspaceId, isGlobal),
+    listSegments(workspaceId),
   ]);
 
   return (

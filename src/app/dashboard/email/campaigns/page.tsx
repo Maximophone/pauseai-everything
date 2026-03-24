@@ -2,12 +2,14 @@ import { listCampaigns } from "@/lib/campaigns";
 import { listSegments } from "@/lib/segments";
 import { listCategories } from "@/lib/communication-categories";
 import { CampaignManager } from "@/components/campaign-manager";
+import { getServerWorkspaceId } from "@/lib/workspace-server";
 
 export default async function CampaignsPage() {
+  const workspaceId = await getServerWorkspaceId();
   const [campaigns, segments, categories] = await Promise.all([
-    listCampaigns(),
-    listSegments(),
-    listCategories(),
+    listCampaigns(workspaceId),
+    listSegments(workspaceId),
+    listCategories(workspaceId),
   ]);
 
   return (

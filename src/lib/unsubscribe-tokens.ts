@@ -5,11 +5,12 @@ function getSecret(): string {
 }
 
 /**
- * Generate a stateless HMAC-SHA256 token for unsubscribe links.
- * Token is derived from contactId + categoryName, so it never expires.
+ * Generate a stateless HMAC-SHA256 token for workspace-aware unsubscribe links.
+ * Token is derived from contactId + workspaceId + categoryName, so it never expires.
  */
 export function generateUnsubscribeToken(
   contactId: string,
+  workspaceId: string,
   categoryName: string
 ): string {
   const secret = getSecret();
@@ -17,7 +18,7 @@ export function generateUnsubscribeToken(
     throw new Error("UNSUBSCRIBE_SECRET is not configured");
   }
   const hmac = createHmac("sha256", secret);
-  hmac.update(`${contactId}:${categoryName}`);
+  hmac.update(`${contactId}:${workspaceId}:${categoryName}`);
   return hmac.digest("hex");
 }
 
@@ -26,13 +27,14 @@ export function generateUnsubscribeToken(
  */
 export function verifyUnsubscribeToken(
   contactId: string,
+  workspaceId: string,
   categoryName: string,
   token: string
 ): boolean {
   if (!getSecret()) return false;
 
   try {
-    const expected = generateUnsubscribeToken(contactId, categoryName);
+    const expected = generateUnsubscribeToken(contactId, workspaceId, categoryName);
     const a = Buffer.from(token, "hex");
     const b = Buffer.from(expected, "hex");
     if (a.length !== b.length) return false;
@@ -43,13 +45,14 @@ export function verifyUnsubscribeToken(
 }
 
 /**
- * Build the full unsubscribe URL for a contact + category.
+ * Build the full unsubscribe URL for a contact + workspace + category.
  */
 export function buildUnsubscribeUrl(
   contactId: string,
+  workspaceId: string,
   categoryName: string
 ): string {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-  const token = generateUnsubscribeToken(contactId, categoryName);
-  return `${appUrl}/unsubscribe?contact=${contactId}&category=${encodeURIComponent(categoryName)}&token=${token}`;
+  const token = generateUnsubscribeToken(contactId, workspaceId, categoryName);
+  return `${appUrl}/unsubscribe?contact=${contactId}&workspace=${workspaceId}&category=${encodeURIComponent(categoryName)}&token=${token}`;
 }

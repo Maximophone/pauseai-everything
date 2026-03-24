@@ -2,11 +2,14 @@ import { listFieldDefinitions } from "@/lib/contacts";
 import { listCategories } from "@/lib/communication-categories";
 import { ContactsTable } from "@/components/contacts-table";
 import { AddContactButton } from "@/components/add-contact-button";
+import { getServerWorkspaceId, isServerWorkspaceGlobal } from "@/lib/workspace-server";
 
 export default async function ContactsPage() {
+  const workspaceId = await getServerWorkspaceId();
+  const isGlobal = await isServerWorkspaceGlobal();
   const [fields, categories] = await Promise.all([
-    listFieldDefinitions(),
-    listCategories(),
+    listFieldDefinitions(workspaceId, isGlobal),
+    listCategories(workspaceId),
   ]);
 
   return (

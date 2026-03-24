@@ -4,7 +4,14 @@ import { eq, asc, desc } from "drizzle-orm";
 
 // ─── Scripts CRUD ──────────────────────────────────────────
 
-export async function listScripts() {
+export async function listScripts(workspaceId?: string) {
+  if (workspaceId) {
+    return db
+      .select()
+      .from(scripts)
+      .where(eq(scripts.workspaceId, workspaceId))
+      .orderBy(asc(scripts.name));
+  }
   return db.select().from(scripts).orderBy(asc(scripts.name));
 }
 
@@ -18,6 +25,7 @@ export async function createScript(data: {
   description?: string;
   code: string;
   cronSchedule?: string | null;
+  workspaceId?: string;
 }) {
   const [script] = await db.insert(scripts).values(data).returning();
   return script;

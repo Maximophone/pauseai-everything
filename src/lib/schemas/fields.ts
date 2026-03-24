@@ -11,6 +11,8 @@ const FIELD_TYPES = [
   "email",
 ] as const;
 
+const FIELD_SCOPES = ["core", "global_internal", "workspace"] as const;
+
 export const CreateFieldInput = z.object({
   name: z.string().min(1, "name is required."),
   label: z.string().min(1, "label is required."),
@@ -20,6 +22,8 @@ export const CreateFieldInput = z.object({
   options: z.array(z.string()).nullable().optional(),
   required: z.boolean().default(false),
   sortOrder: z.number().int().default(0),
+  scope: z.enum(FIELD_SCOPES).default("core").optional(),
+  workspaceId: z.string().uuid().nullable().optional(),
 });
 export type CreateFieldInput = z.infer<typeof CreateFieldInput>;
 

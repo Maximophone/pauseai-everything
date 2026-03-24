@@ -1,8 +1,10 @@
 import { listTags } from "@/lib/tags";
 import { TagsManager } from "@/components/tags-manager";
+import { getServerWorkspaceId } from "@/lib/workspace-server";
 
 export default async function TagsPage() {
-  const tags = await listTags();
+  const workspaceId = await getServerWorkspaceId();
+  const tags = await listTags(workspaceId);
 
   return (
     <div>

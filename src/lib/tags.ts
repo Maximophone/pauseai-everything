@@ -5,14 +5,25 @@ import { and } from "drizzle-orm";
 
 export type Tag = typeof tags.$inferSelect;
 
-export async function listTags() {
+export async function listTags(workspaceId?: string) {
+  if (workspaceId) {
+    return db
+      .select()
+      .from(tags)
+      .where(eq(tags.workspaceId, workspaceId))
+      .orderBy(asc(tags.name));
+  }
   return db.select().from(tags).orderBy(asc(tags.name));
 }
 
-export async function createTag(name: string, color?: string) {
+export async function createTag(
+  name: string,
+  color?: string,
+  workspaceId?: string
+) {
   const [tag] = await db
     .insert(tags)
-    .values({ name, color: color || null })
+    .values({ name, color: color || null, workspaceId: workspaceId || null })
     .returning();
   return tag;
 }

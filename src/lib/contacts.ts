@@ -1,7 +1,8 @@
 import { db } from "@/db";
 import { contacts, type Contact, type NewContact } from "@/db/schema/contacts";
+import { contactWorkspaces } from "@/db/schema/workspaces";
 import { fieldDefinitions } from "@/db/schema/field-definitions";
-import { eq, ilike, or, sql, asc, desc } from "drizzle-orm";
+import { eq, ilike, or, and, sql, asc, desc, inArray } from "drizzle-orm";
 
 // ── Types ──────────────────────────────────────────────────
 
@@ -12,6 +13,7 @@ export type ContactListParams = {
   sortBy?: string;
   sortOrder?: "asc" | "desc";
   filters?: Record<string, string>;
+  workspaceId?: string;
 };
 
 export type ContactListResult = {
@@ -32,23 +34,51 @@ export async function listContacts(
     search,
     sortBy = "createdAt",
     sortOrder = "desc",
+    workspaceId,
   } = params;
 
   const offset = (page - 1) * pageSize;
 
-  let query = db.select().from(contacts).$dynamic();
+  // Build conditions array
+  const conditions = [];
+
+  // Workspace scoping via junction table
+  if (workspaceId) {
+    conditions.push(
+      sql`${contacts.id} IN (
+        SELECT ${contactWorkspaces.contactId}
+        FROM ${contactWorkspaces}
+        WHERE ${contactWorkspaces.workspaceId} = ${workspaceId}
+      )`
+    );
+  }
 
   // Search across name and email
   if (search) {
     const term = `%${search}%`;
-    query = query.where(
+    conditions.push(
       or(
         ilike(contacts.firstName, term),
         ilike(contacts.lastName, term),
         ilike(contacts.email, term)
-      )
+      )!
     );
   }
+
+  const whereClause =
+    conditions.length === 0
+      ? undefined
+      : conditions.length === 1
+        ? conditions[0]
+        : and(...conditions);
+
+  // Count total
+  const countQuery = db
+    .select({ count: sql<number>`count(*)` })
+    .from(contacts);
+  if (whereClause) countQuery.where(whereClause);
+  const [countResult] = await countQuery;
+  const total = Number(countResult.count);
 
   // Sorting
   const sortColumn =
@@ -60,17 +90,12 @@ export async function listContacts(
           ? contacts.email
           : contacts.createdAt;
 
+  // Main query
+  let query = db.select().from(contacts).$dynamic();
+  if (whereClause) query = query.where(whereClause);
   query = query.orderBy(
     sortOrder === "asc" ? asc(sortColumn) : desc(sortColumn)
   );
-
-  // Count total (before pagination)
-  const [countResult] = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(contacts);
-  const total = Number(countResult.count);
-
-  // Paginate
   const result = await query.limit(pageSize).offset(offset);
 
   return {
@@ -89,16 +114,41 @@ export async function getContact(id: string): Promise<Contact | undefined> {
   return contact;
 }
 
+export async function findContactByEmail(
+  email: string
+): Promise<Contact | undefined> {
+  const [contact] = await db
+    .select()
+    .from(contacts)
+    .where(eq(contacts.email, email.toLowerCase().trim()));
+  return contact;
+}
+
 export async function createContact(
-  data: NewContact
+  data: NewContact,
+  workspaceId?: string
 ): Promise<Contact> {
   const [contact] = await db
     .insert(contacts)
     .values({
       ...data,
       customFields: data.customFields ?? {},
+      createdByWorkspaceId: workspaceId ?? data.createdByWorkspaceId,
     })
     .returning();
+
+  // Link to workspace
+  if (workspaceId) {
+    await db
+      .insert(contactWorkspaces)
+      .values({
+        contactId: contact.id,
+        workspaceId,
+        subscriptionStatus: "neutral",
+      })
+      .onConflictDoNothing();
+  }
+
   return contact;
 }
 
@@ -127,17 +177,48 @@ export async function deleteContact(id: string): Promise<boolean> {
 
 // ── Field definitions ──────────────────────────────────────
 
-export async function listFieldDefinitions() {
+/**
+ * List field definitions visible to a workspace.
+ * Returns: core fields (always) + global_internal (if global workspace) + workspace-scoped fields.
+ */
+export async function listFieldDefinitions(workspaceId?: string, isGlobalWorkspace?: boolean) {
+  if (!workspaceId) {
+    // Backward compat: return all
+    return db
+      .select()
+      .from(fieldDefinitions)
+      .orderBy(asc(fieldDefinitions.sortOrder));
+  }
+
+  // Core fields (scope=core, workspaceId=null) are always visible
+  // Global internal fields (scope=global_internal) visible only if isGlobalWorkspace
+  // Workspace-scoped fields visible only if matching workspaceId
+  const conditions = [eq(fieldDefinitions.scope, "core")];
+
+  if (isGlobalWorkspace) {
+    conditions.push(eq(fieldDefinitions.scope, "global_internal"));
+  }
+
+  conditions.push(
+    and(
+      eq(fieldDefinitions.scope, "workspace"),
+      eq(fieldDefinitions.workspaceId, workspaceId)
+    )!
+  );
+
   return db
     .select()
     .from(fieldDefinitions)
+    .where(or(...conditions))
     .orderBy(asc(fieldDefinitions.sortOrder));
 }
 
 export async function validateCustomFields(
-  fields: Record<string, unknown>
+  fields: Record<string, unknown>,
+  workspaceId?: string,
+  isGlobalWorkspace?: boolean
 ): Promise<{ valid: boolean; errors: string[] }> {
-  const definitions = await listFieldDefinitions();
+  const definitions = await listFieldDefinitions(workspaceId, isGlobalWorkspace);
   const errors: string[] = [];
 
   for (const def of definitions) {

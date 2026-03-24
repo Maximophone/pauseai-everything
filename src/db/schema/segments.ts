@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
 import { users } from "./users";
 
 /**
@@ -26,6 +26,8 @@ export const segments = pgTable("segments", {
   name: text("name").notNull(),
   description: text("description"),
   filter: jsonb("filter").$type<SegmentFilter>().notNull(),
+  workspaceId: uuid("workspace_id"), // FK to workspaces(id)
+  crossWorkspace: boolean("cross_workspace").default(false).notNull(),
   createdBy: text("created_by").references(() => users.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
