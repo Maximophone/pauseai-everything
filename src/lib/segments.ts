@@ -87,23 +87,26 @@ const OPERATORS = {
   before: "<",
 } as const;
 
-function buildConditionSql(condition: SegmentCondition): ReturnType<typeof sql> | null {
+function buildConditionSql(condition: SegmentCondition, workspaceId?: string): ReturnType<typeof sql> | null {
   const { field, operator, value } = condition;
 
-  // Tag-based conditions
+  // Tag-based conditions — scope by workspace so tags from other workspaces don't match
   if (field === "tag" || operator === "has" || operator === "not_has") {
+    const wsFilter = workspaceId
+      ? sql` AND t.workspace_id = ${workspaceId}`
+      : sql``;
     if (operator === "has") {
       return sql`EXISTS (
         SELECT 1 FROM contact_tags ct
         JOIN tags t ON ct.tag_id = t.id
-        WHERE ct.contact_id = contacts.id AND t.name = ${String(value)}
+        WHERE ct.contact_id = contacts.id AND t.name = ${String(value)}${wsFilter}
       )`;
     }
     if (operator === "not_has") {
       return sql`NOT EXISTS (
         SELECT 1 FROM contact_tags ct
         JOIN tags t ON ct.tag_id = t.id
-        WHERE ct.contact_id = contacts.id AND t.name = ${String(value)}
+        WHERE ct.contact_id = contacts.id AND t.name = ${String(value)}${wsFilter}
       )`;
     }
   }
@@ -160,9 +163,9 @@ function buildColumnCondition(
   }
 }
 
-export function buildSegmentWhere(filter: SegmentFilter): ReturnType<typeof sql> | undefined {
+export function buildSegmentWhere(filter: SegmentFilter, workspaceId?: string): ReturnType<typeof sql> | undefined {
   const clauses = filter.conditions
-    .map(buildConditionSql)
+    .map((c) => buildConditionSql(c, workspaceId))
     .filter((c): c is ReturnType<typeof sql> => c !== null);
 
   if (clauses.length === 0) return undefined;
@@ -191,7 +194,7 @@ export async function previewSegment(
   filter: SegmentFilter,
   workspaceId?: string
 ) {
-  const where = buildSegmentWhere(filter);
+  const where = buildSegmentWhere(filter, workspaceId);
   const wsScope = buildWorkspaceScope(workspaceId);
 
   // Combine conditions
@@ -233,7 +236,7 @@ export async function getSegmentContactIds(
   filter: SegmentFilter,
   workspaceId?: string
 ): Promise<string[]> {
-  const where = buildSegmentWhere(filter);
+  const where = buildSegmentWhere(filter, workspaceId);
   const wsScope = buildWorkspaceScope(workspaceId);
 
   const allConditions = [where, wsScope].filter(Boolean);

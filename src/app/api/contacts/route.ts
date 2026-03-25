@@ -35,8 +35,8 @@ export async function GET(request: NextRequest) {
     workspaceId,
   });
 
-  // Embed tags so the client doesn't need a separate request per page
-  const tagsMap = await getTagsForContacts(result.contacts.map((c) => c.id));
+  // Embed tags so the client doesn't need a separate request per page (workspace-scoped)
+  const tagsMap = await getTagsForContacts(result.contacts.map((c) => c.id), workspaceId);
   const contactsWithTags = result.contacts.map((c) => ({
     ...c,
     tags: tagsMap[c.id] ?? [],

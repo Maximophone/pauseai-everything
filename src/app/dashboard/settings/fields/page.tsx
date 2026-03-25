@@ -17,6 +17,7 @@ export default async function FieldDefinitionsPage() {
       <div className="mt-6">
         <FieldsManager
           initialFields={JSON.parse(JSON.stringify(fields))}
+          isGlobalWorkspace={isGlobal}
         />
       </div>
     </div>

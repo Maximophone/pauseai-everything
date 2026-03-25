@@ -34,6 +34,8 @@ type FieldDefinition = {
   options: string[] | null;
   required: boolean;
   sortOrder: number;
+  scope?: string;
+  workspaceId?: string | null;
   createdAt: string;
 };
 
@@ -50,6 +52,7 @@ type NewField = {
   fieldType: string;
   options: string[];
   required: boolean;
+  scope?: string;
 };
 
 const emptyNewField: NewField = {
@@ -58,6 +61,7 @@ const emptyNewField: NewField = {
   fieldType: "text",
   options: [],
   required: false,
+  scope: undefined,
 };
 
 function hasOptions(type: string) {
@@ -130,10 +134,18 @@ function OptionsEditor({
   );
 }
 
+const SCOPE_LABELS: Record<string, string> = {
+  core: "Core (all workspaces)",
+  global_internal: "Global internal",
+  workspace: "This workspace only",
+};
+
 export function FieldsManager({
   initialFields,
+  isGlobalWorkspace = false,
 }: {
   initialFields: FieldDefinition[];
+  isGlobalWorkspace?: boolean;
 }) {
   const isAdmin = useHasRole("admin");
   const [fields, setFields] = useState<FieldDefinition[]>(initialFields);
@@ -170,6 +182,7 @@ export function FieldsManager({
         options: hasOptions(newField.fieldType) ? newField.options : null,
         required: newField.required,
         sortOrder: maxSort + 1,
+        ...(isGlobalWorkspace && newField.scope ? { scope: newField.scope } : {}),
       }),
     });
 
@@ -363,6 +376,24 @@ export function FieldsManager({
             </div>
           </div>
 
+          {isGlobalWorkspace && (
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">
+                Field Scope
+              </label>
+              <select
+                value={newField.scope || "core"}
+                onChange={(e) =>
+                  setNewField({ ...newField, scope: e.target.value })
+                }
+                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="core">Core (visible to all workspaces)</option>
+                <option value="global_internal">Global internal (Global workspace only)</option>
+              </select>
+            </div>
+          )}
+
           {hasOptions(newField.fieldType) && (
             <OptionsEditor
               options={newField.options}
@@ -526,6 +557,15 @@ export function FieldsManager({
                       <code className="bg-muted px-1 rounded">
                         {field.name}
                       </code>
+                      {field.scope && (
+                        <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+                          field.scope === "core" ? "bg-blue-100 text-blue-700" :
+                          field.scope === "global_internal" ? "bg-purple-100 text-purple-700" :
+                          "bg-green-100 text-green-700"
+                        }`}>
+                          {SCOPE_LABELS[field.scope] || field.scope}
+                        </span>
+                      )}
                       <span className="capitalize">
                         {
                           FIELD_TYPES.find((t) => t.value === field.fieldType)

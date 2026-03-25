@@ -11,12 +11,20 @@ import {
 
 type UserRole = "admin" | "member" | "viewer";
 
+type WorkspaceMembership = {
+  workspaceId: string;
+  workspaceName: string;
+  workspaceType: string;
+  role: UserRole;
+};
+
 type User = {
   id: string;
   name: string | null;
   email: string | null;
   image: string | null;
   role: UserRole;
+  workspaces?: WorkspaceMembership[];
 };
 
 const roleLabels: Record<UserRole, string> = {
@@ -210,6 +218,22 @@ export function UsersManager() {
                 <div className="text-xs text-muted-foreground">
                   {user.email}
                 </div>
+                {user.workspaces && user.workspaces.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-0.5">
+                    {user.workspaces.map((ws) => (
+                      <span
+                        key={ws.workspaceId}
+                        className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+                          ws.workspaceType === "global"
+                            ? "bg-blue-50 text-blue-700"
+                            : "bg-green-50 text-green-700"
+                        }`}
+                      >
+                        {ws.workspaceName} ({ws.role})
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
             <div className="flex items-center gap-2">

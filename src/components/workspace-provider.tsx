@@ -62,6 +62,13 @@ function setCookie(name: string, value: string) {
   document.cookie = `${name}=${value}; path=/; max-age=${365 * 24 * 60 * 60}; samesite=strict`;
 }
 
+function resolveActiveWorkspace(wsList: WorkspaceInfo[]): WorkspaceInfo | null {
+  if (wsList.length === 0) return null;
+  if (typeof document === "undefined") return wsList[0];
+  const savedId = getCookie("pauseai_workspace");
+  return wsList.find((ws) => ws.id === savedId) ?? wsList[0];
+}
+
 export function WorkspaceProvider({
   initialWorkspaces,
   children,
@@ -72,18 +79,21 @@ export function WorkspaceProvider({
   const [workspaces, setWorkspaces] = useState<WorkspaceInfo[]>(
     initialWorkspaces ?? []
   );
+  // Initialize activeWorkspace synchronously to avoid "Loading..." flash
   const [activeWorkspace, setActiveWorkspaceState] =
-    useState<WorkspaceInfo | null>(null);
-  const [isLoading, setIsLoading] = useState(!initialWorkspaces);
+    useState<WorkspaceInfo | null>(() =>
+      initialWorkspaces && initialWorkspaces.length > 0
+        ? resolveActiveWorkspace(initialWorkspaces)
+        : null
+    );
+  const [isLoading, setIsLoading] = useState(
+    !initialWorkspaces || initialWorkspaces.length === 0
+  );
 
-  // Fetch workspaces on mount if not provided
+  // Fetch workspaces on mount only if not provided
   useEffect(() => {
     if (initialWorkspaces && initialWorkspaces.length > 0) {
-      // Use initial data
-      const savedId = getCookie("pauseai_workspace");
-      const saved = initialWorkspaces.find((ws) => ws.id === savedId);
-      setActiveWorkspaceState(saved ?? initialWorkspaces[0]);
-      setIsLoading(false);
+      // Already initialized synchronously
       return;
     }
 
@@ -91,9 +101,7 @@ export function WorkspaceProvider({
       .then((res) => res.json())
       .then((data: WorkspaceInfo[]) => {
         setWorkspaces(data);
-        const savedId = getCookie("pauseai_workspace");
-        const saved = data.find((ws) => ws.id === savedId);
-        setActiveWorkspaceState(saved ?? data[0] ?? null);
+        setActiveWorkspaceState(resolveActiveWorkspace(data));
       })
       .catch(console.error)
       .finally(() => setIsLoading(false));

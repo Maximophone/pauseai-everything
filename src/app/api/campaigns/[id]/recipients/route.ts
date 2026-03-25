@@ -4,8 +4,9 @@ import { getCampaign } from "@/lib/campaigns";
 import { getSegment, getSegmentContactIds } from "@/lib/segments";
 import { db } from "@/db";
 import { contacts } from "@/db/schema/contacts";
+import { contactWorkspaces } from "@/db/schema/workspaces";
 import { communicationCategories } from "@/db/schema/communication-categories";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, and } from "drizzle-orm";
 import { getActiveWorkspaceId } from "@/lib/workspace-context";
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -46,27 +47,36 @@ export async function GET(request: NextRequest, context: RouteContext) {
     categoryName = cat?.name ?? null;
   }
 
+  // If no segment and no contactIds, get all contacts in this workspace
+  if (!contactIds) {
+    const wsContacts = await db
+      .select({ contactId: contactWorkspaces.contactId })
+      .from(contactWorkspaces)
+      .where(eq(contactWorkspaces.workspaceId, workspaceId));
+    contactIds = wsContacts.map((c) => c.contactId);
+  }
+
+  if (contactIds.length === 0) {
+    return NextResponse.json({
+      count: 0,
+      activeCount: 0,
+      notSubscribedCount: 0,
+      unsubscribedCount: 0,
+      recipients: [],
+    });
+  }
+
   // Fetch contact details including communication preferences
-  const query = contactIds
-    ? db
-        .select({
-          id: contacts.id,
-          email: contacts.email,
-          firstName: contacts.firstName,
-          lastName: contacts.lastName,
-          communicationPreferences: contacts.communicationPreferences,
-        })
-        .from(contacts)
-        .where(inArray(contacts.id, contactIds))
-    : db
-        .select({
-          id: contacts.id,
-          email: contacts.email,
-          firstName: contacts.firstName,
-          lastName: contacts.lastName,
-          communicationPreferences: contacts.communicationPreferences,
-        })
-        .from(contacts);
+  const query = db
+    .select({
+      id: contacts.id,
+      email: contacts.email,
+      firstName: contacts.firstName,
+      lastName: contacts.lastName,
+      communicationPreferences: contacts.communicationPreferences,
+    })
+    .from(contacts)
+    .where(inArray(contacts.id, contactIds));
 
   const rawRecipients = await query;
 
@@ -75,7 +85,9 @@ export async function GET(request: NextRequest, context: RouteContext) {
     const prefs = (r.communicationPreferences as Record<string, "subscribed" | "unsubscribed">) || {};
     let subscriptionStatus: "subscribed" | "not_subscribed" | "unsubscribed" = "subscribed";
     if (categoryName) {
-      const pref = prefs[categoryName];
+      // Check workspace-namespaced key first, then legacy flat key
+      const prefKey = `${workspaceId}:${categoryName}`;
+      const pref = prefs[prefKey] ?? prefs[categoryName];
       if (pref === "subscribed") {
         subscriptionStatus = "subscribed";
       } else if (pref === "unsubscribed") {

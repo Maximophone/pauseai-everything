@@ -12,6 +12,7 @@ import {
 import { eq } from "drizzle-orm";
 import type { UserRole } from "@/db/schema/users";
 import type { Provider } from "next-auth/providers";
+import { userWorkspaces, workspaces } from "@/db/schema/workspaces";
 
 const isDev = process.env.NODE_ENV === "development";
 
@@ -60,6 +61,9 @@ if (isDev) {
           user = { ...user, role, name: user.name || name };
         }
 
+        // Auto-setup workspace memberships for dev users
+        await setupDevWorkspaceMemberships(user.id, email, role);
+
         return {
           id: user.id,
           email: user.email,
@@ -69,6 +73,61 @@ if (isDev) {
       },
     })
   );
+}
+
+/**
+ * Set up workspace memberships for dev login users.
+ * - Global admin: added to Global workspace as admin
+ * - france@pauseai.info: added to France workspace as admin (creates it if needed)
+ * - Others: added to Global workspace with their role
+ */
+async function setupDevWorkspaceMemberships(
+  userId: string,
+  email: string,
+  role: UserRole
+) {
+  // Find or create workspaces
+  const [globalWs] = await db
+    .select()
+    .from(workspaces)
+    .where(eq(workspaces.type, "global"))
+    .limit(1);
+
+  if (!globalWs) return; // No global workspace yet — seed first
+
+  if (email === "france@pauseai.info") {
+    // Create France workspace if it doesn't exist
+    let [franceWs] = await db
+      .select()
+      .from(workspaces)
+      .where(eq(workspaces.slug, "france"))
+      .limit(1);
+
+    if (!franceWs) {
+      const [created] = await db
+        .insert(workspaces)
+        .values({
+          name: "Pause IA France",
+          slug: "france",
+          type: "chapter",
+          defaultLanguage: "fr",
+        })
+        .returning();
+      franceWs = created;
+    }
+
+    // Add to France workspace as admin
+    await db
+      .insert(userWorkspaces)
+      .values({ userId, workspaceId: franceWs.id, role: "admin" })
+      .onConflictDoNothing();
+  } else {
+    // Add to Global workspace with their role
+    await db
+      .insert(userWorkspaces)
+      .values({ userId, workspaceId: globalWs.id, role })
+      .onConflictDoNothing();
+  }
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({

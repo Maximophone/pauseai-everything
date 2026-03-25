@@ -45,12 +45,16 @@ export async function deleteTag(id: string) {
   return result.length > 0;
 }
 
-export async function getTagsForContact(contactId: string) {
+export async function getTagsForContact(contactId: string, workspaceId?: string) {
+  const conditions = [eq(contactTags.contactId, contactId)];
+  if (workspaceId) {
+    conditions.push(eq(tags.workspaceId, workspaceId));
+  }
   const result = await db
     .select({ tag: tags })
     .from(contactTags)
     .innerJoin(tags, eq(contactTags.tagId, tags.id))
-    .where(eq(contactTags.contactId, contactId));
+    .where(and(...conditions));
   return result.map((r) => r.tag);
 }
 
@@ -77,9 +81,17 @@ export async function removeTagFromContact(contactId: string, tagId: string) {
  * Returns a map of contactId → tag names.
  */
 export async function getTagsForContacts(
-  contactIds: string[]
+  contactIds: string[],
+  workspaceId?: string
 ): Promise<Record<string, string[]>> {
   if (contactIds.length === 0) return {};
+
+  const conditions = [
+    sql`${contactTags.contactId} IN (${sql.join(contactIds.map(id => sql`${id}`), sql`, `)})`
+  ];
+  if (workspaceId) {
+    conditions.push(sql`${tags.workspaceId} = ${workspaceId}`);
+  }
 
   const result = await db
     .select({
@@ -88,7 +100,7 @@ export async function getTagsForContacts(
     })
     .from(contactTags)
     .innerJoin(tags, eq(contactTags.tagId, tags.id))
-    .where(sql`${contactTags.contactId} IN (${sql.join(contactIds.map(id => sql`${id}`), sql`, `)})`);
+    .where(sql`${sql.join(conditions, sql` AND `)}`);
 
   const map: Record<string, string[]> = {};
   for (const row of result) {

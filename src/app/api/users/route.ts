@@ -4,6 +4,11 @@ import { checkAuth, requireAdmin } from "@/lib/api-auth";
 import { validateBody } from "@/lib/api-validate";
 import { InviteUserInput } from "@/lib/schemas";
 import { auth } from "@/lib/auth";
+import { getActiveWorkspaceId } from "@/lib/workspace-context";
+import { getWorkspaceMembers } from "@/lib/workspaces";
+import { db } from "@/db";
+import { userWorkspaces, workspaces } from "@/db/schema/workspaces";
+import { eq } from "drizzle-orm";
 
 // GET /api/users — list all users (admin only)
 export async function GET(request: NextRequest) {
@@ -13,13 +18,32 @@ export async function GET(request: NextRequest) {
 
   const allUsers = await listUsers();
 
-  // Don't expose sensitive fields
+  // Fetch workspace memberships for all users
+  const allMemberships = await db
+    .select({
+      userId: userWorkspaces.userId,
+      workspaceId: userWorkspaces.workspaceId,
+      workspaceName: workspaces.name,
+      workspaceType: workspaces.type,
+      role: userWorkspaces.role,
+    })
+    .from(userWorkspaces)
+    .innerJoin(workspaces, eq(userWorkspaces.workspaceId, workspaces.id));
+
+  const membershipMap = new Map<string, Array<{ workspaceId: string; workspaceName: string; workspaceType: string; role: string }>>();
+  for (const m of allMemberships) {
+    const existing = membershipMap.get(m.userId) || [];
+    existing.push({ workspaceId: m.workspaceId, workspaceName: m.workspaceName, workspaceType: m.workspaceType, role: m.role });
+    membershipMap.set(m.userId, existing);
+  }
+
   const safeUsers = allUsers.map((u) => ({
     id: u.id,
     name: u.name,
     email: u.email,
     image: u.image,
     role: u.role,
+    workspaces: membershipMap.get(u.id) || [],
   }));
 
   return NextResponse.json(safeUsers);

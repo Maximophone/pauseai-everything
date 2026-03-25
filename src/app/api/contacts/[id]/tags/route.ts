@@ -4,6 +4,7 @@ import { getContact } from "@/lib/contacts";
 import { validateBody } from "@/lib/api-validate";
 import { ContactTagInput } from "@/lib/schemas";
 import { checkAuth, requireAuth, requireMember } from "@/lib/api-auth";
+import { getActiveWorkspaceId } from "@/lib/workspace-context";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -13,13 +14,14 @@ export async function GET(request: NextRequest, context: RouteContext) {
   const authError = requireAuth(authResult);
   if (authError) return authError;
   const { id } = await context.params;
+  const workspaceId = await getActiveWorkspaceId(request);
 
   const contact = await getContact(id);
   if (!contact) {
     return NextResponse.json({ error: "Contact not found." }, { status: 404 });
   }
 
-  const contactTags = await getTagsForContact(id);
+  const contactTags = await getTagsForContact(id, workspaceId);
   return NextResponse.json(contactTags);
 }
 
@@ -29,6 +31,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
   const authError = requireMember(authResult);
   if (authError) return authError;
   const { id } = await context.params;
+  const workspaceId = await getActiveWorkspaceId(request);
   const body = await request.json();
 
   const contact = await getContact(id);
@@ -40,7 +43,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
   if (!parsed.success) return parsed.error;
 
   await addTagToContact(id, parsed.data.tagId);
-  const updatedTags = await getTagsForContact(id);
+  const updatedTags = await getTagsForContact(id, workspaceId);
   return NextResponse.json(updatedTags);
 }
 
@@ -50,12 +53,13 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
   const authError = requireMember(authResult);
   if (authError) return authError;
   const { id } = await context.params;
+  const workspaceId = await getActiveWorkspaceId(request);
   const body = await request.json();
 
   const parsed = validateBody(ContactTagInput, body);
   if (!parsed.success) return parsed.error;
 
   await removeTagFromContact(id, parsed.data.tagId);
-  const updatedTags = await getTagsForContact(id);
+  const updatedTags = await getTagsForContact(id, workspaceId);
   return NextResponse.json(updatedTags);
 }

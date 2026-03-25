@@ -32,6 +32,25 @@ export async function POST(request: NextRequest) {
   const parsed = validateBody(CreateFieldInput, body);
   if (!parsed.success) return parsed.error;
 
+  // Auto-determine scope based on workspace context if not explicitly provided
+  const isGlobal = await isWorkspaceGlobal(workspaceId);
+  let scope = parsed.data.scope || (isGlobal ? "core" : "workspace");
+  let fieldWorkspaceId = parsed.data.workspaceId ?? null;
+
+  // Non-global workspaces can only create workspace-scoped fields
+  if (!isGlobal) {
+    scope = "workspace";
+    fieldWorkspaceId = workspaceId;
+  }
+
+  // Only global workspace can create core/global_internal fields
+  if ((scope === "core" || scope === "global_internal") && !isGlobal) {
+    return NextResponse.json(
+      { error: "Only the global workspace can create core or global_internal fields." },
+      { status: 403 }
+    );
+  }
+
   try {
     const [field] = await db
       .insert(fieldDefinitions)
@@ -42,8 +61,8 @@ export async function POST(request: NextRequest) {
         options: parsed.data.options || null,
         required: parsed.data.required,
         sortOrder: parsed.data.sortOrder,
-        scope: parsed.data.scope,
-        workspaceId: parsed.data.workspaceId,
+        scope,
+        workspaceId: fieldWorkspaceId,
       })
       .returning();
 
