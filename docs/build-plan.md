@@ -1,6 +1,6 @@
 # PauseAI Everything App — Build Plan
 
-> Living document. Last updated: 2026-03-25.
+> Living document. Last updated: 2026-03-26.
 
 ## Tech decisions
 
@@ -190,6 +190,9 @@
 - [x] Segment tag filter: workspace-scoped tag matching with NULL fallback for legacy data
 - [x] Segment builder: field change handler correctly resets operator per field type (e.g., "has" for tags)
 - [x] Unsubscribe flow: workspace-aware preference center with per-workspace sections
+- [x] Workspace-scoped automations: scripts and rules CRUD, execution, and UI all filtered by workspace
+- [x] Script engine workspace isolation: ctx.contacts.find and tag operations scoped to script's workspace
+- [x] Subscription table display: cell renderer uses workspace-namespaced preference keys (workspaceId:categoryName)
 
 ---
 
