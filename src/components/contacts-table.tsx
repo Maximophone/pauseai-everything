@@ -19,6 +19,7 @@ import { useRouter } from "next/navigation";
 import { Download, Trash2 } from "lucide-react";
 import { TagCellEditor } from "./tag-cell-editor";
 import { SubscriptionCellEditor } from "./subscription-cell-editor";
+import { useWorkspaceId } from "@/components/workspace-provider";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -205,7 +206,7 @@ function NameCellRenderer(params: { data: FlatContact; value: string }) {
   );
 }
 
-type Category = { id: string; name: string; label: string };
+type Category = { id: string; name: string; label: string; workspaceId?: string | null };
 
 export function ContactsTable({
   fieldDefinitions,
@@ -217,7 +218,14 @@ export function ContactsTable({
   const router = useRouter();
   const canEdit = useHasRole("member");
   const isAdmin = useHasRole("admin");
+  const workspaceId = useWorkspaceId();
   const gridRef = useRef<GridApi | null>(null);
+
+  // Build workspace-namespaced preference key (matches subscription-cell-editor.tsx)
+  function catPrefKey(cat: Category): string {
+    const wsId = cat.workspaceId ?? workspaceId;
+    return wsId ? `${wsId}:${cat.name}` : cat.name;
+  }
 
   // Search is read inside the datasource via ref to keep the datasource stable
   const searchRef = useRef("");
@@ -384,7 +392,7 @@ export function ContactsTable({
           (params.data?._commPrefs || {}) as Record<string, "subscribed" | "unsubscribed">,
         valueFormatter: (params: { value: unknown }) => {
           const prefs = (params.value || {}) as Record<string, "subscribed" | "unsubscribed">;
-          return categories.map((c) => prefs[c.name] ? `${c.label}: ${prefs[c.name]}` : "").filter(Boolean).join(", ") || "";
+          return categories.map((c) => prefs[catPrefKey(c)] ? `${c.label}: ${prefs[catPrefKey(c)]}` : "").filter(Boolean).join(", ") || "";
         },
         cellRenderer: (params: { value: unknown; data: FlatContact; eGridCell: HTMLElement }) => {
           const prefs = (params.value || {}) as Record<string, "subscribed" | "unsubscribed">;
@@ -394,7 +402,7 @@ export function ContactsTable({
             setEditingSubsFor({ contactId: params.data.id, rect });
           };
           if (categories.length === 0) return <span className="text-xs text-gray-400">No categories</span>;
-          const hasAnyPref = categories.some((c) => prefs[c.name]);
+          const hasAnyPref = categories.some((c) => prefs[catPrefKey(c)]);
           return (
             <div
               className={`flex gap-1 flex-wrap items-center h-full ${canEdit ? "cursor-pointer" : ""}`}
@@ -403,7 +411,7 @@ export function ContactsTable({
               {!hasAnyPref
                 ? <span className="text-xs text-gray-400">{canEdit ? "Click to set" : "—"}</span>
                 : categories.map((cat) => {
-                  const status = prefs[cat.name];
+                  const status = prefs[catPrefKey(cat)];
                   if (!status) return null;
                   return (
                     <span key={cat.name} className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${status === "subscribed" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>
@@ -451,7 +459,7 @@ export function ContactsTable({
     }];
 
     return [checkboxCol, ...coreCols, ...customCols, ...metaCols];
-  }, [fieldDefinitions, canEdit, categories]);
+  }, [fieldDefinitions, canEdit, categories, workspaceId]);
 
   const defaultColDef = useMemo<ColDef>(() => ({
     sortable: false,

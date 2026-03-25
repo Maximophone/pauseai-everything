@@ -8,7 +8,7 @@ import {
 } from "@/db/schema/automation-rules";
 import { contacts } from "@/db/schema/contacts";
 import { tags, contactTags } from "@/db/schema/tags";
-import { eq, asc, sql } from "drizzle-orm";
+import { eq, and, asc, sql } from "drizzle-orm";
 import { buildSegmentWhere } from "./segments";
 
 // ─── CRUD ──────────────────────────────────────────────────
@@ -24,7 +24,13 @@ export async function listAutomationRules(workspaceId?: string) {
   return db.select().from(automationRules).orderBy(asc(automationRules.name));
 }
 
-export async function getAutomationRule(id: string) {
+export async function getAutomationRule(id: string, workspaceId?: string) {
+  if (workspaceId) {
+    const [rule] = await db.select().from(automationRules).where(
+      and(eq(automationRules.id, id), eq(automationRules.workspaceId, workspaceId))
+    );
+    return rule ?? null;
+  }
   const [rule] = await db.select().from(automationRules).where(eq(automationRules.id, id));
   return rule ?? null;
 }
@@ -41,20 +47,27 @@ export async function createAutomationRule(data: {
 
 export async function updateAutomationRule(
   id: string,
-  data: Partial<{ name: string; description: string; config: AutomationRuleConfig; isActive: boolean }>
+  data: Partial<{ name: string; description: string; config: AutomationRuleConfig; isActive: boolean }>,
+  workspaceId?: string
 ) {
+  const condition = workspaceId
+    ? and(eq(automationRules.id, id), eq(automationRules.workspaceId, workspaceId))
+    : eq(automationRules.id, id);
   const [updated] = await db
     .update(automationRules)
     .set({ ...data, updatedAt: new Date() })
-    .where(eq(automationRules.id, id))
+    .where(condition)
     .returning();
   return updated ?? null;
 }
 
-export async function deleteAutomationRule(id: string) {
+export async function deleteAutomationRule(id: string, workspaceId?: string) {
+  const condition = workspaceId
+    ? and(eq(automationRules.id, id), eq(automationRules.workspaceId, workspaceId))
+    : eq(automationRules.id, id);
   const result = await db
     .delete(automationRules)
-    .where(eq(automationRules.id, id))
+    .where(condition)
     .returning({ id: automationRules.id });
   return result.length > 0;
 }
@@ -67,16 +80,22 @@ export async function deleteAutomationRule(id: string) {
  */
 export async function executeRule(rule: AutomationRule): Promise<number> {
   const config = rule.config;
+  const workspaceId = rule.workspaceId;
 
   // Use segment query engine to find matching contacts
   const where = buildSegmentWhere({
     match: config.match,
     conditions: config.conditions,
-  });
+  }, workspaceId ?? undefined);
+
+  // Scope to workspace contacts via contact_workspaces junction
+  const wsJoin = workspaceId
+    ? sql`INNER JOIN contact_workspaces cw ON cw.contact_id = contacts.id AND cw.workspace_id = ${workspaceId}`
+    : sql``;
 
   const query = where
-    ? sql`SELECT id FROM contacts WHERE ${where}`
-    : sql`SELECT id FROM contacts`;
+    ? sql`SELECT contacts.id FROM contacts ${wsJoin} WHERE ${where}`
+    : sql`SELECT contacts.id FROM contacts ${wsJoin}`;
 
   const matchingContacts = (await db.execute(query)) as unknown as Array<{ id: string }>;
 
@@ -84,7 +103,7 @@ export async function executeRule(rule: AutomationRule): Promise<number> {
 
   let affected = 0;
   for (const { id: contactId } of matchingContacts) {
-    const changed = await applyActions(contactId, config.actions);
+    const changed = await applyActions(contactId, config.actions, workspaceId);
     if (changed) affected++;
   }
 
@@ -97,7 +116,7 @@ export async function executeRule(rule: AutomationRule): Promise<number> {
   return affected;
 }
 
-async function applyActions(contactId: string, actions: RuleAction[]): Promise<boolean> {
+async function applyActions(contactId: string, actions: RuleAction[], workspaceId?: string | null): Promise<boolean> {
   let changed = false;
 
   for (const action of actions) {
@@ -117,16 +136,19 @@ async function applyActions(contactId: string, actions: RuleAction[]): Promise<b
         break;
       }
       case "add_tag": {
-        // Find or create the tag
+        // Find or create the tag (workspace-scoped)
+        const tagCondition = workspaceId
+          ? and(eq(tags.name, action.tag), eq(tags.workspaceId, workspaceId))
+          : eq(tags.name, action.tag);
         let [tag] = await db
           .select()
           .from(tags)
-          .where(eq(tags.name, action.tag));
+          .where(tagCondition);
 
         if (!tag) {
           [tag] = await db
             .insert(tags)
-            .values({ name: action.tag })
+            .values({ name: action.tag, ...(workspaceId ? { workspaceId } : {}) })
             .returning();
         }
 
@@ -143,10 +165,13 @@ async function applyActions(contactId: string, actions: RuleAction[]): Promise<b
         break;
       }
       case "remove_tag": {
+        const removeTagCondition = workspaceId
+          ? and(eq(tags.name, action.tag), eq(tags.workspaceId, workspaceId))
+          : eq(tags.name, action.tag);
         const [tag] = await db
           .select()
           .from(tags)
-          .where(eq(tags.name, action.tag));
+          .where(removeTagCondition);
 
         if (tag) {
           const result = await db

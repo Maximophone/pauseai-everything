@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { scripts, scriptRuns, type Script } from "@/db/schema/scripts";
-import { eq, asc, desc } from "drizzle-orm";
+import { eq, and, asc, desc } from "drizzle-orm";
 
 // ─── Scripts CRUD ──────────────────────────────────────────
 
@@ -15,7 +15,13 @@ export async function listScripts(workspaceId?: string) {
   return db.select().from(scripts).orderBy(asc(scripts.name));
 }
 
-export async function getScript(id: string) {
+export async function getScript(id: string, workspaceId?: string) {
+  if (workspaceId) {
+    const [script] = await db.select().from(scripts).where(
+      and(eq(scripts.id, id), eq(scripts.workspaceId, workspaceId))
+    );
+    return script ?? null;
+  }
   const [script] = await db.select().from(scripts).where(eq(scripts.id, id));
   return script ?? null;
 }
@@ -41,20 +47,27 @@ export async function updateScript(
     enabled: boolean;
     lastRunAt: Date;
     lastRunStatus: string;
-  }>
+  }>,
+  workspaceId?: string
 ) {
+  const condition = workspaceId
+    ? and(eq(scripts.id, id), eq(scripts.workspaceId, workspaceId))
+    : eq(scripts.id, id);
   const [updated] = await db
     .update(scripts)
     .set({ ...data, updatedAt: new Date() })
-    .where(eq(scripts.id, id))
+    .where(condition)
     .returning();
   return updated ?? null;
 }
 
-export async function deleteScript(id: string) {
+export async function deleteScript(id: string, workspaceId?: string) {
+  const condition = workspaceId
+    ? and(eq(scripts.id, id), eq(scripts.workspaceId, workspaceId))
+    : eq(scripts.id, id);
   const result = await db
     .delete(scripts)
-    .where(eq(scripts.id, id))
+    .where(condition)
     .returning({ id: scripts.id });
   return result.length > 0;
 }

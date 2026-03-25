@@ -1,8 +1,10 @@
 import { listScripts } from "@/lib/scripts";
 import { ScriptsManager } from "@/components/scripts-manager";
+import { getServerWorkspaceId } from "@/lib/workspace-server";
 
 export default async function AutomationsPage() {
-  const scripts = await listScripts();
+  const workspaceId = await getServerWorkspaceId();
+  const scripts = await listScripts(workspaceId);
 
   return (
     <div>

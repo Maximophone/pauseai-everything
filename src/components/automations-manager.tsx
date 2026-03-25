@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useWorkspace, useWorkspaceFetch } from "@/components/workspace-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -60,11 +61,18 @@ export function AutomationsManager({
   initialRules: AutomationRule[];
   fieldDefinitions: FieldDefinition[];
 }) {
+  const workspaceFetch = useWorkspaceFetch();
+  const { activeWorkspace } = useWorkspace();
   const [rules, setRules] = useState<AutomationRule[]>(initialRules);
   const [showCreate, setShowCreate] = useState(false);
   const [saving, setSaving] = useState(false);
   const [running, setRunning] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Refetch when workspace changes
+  useEffect(() => {
+    refetch();
+  }, [activeWorkspace?.id]);
 
   // Create form
   const [name, setName] = useState("");
@@ -78,7 +86,7 @@ export function AutomationsManager({
   ]);
 
   async function refetch() {
-    const res = await fetch("/api/automations");
+    const res = await workspaceFetch("/api/automations");
     if (res.ok) setRules(await res.json());
   }
 
@@ -97,7 +105,7 @@ export function AutomationsManager({
     setSaving(true);
     setError(null);
 
-    const res = await fetch("/api/automations", {
+    const res = await workspaceFetch("/api/automations", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -126,7 +134,7 @@ export function AutomationsManager({
   }
 
   async function toggleActive(id: string, isActive: boolean) {
-    await fetch(`/api/automations/${id}`, {
+    await workspaceFetch(`/api/automations/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ isActive: !isActive }),
@@ -136,7 +144,7 @@ export function AutomationsManager({
 
   async function runRule(id: string) {
     setRunning(id);
-    const res = await fetch(`/api/automations/${id}/run`, { method: "POST" });
+    const res = await workspaceFetch(`/api/automations/${id}/run`, { method: "POST" });
     if (res.ok) {
       const { affected } = await res.json();
       alert(`Rule executed: ${affected} contacts affected.`);
@@ -147,7 +155,7 @@ export function AutomationsManager({
 
   async function deleteRule(id: string) {
     if (!confirm("Delete this automation rule?")) return;
-    await fetch(`/api/automations/${id}`, { method: "DELETE" });
+    await workspaceFetch(`/api/automations/${id}`, { method: "DELETE" });
     setRules(rules.filter((r) => r.id !== id));
   }
 

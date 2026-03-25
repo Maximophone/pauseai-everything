@@ -85,6 +85,11 @@ const allNavItems = [
       adminOnly: true,
       items: [
         {
+          title: "Workspaces",
+          url: "/dashboard/settings/workspaces",
+          globalAdminOnly: true,
+        },
+        {
           title: "Fields",
           url: "/dashboard/settings/fields",
         },
@@ -126,9 +131,17 @@ export function AppSidebar({
   const effectiveRole = LEVEL_TO_ROLE[Math.max(globalLevel, wsLevel)];
 
   const isAdmin = effectiveRole === "admin";
-  const navItems = isAdmin
+  const isGlobalAdmin = user.role === "admin";
+  const navItems = (isAdmin
     ? allNavItems
-    : allNavItems.filter((item) => !("adminOnly" in item && item.adminOnly));
+    : allNavItems.filter((item) => !("adminOnly" in item && item.adminOnly))
+  ).map((item) => {
+    if (!item.items || isGlobalAdmin) return item;
+    return {
+      ...item,
+      items: item.items.filter((sub) => !(sub as { globalAdminOnly?: boolean }).globalAdminOnly),
+    };
+  });
 
   return (
     <Sidebar collapsible="icon" {...props}>

@@ -28,7 +28,12 @@ type ScriptResult = {
 
 // ─── Build the ctx SDK ────────────────────────────────────
 
-function buildContext(logs: string[], counters: { emails: number; affected: Set<string> }) {
+function buildContext(logs: string[], counters: { emails: number; affected: Set<string> }, workspaceId?: string | null) {
+  // Workspace-scoped contact query helper
+  const wsJoin = workspaceId
+    ? sql`INNER JOIN contact_workspaces cw ON cw.contact_id = contacts.id AND cw.workspace_id = ${workspaceId}`
+    : sql``;
+
   const ctx = {
     // ─── contacts ───────────────────────────────────
     contacts: {
@@ -52,17 +57,17 @@ function buildContext(logs: string[], counters: { emails: number; affected: Set<
         }
 
         if (conditions.length === 0) {
-          const rows = await db
-            .select()
-            .from(contacts)
-            .limit(MAX_CONTACTS);
-          return rows.map(contactToPlain);
+          const query = workspaceId
+            ? sql`SELECT contacts.* FROM contacts ${wsJoin} LIMIT ${MAX_CONTACTS}`
+            : sql`SELECT * FROM contacts LIMIT ${MAX_CONTACTS}`;
+          const rows = (await db.execute(query)) as unknown as Record<string, unknown>[];
+          return rows.map(normalizeRow);
         }
 
-        const where = buildSegmentWhere({ match: "all", conditions });
+        const where = buildSegmentWhere({ match: "all", conditions }, workspaceId ?? undefined);
         const query = where
-          ? sql`SELECT * FROM contacts WHERE ${where} LIMIT ${MAX_CONTACTS}`
-          : sql`SELECT * FROM contacts LIMIT ${MAX_CONTACTS}`;
+          ? sql`SELECT contacts.* FROM contacts ${wsJoin} WHERE ${where} LIMIT ${MAX_CONTACTS}`
+          : sql`SELECT contacts.* FROM contacts ${wsJoin} LIMIT ${MAX_CONTACTS}`;
 
         const rows = (await db.execute(query)) as unknown as Record<string, unknown>[];
         return rows.map(normalizeRow);
@@ -129,10 +134,13 @@ function buildContext(logs: string[], counters: { emails: number; affected: Set<
     // ─── tags ───────────────────────────────────────
     tags: {
       add: async (contactId: string, tagName: string) => {
-        // Find or create tag
-        let [tag] = await db.select().from(tags).where(eq(tags.name, tagName));
+        // Find or create tag (workspace-scoped)
+        const tagCondition = workspaceId
+          ? sql`${tags.name} = ${tagName} AND ${tags.workspaceId} = ${workspaceId}`
+          : sql`${tags.name} = ${tagName}`;
+        let [tag] = await db.select().from(tags).where(tagCondition);
         if (!tag) {
-          [tag] = await db.insert(tags).values({ name: tagName }).returning();
+          [tag] = await db.insert(tags).values({ name: tagName, ...(workspaceId ? { workspaceId } : {}) }).returning();
         }
         await db
           .insert(contactTags)
@@ -259,7 +267,7 @@ export async function executeScript(
   const counters = { emails: 0, affected: new Set<string>() };
 
   try {
-    const ctx = buildContext(logs, counters);
+    const ctx = buildContext(logs, counters, script.workspaceId);
 
     // Wrap user code in an async IIFE so await works
     const wrappedCode = `(async () => { ${script.code} })()`;

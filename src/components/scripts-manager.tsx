@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useHasRole } from "@/lib/hooks/use-user-role";
+import { useWorkspace, useWorkspaceFetch } from "@/components/workspace-provider";
 import CodeMirror from "@uiw/react-codemirror";
 import { javascript } from "@codemirror/lang-javascript";
 import { Button } from "@/components/ui/button";
@@ -59,6 +60,8 @@ const CRON_PRESETS = [
 
 export function ScriptsManager({ initialScripts }: { initialScripts: Script[] }) {
   const isAdmin = useHasRole("admin");
+  const workspaceFetch = useWorkspaceFetch();
+  const { activeWorkspace } = useWorkspace();
   const [scripts, setScripts] = useState<Script[]>(initialScripts);
   const [editingScript, setEditingScript] = useState<Script | null>(null);
   const [showCreate, setShowCreate] = useState(false);
@@ -73,6 +76,11 @@ export function ScriptsManager({ initialScripts }: { initialScripts: Script[] })
     contactsAffected: number;
   } | null>(null);
 
+  // Refetch when workspace changes
+  useEffect(() => {
+    refetch();
+  }, [activeWorkspace?.id]);
+
   // Create form state
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -81,7 +89,7 @@ export function ScriptsManager({ initialScripts }: { initialScripts: Script[] })
   const [customCron, setCustomCron] = useState(false);
 
   async function refetch() {
-    const res = await fetch("/api/scripts");
+    const res = await workspaceFetch("/api/scripts");
     if (res.ok) setScripts(await res.json());
   }
 
@@ -109,7 +117,7 @@ export function ScriptsManager({ initialScripts }: { initialScripts: Script[] })
     setLoading(true);
     setError(null);
 
-    const res = await fetch("/api/scripts", {
+    const res = await workspaceFetch("/api/scripts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -139,7 +147,7 @@ export function ScriptsManager({ initialScripts }: { initialScripts: Script[] })
     setLoading(true);
     setError(null);
 
-    const res = await fetch(`/api/scripts/${editingScript.id}`, {
+    const res = await workspaceFetch(`/api/scripts/${editingScript.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -171,7 +179,7 @@ export function ScriptsManager({ initialScripts }: { initialScripts: Script[] })
     setRunResult(null);
     setError(null);
 
-    const res = await fetch(`/api/scripts/${scriptId}/run`, { method: "POST" });
+    const res = await workspaceFetch(`/api/scripts/${scriptId}/run`, { method: "POST" });
     if (res.ok) {
       const result = await res.json();
       setRunResult(result);
@@ -192,7 +200,7 @@ export function ScriptsManager({ initialScripts }: { initialScripts: Script[] })
   }
 
   async function toggleEnabled(script: Script) {
-    await fetch(`/api/scripts/${script.id}`, {
+    await workspaceFetch(`/api/scripts/${script.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ enabled: !script.enabled }),
@@ -202,13 +210,13 @@ export function ScriptsManager({ initialScripts }: { initialScripts: Script[] })
 
   async function deleteScriptById(id: string) {
     if (!confirm("Delete this script and all its run history?")) return;
-    await fetch(`/api/scripts/${id}`, { method: "DELETE" });
+    await workspaceFetch(`/api/scripts/${id}`, { method: "DELETE" });
     if (editingScript?.id === id) setEditingScript(null);
     setScripts(scripts.filter((s) => s.id !== id));
   }
 
   async function loadRuns(scriptId: string) {
-    const res = await fetch(`/api/scripts/${scriptId}/runs`);
+    const res = await workspaceFetch(`/api/scripts/${scriptId}/runs`);
     if (res.ok) setRuns(await res.json());
   }
 
