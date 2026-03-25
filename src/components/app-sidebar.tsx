@@ -5,6 +5,7 @@ import * as React from "react"
 import { NavMain } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
 import { WorkspaceSwitcher } from "@/components/workspace-switcher"
+import { useWorkspace } from "@/components/workspace-provider"
 import {
   Sidebar,
   SidebarContent,
@@ -21,6 +22,9 @@ import {
   FilterIcon,
   ZapIcon,
 } from "lucide-react"
+
+const ROLE_LEVELS: Record<string, number> = { viewer: 0, member: 1, admin: 2 };
+const LEVEL_TO_ROLE = ["viewer", "member", "admin"];
 
 const allNavItems = [
     {
@@ -114,7 +118,14 @@ export function AppSidebar({
 }: React.ComponentProps<typeof Sidebar> & {
   user: { name: string; email: string; avatar: string; role: string }
 }) {
-  const isAdmin = user.role === "admin";
+  const { activeWorkspace } = useWorkspace();
+
+  // Effective role = max(global role, workspace role)
+  const globalLevel = ROLE_LEVELS[user.role] ?? 0;
+  const wsLevel = ROLE_LEVELS[activeWorkspace?.workspaceRole ?? "viewer"] ?? 0;
+  const effectiveRole = LEVEL_TO_ROLE[Math.max(globalLevel, wsLevel)];
+
+  const isAdmin = effectiveRole === "admin";
   const navItems = isAdmin
     ? allNavItems
     : allNavItems.filter((item) => !("adminOnly" in item && item.adminOnly));

@@ -90,6 +90,16 @@ export function WorkspaceProvider({
     !initialWorkspaces || initialWorkspaces.length === 0
   );
 
+  // Ensure cookie is set on mount (covers first login / missing cookie)
+  useEffect(() => {
+    if (activeWorkspace) {
+      const savedId = getCookie("pauseai_workspace");
+      if (savedId !== activeWorkspace.id) {
+        setCookie("pauseai_workspace", activeWorkspace.id);
+      }
+    }
+  }, [activeWorkspace]);
+
   // Fetch workspaces on mount only if not provided
   useEffect(() => {
     if (initialWorkspaces && initialWorkspaces.length > 0) {

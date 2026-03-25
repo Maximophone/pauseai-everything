@@ -8,15 +8,9 @@ import {
   MailIcon,
   Loader2Icon,
 } from "lucide-react";
+import { useWorkspace } from "@/components/workspace-provider";
 
 type UserRole = "admin" | "member" | "viewer";
-
-type WorkspaceMembership = {
-  workspaceId: string;
-  workspaceName: string;
-  workspaceType: string;
-  role: UserRole;
-};
 
 type User = {
   id: string;
@@ -24,7 +18,7 @@ type User = {
   email: string | null;
   image: string | null;
   role: UserRole;
-  workspaces?: WorkspaceMembership[];
+  globalRole?: UserRole;
 };
 
 const roleLabels: Record<UserRole, string> = {
@@ -40,6 +34,7 @@ const roleColors: Record<UserRole, string> = {
 };
 
 export function UsersManager() {
+  const { activeWorkspace } = useWorkspace();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -49,6 +44,7 @@ export function UsersManager() {
   const [inviteSuccess, setInviteSuccess] = useState("");
 
   async function fetchUsers() {
+    setLoading(true);
     const res = await fetch("/api/users");
     if (res.ok) {
       setUsers(await res.json());
@@ -58,7 +54,7 @@ export function UsersManager() {
 
   useEffect(() => {
     fetchUsers();
-  }, []);
+  }, [activeWorkspace?.id]);
 
   async function handleInvite(e: React.FormEvent) {
     e.preventDefault();
@@ -75,7 +71,11 @@ export function UsersManager() {
     });
 
     if (res.ok) {
-      setInviteSuccess(`Invitation sent to ${inviteEmail.trim()}`);
+      const data = await res.json();
+      const msg = data.alreadyExisted
+        ? `${inviteEmail.trim()} added to this workspace`
+        : `Invitation sent to ${inviteEmail.trim()}`;
+      setInviteSuccess(msg);
       setInviteEmail("");
       setInviteRole("viewer");
       fetchUsers();
@@ -102,10 +102,10 @@ export function UsersManager() {
     }
   }
 
-  async function handleDelete(userId: string, email: string | null) {
+  async function handleRemove(userId: string, email: string | null) {
     if (
       !confirm(
-        `Are you sure you want to remove ${email || "this user"}? They will no longer be able to sign in.`
+        `Are you sure you want to remove ${email || "this user"} from ${activeWorkspace?.name || "this workspace"}? They will lose access to this workspace but remain in the system.`
       )
     )
       return;
@@ -128,6 +128,13 @@ export function UsersManager() {
 
   return (
     <div className="max-w-2xl space-y-6">
+      {/* Workspace context */}
+      {activeWorkspace && (
+        <p className="text-sm text-muted-foreground">
+          Managing members of <strong>{activeWorkspace.name}</strong>
+        </p>
+      )}
+
       {/* Invite form */}
       <form onSubmit={handleInvite} className="flex items-end gap-3">
         <div className="flex-1">
@@ -135,7 +142,7 @@ export function UsersManager() {
             htmlFor="invite-email"
             className="text-sm font-medium text-foreground"
           >
-            Invite a new user
+            Add a user to this workspace
           </label>
           <Input
             id="invite-email"
@@ -170,7 +177,7 @@ export function UsersManager() {
           ) : (
             <MailIcon className="h-4 w-4" />
           )}
-          <span className="ml-2">Send Invite</span>
+          <span className="ml-2">Add User</span>
         </Button>
       </form>
 
@@ -183,9 +190,9 @@ export function UsersManager() {
 
       {/* Role descriptions */}
       <div className="rounded-lg border bg-muted/50 p-4 text-sm space-y-1">
-        <p><strong>Admin</strong> — Full access. Manage users, settings, campaigns, scripts, and all data.</p>
-        <p><strong>Member</strong> — Can view and edit contacts, tags, and interactions. Cannot send campaigns, manage segments/scripts, or access settings.</p>
-        <p><strong>Viewer</strong> — Read-only access across the board.</p>
+        <p><strong>Admin</strong> — Full access to this workspace. Manage users, settings, campaigns, and all data.</p>
+        <p><strong>Member</strong> — Can view and edit contacts, tags, and interactions within this workspace.</p>
+        <p><strong>Viewer</strong> — Read-only access to this workspace.</p>
       </div>
 
       {/* Users list */}
@@ -218,22 +225,6 @@ export function UsersManager() {
                 <div className="text-xs text-muted-foreground">
                   {user.email}
                 </div>
-                {user.workspaces && user.workspaces.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-0.5">
-                    {user.workspaces.map((ws) => (
-                      <span
-                        key={ws.workspaceId}
-                        className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
-                          ws.workspaceType === "global"
-                            ? "bg-blue-50 text-blue-700"
-                            : "bg-green-50 text-green-700"
-                        }`}
-                      >
-                        {ws.workspaceName} ({ws.role})
-                      </span>
-                    ))}
-                  </div>
-                )}
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -249,8 +240,8 @@ export function UsersManager() {
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() => handleDelete(user.id, user.email)}
-                title="Remove user"
+                onClick={() => handleRemove(user.id, user.email)}
+                title="Remove from workspace"
                 className="text-red-600 hover:text-red-700 hover:bg-red-50"
               >
                 <TrashIcon className="h-4 w-4" />
@@ -262,7 +253,7 @@ export function UsersManager() {
 
       {users.length === 0 && (
         <p className="text-sm text-muted-foreground text-center py-8">
-          No users yet. Invite someone using the form above.
+          No members in this workspace yet. Add someone using the form above.
         </p>
       )}
     </div>

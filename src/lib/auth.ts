@@ -52,13 +52,16 @@ if (isDev) {
             .values({ email, name, role })
             .returning();
           user = created;
-        } else if (user.role !== role) {
-          // Update role if different
-          await db
-            .update(users)
-            .set({ role, name: user.name || name })
-            .where(eq(users.id, user.id));
-          user = { ...user, role, name: user.name || name };
+        } else {
+          // Update name if not yet set, but never overwrite role
+          // (role changes should be made through the UI, not on every login)
+          if (!user.name && name) {
+            await db
+              .update(users)
+              .set({ name })
+              .where(eq(users.id, user.id));
+            user = { ...user, name };
+          }
         }
 
         // Auto-setup workspace memberships for dev users
