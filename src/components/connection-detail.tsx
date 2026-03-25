@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useWorkspace } from "@/components/workspace-provider";
 import { Button } from "@/components/ui/button";
 import {
   PlusIcon,
@@ -20,6 +21,7 @@ type Connection = {
   connectorType: string;
   status: string;
   statusMessage: string | null;
+  workspaceId: string | null;
 };
 
 type SyncConfig = {
@@ -70,6 +72,7 @@ export function ConnectionDetail({
 }: {
   connectionId: string;
 }) {
+  const { activeWorkspace } = useWorkspace();
   const [connection, setConnection] = useState<Connection | null>(null);
   const [syncs, setSyncs] = useState<SyncConfig[]>([]);
   const [loading, setLoading] = useState(true);
@@ -81,7 +84,15 @@ export function ConnectionDetail({
       fetch(`/api/connections/${connectionId}/syncs`),
     ]);
 
-    if (connRes.ok) setConnection(await connRes.json());
+    if (connRes.ok) {
+      const conn = await connRes.json();
+      // Redirect if connection doesn't belong to the active workspace
+      if (activeWorkspace && conn.workspaceId && conn.workspaceId !== activeWorkspace.id) {
+        window.location.href = "/dashboard/connections";
+        return;
+      }
+      setConnection(conn);
+    }
     if (syncsRes.ok) setSyncs(await syncsRes.json());
     setLoading(false);
   }
@@ -131,7 +142,7 @@ export function ConnectionDetail({
           variant="ghost"
           size="sm"
           onClick={() => {
-            window.location.href = "/dashboard/settings/connections";
+            window.location.href = "/dashboard/connections";
           }}
         >
           <ArrowLeftIcon className="h-4 w-4" />
@@ -155,7 +166,7 @@ export function ConnectionDetail({
           <Button
             size="sm"
             onClick={() => {
-              window.location.href = `/dashboard/settings/connections/${connectionId}/syncs/new`;
+              window.location.href = `/dashboard/connections/${connectionId}/syncs/new`;
             }}
           >
             <PlusIcon className="mr-2 h-4 w-4" />
@@ -182,7 +193,7 @@ export function ConnectionDetail({
                     <button
                       className="text-sm font-medium hover:underline text-left"
                       onClick={() => {
-                        window.location.href = `/dashboard/settings/connections/${connectionId}/syncs/${sync.id}`;
+                        window.location.href = `/dashboard/connections/${connectionId}/syncs/${sync.id}`;
                       }}
                     >
                       {sync.name}
@@ -216,7 +227,7 @@ export function ConnectionDetail({
                       variant="outline"
                       className="text-amber-700 border-amber-300 hover:bg-amber-50"
                       onClick={() => {
-                        window.location.href = `/dashboard/settings/connections/${connectionId}/syncs/${sync.id}`;
+                        window.location.href = `/dashboard/connections/${connectionId}/syncs/${sync.id}`;
                       }}
                       title="Repair field mapping"
                     >

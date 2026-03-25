@@ -29,10 +29,11 @@ export async function PUT(request: NextRequest, context: RouteContext) {
   const parsed = validateBody(UpdateCampaignInput, body);
   if (!parsed.success) return parsed.error;
 
-  // categoryId: null is meaningful (= transactional), so preserve it
-  const { categoryId, ...rest } = parsed.data;
+  // categoryId: null is meaningful (= transactional), segmentId: null means "all contacts"
+  const { categoryId, segmentId, ...rest } = parsed.data;
   const updateData: Record<string, unknown> = stripNulls(rest);
   if (categoryId !== undefined) updateData.categoryId = categoryId;
+  if (segmentId !== undefined) updateData.segmentId = segmentId;
   const updated = await updateCampaign(id, updateData as Parameters<typeof updateCampaign>[1]);
   if (!updated) {
     return NextResponse.json({ error: "Campaign not found." }, { status: 404 });

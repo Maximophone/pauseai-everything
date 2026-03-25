@@ -1,5 +1,6 @@
 import { signIn } from "@/lib/auth";
 import { DevLoginForm } from "./dev-login-form";
+import { listWorkspaces } from "@/lib/workspaces";
 
 export default async function LoginPage({
   searchParams,
@@ -88,7 +89,7 @@ export default async function LoginPage({
                 </span>
               </div>
             </div>
-            <DevLoginForm />
+            <DevLoginForm workspaces={isDev ? await listWorkspaces() : []} />
           </>
         )}
 

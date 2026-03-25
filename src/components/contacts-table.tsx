@@ -279,6 +279,13 @@ export function ContactsTable({
     gridRef.current?.refreshInfiniteCache();
   }, [search]);
 
+  // Refresh grid when contacts are added/modified externally
+  useEffect(() => {
+    const handler = () => gridRef.current?.refreshInfiniteCache();
+    window.addEventListener("contacts-changed", handler);
+    return () => window.removeEventListener("contacts-changed", handler);
+  }, []);
+
   const onSelectionChanged = useCallback((event: SelectionChangedEvent) => {
     const selected = event.api.getSelectedRows() as FlatContact[];
     setSelectedIds(selected.map((r) => r.id));

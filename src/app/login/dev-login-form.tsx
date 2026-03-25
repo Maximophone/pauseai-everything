@@ -3,6 +3,13 @@
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 
+type WorkspaceOption = {
+  id: string;
+  name: string;
+  slug: string;
+  type: string;
+};
+
 const PRESET_USERS = [
   { email: "admin@pauseai.info", name: "Admin User", role: "admin", description: "Global admin — full access to all workspaces" },
   { email: "member@pauseai.info", name: "Member User", role: "member", description: "Global member — member of Global workspace" },
@@ -10,10 +17,15 @@ const PRESET_USERS = [
   { email: "france@pauseai.info", name: "France Chapter Admin", role: "member", description: "Global member — admin of France workspace only" },
 ];
 
-export function DevLoginForm() {
+function setWorkspaceCookie(workspaceId: string) {
+  document.cookie = `pauseai_workspace=${workspaceId}; path=/; max-age=${365 * 24 * 60 * 60}; samesite=strict`;
+}
+
+export function DevLoginForm({ workspaces }: { workspaces: WorkspaceOption[] }) {
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [role, setRole] = useState<"admin" | "member" | "viewer">("member");
+  const [workspaceId, setWorkspaceId] = useState(workspaces[0]?.id ?? "");
   const [loading, setLoading] = useState(false);
 
   async function handleLogin(
@@ -22,16 +34,40 @@ export function DevLoginForm() {
     loginRole: string
   ) {
     setLoading(true);
+    if (workspaceId) {
+      setWorkspaceCookie(workspaceId);
+    }
     await signIn("dev-login", {
       email: loginEmail,
       name: loginName,
       role: loginRole,
+      workspaceId: workspaceId || undefined,
       redirectTo: "/dashboard",
     });
   }
 
   return (
     <div className="space-y-3">
+      {/* Workspace selector */}
+      {workspaces.length > 1 && (
+        <div>
+          <label className="text-xs font-medium text-amber-800">
+            Login to workspace
+          </label>
+          <select
+            value={workspaceId}
+            onChange={(e) => setWorkspaceId(e.target.value)}
+            className="mt-1 w-full rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm"
+          >
+            {workspaces.map((ws) => (
+              <option key={ws.id} value={ws.id}>
+                {ws.name} {ws.type === "global" ? "(Global)" : `(${ws.slug})`}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
       {/* Quick preset buttons */}
       <div className="grid grid-cols-2 gap-2">
         {PRESET_USERS.map((user) => (

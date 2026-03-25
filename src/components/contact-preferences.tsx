@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { CheckCircleIcon, XCircleIcon, MinusCircleIcon } from "lucide-react";
-import { useWorkspaceId } from "./workspace-provider";
+import { useWorkspaceId, useWorkspaceFetch } from "./workspace-provider";
 
 type Category = {
   id: string;
@@ -29,19 +29,20 @@ export function ContactPreferences({
   initialPreferences: Record<string, "subscribed" | "unsubscribed">;
 }) {
   const workspaceId = useWorkspaceId();
+  const wsFetch = useWorkspaceFetch();
   const [categories, setCategories] = useState<Category[]>([]);
   const [prefs, setPrefs] = useState<Record<string, "subscribed" | "unsubscribed">>(initialPreferences);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/communication-categories")
+    wsFetch("/api/communication-categories")
       .then((res) => (res.ok ? res.json() : []))
       .then((cats) => {
         setCategories(cats);
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, []);
+  }, [wsFetch]);
 
   async function togglePref(cat: Category) {
     const key = prefKey(cat, workspaceId);

@@ -142,7 +142,7 @@ export function ContactDetailForm({
               <div>
                 <span className="text-blue-500">Connection: </span>
                 <a
-                  href={`/dashboard/settings/connections/${syncSource.connectionId}`}
+                  href={`/dashboard/connections/${syncSource.connectionId}`}
                   className="underline hover:text-blue-900"
                 >
                   {CONNECTOR_LABELS[syncSource.connectorType] ?? syncSource.connectorType} — {syncSource.connectionName}
@@ -151,7 +151,7 @@ export function ContactDetailForm({
               <div>
                 <span className="text-blue-500">Sync: </span>
                 <a
-                  href={`/dashboard/settings/connections/${syncSource.connectionId}/syncs/${syncSource.syncId}`}
+                  href={`/dashboard/connections/${syncSource.connectionId}/syncs/${syncSource.syncId}`}
                   className="underline hover:text-blue-900"
                 >
                   {syncSource.syncName}

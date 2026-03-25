@@ -32,12 +32,14 @@ if (isDev) {
         email: { label: "Email", type: "email" },
         name: { label: "Name", type: "text" },
         role: { label: "Role", type: "text" },
+        workspaceId: { label: "Workspace", type: "text" },
       },
       async authorize(credentials) {
         if (!credentials?.email) return null;
         const email = (credentials.email as string).toLowerCase().trim();
         const name = (credentials.name as string) || email.split("@")[0];
         const role = (credentials.role as UserRole) || "viewer";
+        const workspaceId = (credentials.workspaceId as string) || undefined;
 
         // Find or create the user
         let [user] = await db
@@ -65,7 +67,7 @@ if (isDev) {
         }
 
         // Auto-setup workspace memberships for dev users
-        await setupDevWorkspaceMemberships(user.id, email, role);
+        await setupDevWorkspaceMemberships(user.id, email, role, workspaceId);
 
         return {
           id: user.id,
@@ -80,16 +82,27 @@ if (isDev) {
 
 /**
  * Set up workspace memberships for dev login users.
- * - Global admin: added to Global workspace as admin
- * - france@pauseai.info: added to France workspace as admin (creates it if needed)
- * - Others: added to Global workspace with their role
+ * If a workspaceId is provided (from the login form dropdown), the user is
+ * added to that specific workspace. Otherwise falls back to preset logic:
+ * - france@pauseai.info → France workspace as admin
+ * - Others → Global workspace with their role
  */
 async function setupDevWorkspaceMemberships(
   userId: string,
   email: string,
-  role: UserRole
+  role: UserRole,
+  workspaceId?: string
 ) {
-  // Find or create workspaces
+  if (workspaceId) {
+    // Explicit workspace selected in the dev login form
+    await db
+      .insert(userWorkspaces)
+      .values({ userId, workspaceId, role })
+      .onConflictDoNothing();
+    return;
+  }
+
+  // Fallback: preset logic for known dev users
   const [globalWs] = await db
     .select()
     .from(workspaces)

@@ -93,7 +93,7 @@ function buildConditionSql(condition: SegmentCondition, workspaceId?: string): R
   // Tag-based conditions — scope by workspace so tags from other workspaces don't match
   if (field === "tag" || operator === "has" || operator === "not_has") {
     const wsFilter = workspaceId
-      ? sql` AND t.workspace_id = ${workspaceId}`
+      ? sql` AND (t.workspace_id = ${workspaceId} OR t.workspace_id IS NULL)`
       : sql``;
     if (operator === "has") {
       return sql`EXISTS (

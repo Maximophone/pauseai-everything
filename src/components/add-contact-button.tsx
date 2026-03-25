@@ -67,6 +67,7 @@ export function AddContactButton() {
       }
 
       setOpen(false);
+      window.dispatchEvent(new Event("contacts-changed"));
       router.refresh();
     } catch {
       setError("Network error. Please try again.");
@@ -100,6 +101,7 @@ export function AddContactButton() {
 
       setOpen(false);
       setExistingContact(null);
+      window.dispatchEvent(new Event("contacts-changed"));
       router.refresh();
     } catch {
       setError("Network error. Please try again.");

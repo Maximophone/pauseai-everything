@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useWorkspace } from "@/components/workspace-provider";
 import { Button } from "@/components/ui/button";
 import {
   ArrowLeftIcon,
@@ -174,6 +175,7 @@ function RunStatusIcon({ status }: { status: string }) {
 // ── Main component ─────────────────────────────────────────
 
 export function SyncDetail({ connectionId, syncId }: { connectionId: string; syncId: string }) {
+  const { activeWorkspace } = useWorkspace();
   const [config, setConfig] = useState<SyncConfig | null>(null);
   const [runs, setRuns] = useState<SyncRun[]>([]);
   const [loading, setLoading] = useState(true);
@@ -189,6 +191,18 @@ export function SyncDetail({ connectionId, syncId }: { connectionId: string; syn
   const [saveError, setSaveError] = useState<string | null>(null);
 
   async function fetchData() {
+    // Check connection belongs to active workspace
+    if (activeWorkspace) {
+      const connRes = await fetch(`/api/connections/${connectionId}`);
+      if (connRes.ok) {
+        const conn = await connRes.json();
+        if (conn.workspaceId && conn.workspaceId !== activeWorkspace.id) {
+          window.location.href = "/dashboard/connections";
+          return;
+        }
+      }
+    }
+
     const [configRes, runsRes] = await Promise.all([
       fetch(`/api/connections/${connectionId}/syncs/${syncId}`),
       fetch(`/api/connections/${connectionId}/syncs/${syncId}/runs`),
@@ -322,7 +336,7 @@ export function SyncDetail({ connectionId, syncId }: { connectionId: string; syn
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => { window.location.href = `/dashboard/settings/connections/${connectionId}`; }}
+          onClick={() => { window.location.href = `/dashboard/connections/${connectionId}`; }}
         >
           <ArrowLeftIcon className="h-4 w-4" />
         </Button>

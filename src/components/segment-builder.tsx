@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useHasRole } from "@/lib/hooks/use-user-role";
+import { useWorkspaceFetch } from "@/components/workspace-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PlusIcon, XIcon, SearchIcon, SaveIcon } from "lucide-react";
@@ -140,9 +141,12 @@ function ConditionRow({
       {/* Field picker */}
       <select
         value={condition.field}
-        onChange={(e) =>
-          onChange({ ...condition, field: e.target.value, operator: "eq", value: "" })
-        }
+        onChange={(e) => {
+          const newField = e.target.value;
+          const newFieldDef = allFields.find((f) => f.name === newField);
+          const newOps = getOperators(newFieldDef?.fieldType || "text");
+          onChange({ ...condition, field: newField, operator: newOps[0]?.value || "eq", value: "" });
+        }}
         className={`${selectStyle} w-40`}
       >
         <option value="">Select field...</option>
@@ -236,6 +240,7 @@ export function SegmentBuilder({
 }) {
   const allFields = [...CORE_FIELDS, ...fieldDefinitions];
   const isAdmin = useHasRole("admin");
+  const wsFetch = useWorkspaceFetch();
   const [segments, setSegments] = useState<Segment[]>(initialSegments);
   const [selectedSegmentId, setSelectedSegmentId] = useState<string | null>(null);
 
@@ -303,7 +308,7 @@ export function SegmentBuilder({
     setPreviewing(true);
     setError(null);
 
-    const res = await fetch("/api/segments/preview", {
+    const res = await wsFetch("/api/segments/preview", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ filter: getFilter() }),

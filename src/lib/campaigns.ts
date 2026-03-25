@@ -50,7 +50,7 @@ export async function updateCampaign(
     body: string;
     fromName: string;
     fromEmail: string;
-    segmentId: string;
+    segmentId: string | null;
     categoryId: string | null;
     status: string;
     scheduledAt: string | Date | null;

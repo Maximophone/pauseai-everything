@@ -2,10 +2,12 @@ import { listCategories } from "@/lib/communication-categories";
 import { getAllSettings } from "@/lib/app-settings";
 import { CategoriesManager } from "@/components/categories-manager";
 import { EmailSettings } from "@/components/email-settings";
+import { getServerWorkspaceId } from "@/lib/workspace-server";
 
 export default async function EmailCategoriesPage() {
+  const workspaceId = await getServerWorkspaceId();
   const [categories, settings] = await Promise.all([
-    listCategories(),
+    listCategories(workspaceId),
     getAllSettings(),
   ]);
 

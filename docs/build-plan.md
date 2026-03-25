@@ -193,6 +193,10 @@
 - [x] Workspace-scoped automations: scripts and rules CRUD, execution, and UI all filtered by workspace
 - [x] Script engine workspace isolation: ctx.contacts.find and tag operations scoped to script's workspace
 - [x] Subscription table display: cell renderer uses workspace-namespaced preference keys (workspaceId:categoryName)
+- [x] Contacts table auto-refresh after contact creation (custom event → AG Grid cache purge)
+- [x] Campaign segment update fix: `segmentId` preserved through `stripNulls` (same pattern as `categoryId`)
+- [x] Connection detail pages redirect to connections list on workspace mismatch
+- [x] Connections promoted to top-level sidebar item (admin-only, with PlugIcon) — moved from Settings sub-menu
 
 ---
 

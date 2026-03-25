@@ -280,7 +280,7 @@ export function ConnectionsManager() {
                   size="sm"
                   variant="ghost"
                   onClick={() => {
-                    window.location.href = `/dashboard/settings/connections/${conn.id}`;
+                    window.location.href = `/dashboard/connections/${conn.id}`;
                   }}
                   title="View syncs"
                 >

@@ -1,6 +1,6 @@
 # PauseAI Everything App — Features
 
-> Living document. Last updated: 2026-03-25.
+> Living document. Last updated: 2026-03-26.
 
 ## Milestone 1: Core CRM (launch target)
 

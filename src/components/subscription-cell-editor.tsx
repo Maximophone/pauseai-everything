@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useWorkspaceFetch, useWorkspaceId } from "@/components/workspace-provider";
 import {
   CheckCircleIcon,
   XCircleIcon,
@@ -12,7 +13,13 @@ type Category = {
   name: string;
   label: string;
   description: string | null;
+  workspaceId: string | null;
 };
+
+function prefKey(cat: Category, fallbackWorkspaceId: string | undefined): string {
+  const wsId = cat.workspaceId ?? fallbackWorkspaceId;
+  return wsId ? `${wsId}:${cat.name}` : cat.name;
+}
 
 type PrefState = "subscribed" | "unsubscribed" | undefined;
 
@@ -27,6 +34,8 @@ export function SubscriptionCellEditor({
   onClose: () => void;
   onSave: (newPrefs: Record<string, "subscribed" | "unsubscribed">) => void;
 }) {
+  const wsFetch = useWorkspaceFetch();
+  const workspaceId = useWorkspaceId();
   const [categories, setCategories] = useState<Category[]>([]);
   const [prefs, setPrefs] = useState<Record<string, "subscribed" | "unsubscribed">>({ ...currentPrefs });
   const [loading, setLoading] = useState(true);
@@ -34,13 +43,13 @@ export function SubscriptionCellEditor({
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetch("/api/communication-categories")
+    wsFetch("/api/communication-categories")
       .then((r) => (r.ok ? r.json() : []))
       .then((cats) => {
         setCategories(cats);
         setLoading(false);
       });
-  }, []);
+  }, [wsFetch]);
 
   // Close on click outside
   useEffect(() => {
@@ -53,27 +62,28 @@ export function SubscriptionCellEditor({
     return () => document.removeEventListener("mousedown", handleClick);
   }, [onClose]);
 
-  function getState(categoryName: string): PrefState {
-    return prefs[categoryName];
+  function getState(cat: Category): PrefState {
+    return prefs[prefKey(cat, workspaceId)];
   }
 
-  function cycleState(categoryName: string, categoryLabel: string) {
-    const current = getState(categoryName);
+  function cycleState(cat: Category) {
+    const key = prefKey(cat, workspaceId);
+    const current = prefs[key];
     const newPrefs = { ...prefs };
 
     if (current === undefined) {
       // neutral → subscribed
-      newPrefs[categoryName] = "subscribed";
+      newPrefs[key] = "subscribed";
     } else if (current === "subscribed") {
       // subscribed → unsubscribed
-      newPrefs[categoryName] = "unsubscribed";
+      newPrefs[key] = "unsubscribed";
     } else {
       // unsubscribed → neutral (with warning)
       const confirmed = confirm(
-        `This contact previously unsubscribed from "${categoryLabel}". Are you sure you want to reset their preference?`
+        `This contact previously unsubscribed from "${cat.label}". Are you sure you want to reset their preference?`
       );
       if (!confirmed) return;
-      delete newPrefs[categoryName];
+      delete newPrefs[key];
     }
 
     setPrefs(newPrefs);
@@ -117,11 +127,11 @@ export function SubscriptionCellEditor({
       </div>
       <div className="space-y-1">
         {categories.map((cat) => {
-          const state = getState(cat.name);
+          const state = getState(cat);
           return (
             <button
-              key={cat.name}
-              onClick={() => cycleState(cat.name, cat.label)}
+              key={cat.id}
+              onClick={() => cycleState(cat)}
               className="flex items-center gap-2 w-full rounded-md px-2 py-1.5 text-left hover:bg-muted/50 transition-colors"
             >
               {state === "subscribed" ? (

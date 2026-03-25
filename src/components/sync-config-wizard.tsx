@@ -217,7 +217,7 @@ export function SyncConfigWizard({ connectionId }: { connectionId: string }) {
     });
 
     if (res.ok) {
-      window.location.href = `/dashboard/settings/connections/${connectionId}`;
+      window.location.href = `/dashboard/connections/${connectionId}`;
     } else {
       const err = await res.json();
       setSaveError(err.error || "Failed to create sync configuration");
@@ -237,7 +237,7 @@ export function SyncConfigWizard({ connectionId }: { connectionId: string }) {
           size="sm"
           onClick={() => {
             if (step > 1) setStep(step - 1);
-            else window.location.href = `/dashboard/settings/connections/${connectionId}`;
+            else window.location.href = `/dashboard/connections/${connectionId}`;
           }}
         >
           <ArrowLeftIcon className="h-4 w-4" />

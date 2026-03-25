@@ -22,7 +22,7 @@ The app supports multiple workspaces: one **global** workspace (PauseAI Global) 
 - **Workspace context:** Determined by cookie (`pauseai_workspace`), header (`X-Workspace-Id`), or query param. Server components use `getServerWorkspaceId()`, client components use `useWorkspace()` / `useWorkspaceFetch()`.
 - **Contacts:** Exist once globally, linked to workspaces via `contact_workspaces` junction table. A workspace only sees its own contacts.
 - **Effective role:** `max(global role, workspace role)` — computed by `useEffectiveRole()` (client) or `getEffectiveRole()` (server). A user with global "member" role but workspace "admin" role is an admin in that workspace.
-- **Workspace-scoped entities:** Tags, segments, campaigns, communication categories, custom fields (scope: core/global_internal/workspace), user memberships.
+- **Workspace-scoped entities:** Tags, segments, campaigns, communication categories, connections, custom fields (scope: core/global_internal/workspace), user memberships, automations (scripts + rules).
 - **Workspace provider:** `src/components/workspace-provider.tsx` — provides `activeWorkspace`, `useWorkspaceId()`, `useWorkspaceFetch()` (auto-injects `X-Workspace-Id` header).
 - **Server-side workspace:** `src/lib/workspace-server.ts` — `getServerWorkspaceId()` reads from cookies, `isServerWorkspaceGlobal()`.
 - **API workspace context:** `src/lib/workspace-context.ts` — `getActiveWorkspaceId(request)` reads from header/query/cookie.
@@ -54,3 +54,6 @@ The app supports multiple workspaces: one **global** workspace (PauseAI Global) 
 - Client-side API calls MUST use `useWorkspaceFetch()` to include workspace context header
 - Communication preference keys are namespaced: `workspaceId:categoryName`
 - Segment tag conditions use operator `has`/`not_has` (not `eq`)
+- Workspace switching triggers `window.location.reload()` — don't use refs to detect changes; check entity workspace ownership after fetch instead
+- Connections UI lives at `/dashboard/connections` (top-level sidebar, admin-only), not under Settings
+- When using `stripNulls()` in API routes, extract nullable fields that carry meaning (like `segmentId`, `categoryId`) before stripping

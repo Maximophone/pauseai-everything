@@ -21,6 +21,7 @@ import {
   SettingsIcon,
   FilterIcon,
   ZapIcon,
+  PlugIcon,
 } from "lucide-react"
 
 const ROLE_LEVELS: Record<string, number> = { viewer: 0, member: 1, admin: 2 };
@@ -79,6 +80,12 @@ const allNavItems = [
       ],
     },
     {
+      title: "Connections",
+      url: "/dashboard/connections",
+      icon: (<PlugIcon />),
+      adminOnly: true,
+    },
+    {
       title: "Settings",
       url: "/dashboard/settings",
       icon: (<SettingsIcon />),
@@ -108,10 +115,6 @@ const allNavItems = [
         {
           title: "Email Categories",
           url: "/dashboard/settings/email-categories",
-        },
-        {
-          title: "Connections",
-          url: "/dashboard/settings/connections",
         },
       ],
     },
