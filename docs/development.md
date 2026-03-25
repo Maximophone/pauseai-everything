@@ -52,7 +52,17 @@ Edit `.env`:
 | `NEXT_PUBLIC_APP_URL` | Public URL for unsubscribe links | `http://localhost:3000` |
 | `DEV_BYPASS_AUTH` | Set to `true` to skip Google login in dev | Dev only |
 
-**`DEV_BYPASS_AUTH=true` is the recommended dev setup.** It skips the Google OAuth flow entirely — you're automatically logged in as "Dev User" with full admin access. The bypass only activates when `NODE_ENV=development`, so it's completely safe to leave it in your `.env` file.
+**Two auth modes for development:**
+
+1. **`DEV_BYPASS_AUTH=true`** — skips login entirely, auto-logged in as "Dev User" with admin access. Simplest option for single-user dev. Only activates when `NODE_ENV=development`.
+
+2. **Dev login (recommended for workspace testing)** — set `DEV_BYPASS_AUTH=false` (or unset) and go to `/login`. You'll see a dev login form with preset users:
+   - **Admin** (admin@pauseai.info) — global admin, full access to all workspaces
+   - **Member** (member@pauseai.info) — global member, member of Global workspace
+   - **Viewer** (viewer@pauseai.info) — global viewer, read-only access
+   - **France Chapter Admin** (france@pauseai.info) — global member, admin of France workspace only
+
+   You can also enter a custom email/name/role and select which workspace to add the user to. This creates real user records and workspace memberships in the database, allowing you to test the full multi-tenancy flow by switching between users.
 
 ### 4. Push the database schema
 
@@ -80,7 +90,7 @@ npm run dev
 npm run worker
 ```
 
-Open http://localhost:3000. With `DEV_BYPASS_AUTH=true` you'll land directly on the dashboard.
+Open http://localhost:3000. With `DEV_BYPASS_AUTH=true` you'll land directly on the dashboard. With it unset, you'll see the dev login page where you can choose a user to test with.
 
 ---
 

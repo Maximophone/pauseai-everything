@@ -1,6 +1,6 @@
 # PauseAI Everything App — Build Plan
 
-> Living document. Last updated: 2026-03-23.
+> Living document. Last updated: 2026-03-25.
 
 ## Tech decisions
 
@@ -159,6 +159,37 @@
 - [x] Campaign performance metrics (sent, delivered, opened, clicked, bounced counts + open rate)
 - [x] CSV export from contacts table and any segment view
 - [x] Mailersend webhook tracking (delivery/open/click/bounce/unsubscribe events → `emails` table status updates + campaign aggregate recalculation)
+
+### Phase 10: Workspaces (Multi-Tenancy) ✅
+
+- [x] Schema: `workspaces` table (id, name, slug, type: global/chapter, defaultLanguage)
+- [x] Schema: `user_workspaces` junction table (userId, workspaceId, role)
+- [x] Schema: `contact_workspaces` junction table (contactId, workspaceId, subscriptionStatus)
+- [x] Schema: workspace_id columns on tags, segments, campaigns, communication_categories, connections, sync_configurations
+- [x] Schema: field_definitions scope system (core, global_internal, workspace)
+- [x] Workspace context resolution: cookie (`pauseai_workspace`), header (`X-Workspace-Id`), query param
+- [x] Server-side workspace helpers: `getServerWorkspaceId()`, `isServerWorkspaceGlobal()` (via cookies)
+- [x] API workspace context: `getActiveWorkspaceId(request)`, `requireWorkspaceAdmin()`
+- [x] Client-side workspace provider: `WorkspaceProvider`, `useWorkspace()`, `useWorkspaceId()`, `useWorkspaceFetch()`
+- [x] Two-layer role system: global role + workspace role, effective = max(both)
+- [x] Client-side effective role: `useEffectiveRole()`, `useHasRole()` hooks
+- [x] Server-side effective role: `getEffectiveRole()` in workspaces.ts
+- [x] Workspace switcher in sidebar (hidden if user has only one workspace)
+- [x] Workspace-scoped contacts: API filters by `contact_workspaces` junction
+- [x] Workspace-scoped tags: tags have workspace_id, API filters by workspace
+- [x] Workspace-scoped segments: segments belong to workspace, preview/query scoped
+- [x] Workspace-scoped campaigns: campaigns belong to workspace, recipient resolution workspace-aware
+- [x] Workspace-scoped communication categories: categories have workspace_id, API filters by workspace
+- [x] Workspace-scoped custom fields: scope system (core=all, global_internal=global only, workspace=specific)
+- [x] Workspace-scoped user management: users page shows only workspace members, role changes per-workspace
+- [x] Add-contact flow: detects existing contacts (409) and offers "Add to Workspace" button
+- [x] Workspace management UI: Settings > Workspaces page (global admin only) — create, edit, delete chapter workspaces
+- [x] Dev login: Credentials provider with preset users, workspace selector dropdown, auto-creates workspace memberships
+- [x] Settings layout: uses effective role (not just global role) to grant workspace admin access
+- [x] Communication preference keys namespaced by workspace: `workspaceId:categoryName`
+- [x] Segment tag filter: workspace-scoped tag matching with NULL fallback for legacy data
+- [x] Segment builder: field change handler correctly resets operator per field type (e.g., "has" for tags)
+- [x] Unsubscribe flow: workspace-aware preference center with per-workspace sections
 
 ---
 

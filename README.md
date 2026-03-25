@@ -1,6 +1,6 @@
 # PauseAI Everything App
 
-A custom-built CRM and operational platform for [PauseAI Global](https://pauseai.info). Starts as a CRM, grows into the central hub for managing volunteers, campaigns, and outreach.
+A custom-built CRM and operational platform for [PauseAI Global](https://pauseai.info). Starts as a CRM, grows into the central hub for managing volunteers, campaigns, and outreach. Supports multi-tenancy via workspaces for PauseAI Global and national chapters.
 
 **Production:** https://web-production-4523c.up.railway.app
 **Repo:** https://github.com/Maximophone/pauseai-everything
@@ -11,13 +11,14 @@ A custom-built CRM and operational platform for [PauseAI Global](https://pauseai
 
 A Next.js web app + background worker that replaces Airtable + manual email workflows. Core features:
 
-- **Contacts** — spreadsheet-style table with inline editing, custom fields, tags, interaction history
-- **Segments** — visual query builder to define dynamic audiences (e.g. "active members in France")
+- **Workspaces** — multi-tenant architecture with a global workspace (PauseAI Global) and chapter workspaces (e.g., Pause IA France). Each workspace has its own contacts, tags, fields, segments, campaigns, communication categories, and team members. Workspace switcher in the sidebar for users belonging to multiple workspaces.
+- **Contacts** — spreadsheet-style table with inline editing, custom fields, tags, interaction history. Contacts are scoped to workspaces — each workspace sees only its own contacts. A contact can belong to multiple workspaces.
+- **Segments** — visual query builder to define dynamic audiences (e.g. "contacts with tag 'parisien'"). Segments are workspace-scoped.
 - **Campaigns** — compose and send broadcast emails to segments via Mailersend; schedule for later; assign email categories for preference-based filtering
-- **Communication preferences** — three-state subscription model (subscribed/unsubscribed/neutral); contacts must be explicitly subscribed to receive categorized emails; public unsubscribe page with preference center; HMAC-signed unsubscribe links; `{{unsubscribe}}` merge variable for in-body links
+- **Communication preferences** — three-state subscription model (subscribed/unsubscribed/neutral) per workspace per category; contacts must be explicitly subscribed to receive categorized emails; public unsubscribe page with preference center; HMAC-signed unsubscribe links; `{{unsubscribe}}` merge variable for in-body links
 - **Scripts** — write JavaScript automation scripts that run on a schedule or on demand (e.g. flag dormant contacts, bulk-update fields)
-- **Settings** — manage custom fields, users, API keys, email categories, app-level settings
-- **Role-based access** — three roles (admin, member, viewer) with invite-only login via Google OAuth
+- **Settings** — manage workspaces, custom fields, users (per-workspace), API keys, email categories, app-level settings
+- **Role-based access** — two-layer role system (global + workspace roles) with invite-only login via Google OAuth
 
 ## Tech stack
 
@@ -102,7 +103,7 @@ pauseai-everything/
 │   │   │   ├── email/          # Campaigns
 │   │   │   ├── segments/       # Segment builder
 │   │   │   ├── automations/    # Script editor (JS automation)
-│   │   │   └── settings/       # Fields, users, API keys, email categories
+│   │   │   └── settings/       # Workspaces, fields, users, API keys, email categories
 │   │   ├── api/                # API route handlers
 │   │   │   ├── contacts/
 │   │   │   ├── campaigns/
@@ -163,21 +164,28 @@ npm run docs:api      # Regenerate docs/api-reference.md from Zod schemas
 | [docs/deployment.md](docs/deployment.md) | Railway deployment, env vars, how to deploy each service |
 | [docs/build-plan.md](docs/build-plan.md) | Build phases with completion status |
 | [docs/features.md](docs/features.md) | Feature specs, backlog, and future ideas |
+| [docs/workspaces.md](docs/workspaces.md) | Multi-tenancy (workspaces) design specification |
+| [docs/future-features.md](docs/future-features.md) | Out-of-scope ideas captured for later |
 
 ## Auth & Permissions
 
 **Invite-only access** — users must be invited by an admin before they can sign in with Google. Uninvited emails are rejected at login.
 
-**Three roles:**
+**Two-layer role system:**
+
+Users have a **global role** (system-wide) and a **workspace role** (per-workspace). The effective role in any workspace is the maximum of the two. For example, a user with global "member" role and workspace "admin" role is effectively an admin in that workspace.
 
 | Role | Can do | Cannot do |
 |------|--------|-----------|
-| **Admin** | Everything — manage users, settings, campaigns, scripts, segments, fields, contacts | — |
+| **Admin** | Manage users, settings, campaigns, scripts, segments, fields, contacts within their workspace | — |
 | **Member** | View/edit contacts, tags, interactions | Send campaigns, manage segments/scripts/fields, access settings |
 | **Viewer** | View all data (read-only) | Create, edit, or delete anything |
 
-- Roles assigned by admins in Settings > Users
-- `ADMIN_EMAILS` env var auto-promotes specified emails to admin
+**Global admins** additionally can: create/delete workspaces, define core and global_internal custom fields, view all workspaces.
+
+- Workspace roles assigned by workspace admins in Settings > Users
+- Global roles managed by global admins
+- `ADMIN_EMAILS` env var auto-promotes specified emails to global admin
 - API key auth (`Bearer pai_<key>`) grants admin access
 - All API routes enforce role checks server-side; UI buttons are disabled for insufficient roles
 

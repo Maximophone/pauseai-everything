@@ -1,10 +1,10 @@
 # PauseAI Everything App — Architecture
 
-> Living document. Last updated: 2026-03-23.
+> Living document. Last updated: 2026-03-25.
 
 ## Vision
 
-A custom-built platform for PauseAI Global that starts as a CRM and grows into the central operational hub for the organization. Built incrementally, designed to be extended.
+A custom-built platform for PauseAI Global that starts as a CRM and grows into the central operational hub for the organization. Multi-tenant via workspaces (one global + chapter workspaces). Built incrementally, designed to be extended.
 
 ## System boundaries
 
@@ -117,6 +117,16 @@ Two processes from the same codebase, sharing the same Postgres database.
 | `sync_configurations` | Per-resource sync settings, field mapping, schedule |
 | `sync_runs` | Sync execution history with statistics |
 
+### Multi-tenancy tables
+
+| Table | Purpose |
+|-------|---------|
+| `workspaces` | Workspace definitions (id, name, slug, type: global/chapter, defaultLanguage) |
+| `user_workspaces` | User ↔ workspace membership with per-workspace role |
+| `contact_workspaces` | Contact ↔ workspace link with subscription status |
+
+Workspace-scoped columns exist on: `tags`, `segments`, `campaigns`, `communication_categories`, `connections`, `sync_configurations`, `field_definitions` (via scope + workspace_id).
+
 ### NextAuth tables
 
 | Table | Purpose |
@@ -221,14 +231,20 @@ ctx.log(`Flagged ${dormant.length} contacts as dormant`);
 
 ## Authentication
 
-Two auth paths:
+Three auth paths:
 
 **Browser sessions (Google OAuth)**
 1. User signs in at `/login` via Google
 2. Auth.js creates a JWT session token
 3. Token stored in a cookie (`__Secure-authjs.session-token` in prod)
 4. `auth()` from `src/lib/auth.ts` reads the session on the server
-5. Admin status (`is_admin`) stored in the `user` table, loaded into JWT on sign-in
+5. Role stored in the `user` table (global role), loaded into JWT on sign-in
+
+**Dev login (Credentials provider, development only)**
+1. User selects a preset user or enters custom email + name + role + workspace
+2. Auth.ts creates/finds user, auto-creates workspace memberships
+3. Preset users: admin (global admin), member, viewer, France chapter admin
+4. Only available when `NODE_ENV=development`
 
 **API keys (machine-to-machine)**
 1. Admin creates a key in Settings > API Keys
@@ -237,18 +253,24 @@ Two auth paths:
 4. `checkAuth()` in `src/lib/api-auth.ts` validates by hashing the provided key and comparing
 
 **Admin auto-promotion:**
-The `ADMIN_EMAILS` env var contains a comma-separated list of emails. Any user with a matching email is automatically promoted to admin on every sign-in (their JWT is refreshed each time the session is checked).
+The `ADMIN_EMAILS` env var contains a comma-separated list of emails. Any user with a matching email is automatically promoted to global admin on every sign-in.
 
 **DEV_BYPASS_AUTH:**
 When `NODE_ENV=development` AND `DEV_BYPASS_AUTH=true`, all auth checks are skipped and the user is treated as an admin. This is completely safe — the `NODE_ENV` guard prevents it from activating in production.
 
 ## Access control
 
+Two-layer role system:
+- **Global role** (on `users` table): `admin`, `member`, `viewer` — system-wide baseline
+- **Workspace role** (on `user_workspaces` table): `admin`, `member`, `viewer` — per-workspace
+- **Effective role** = max(global role, workspace role) — computed by `useEffectiveRole()` (client) or `getEffectiveRole()` (server)
+
 | Route type | Auth method |
 |------------|-------------|
 | `/dashboard/**` (pages) | Middleware cookie check → redirect to `/login` |
 | `/api/**` (API routes) | `checkAuth()` → session or API key |
-| Admin-only API routes | `requireAdmin()` → 403 if not admin |
+| Workspace admin routes | `requireWorkspaceAdmin()` → 403 if effective role < admin |
+| Global admin routes | `requireAdmin()` → 403 if global role ≠ admin |
 
 ## API design
 
@@ -436,6 +458,30 @@ The contacts table uses AG Grid's **Infinite Row Model** to handle 10k–100k co
 - CSV export fetches all contacts server-side; AG Grid's built-in export only covers cached rows
 - Custom `headerComponent` for select-all checkbox (AG Grid's native `headerCheckbox` is not supported with Infinite Row Model)
 
+## Multi-Tenancy (Workspaces)
+
+The app is multi-tenant via workspaces. Full design spec in [workspaces.md](workspaces.md).
+
+**Workspace context flow:**
+1. Client: `WorkspaceProvider` (React context) reads workspace list from `/api/workspaces`, sets active workspace, writes cookie
+2. Client API calls: `useWorkspaceFetch()` auto-injects `X-Workspace-Id` header
+3. Server components: `getServerWorkspaceId()` reads from cookie
+4. API routes: `getActiveWorkspaceId(request)` reads from header → query param → cookie (in priority order)
+
+**Key scoping patterns:**
+- Contacts: filtered via `INNER JOIN contact_workspaces` on workspace_id
+- Tags: `WHERE workspace_id = ?` (with NULL fallback for legacy data)
+- Segments: workspace_id column, tag conditions include workspace scope in SQL
+- Communication categories: workspace_id column, preference keys namespaced as `workspaceId:categoryName`
+- Custom fields: scope enum (core/global_internal/workspace) + optional workspace_id
+- Users: managed per-workspace via `user_workspaces` junction, not global user table
+
+**Effective role computation:**
+```
+effectiveRole = max(ROLE_LEVELS[globalRole], ROLE_LEVELS[workspaceRole])
+```
+Used everywhere: sidebar nav visibility, settings access, API authorization.
+
 ## What's not in v1
 
 - Email template rich-text editor (using string interpolation for now)
@@ -444,3 +490,4 @@ The contacts table uses AG Grid's **Infinite Row Model** to handle 10k–100k co
 - AI-powered features (planned — see features.md)
 - Drip/sequence campaigns
 - Public volunteer portal
+- ~~Multi-tenancy~~ ✅ (Phase 10 — workspaces complete)

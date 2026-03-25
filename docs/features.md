@@ -1,6 +1,6 @@
 # PauseAI Everything App — Features
 
-> Living document. Last updated: 2026-03-23.
+> Living document. Last updated: 2026-03-25.
 
 ## Milestone 1: Core CRM (launch target)
 
@@ -285,6 +285,50 @@ GET    /api/auth/...              — NextAuth.js routes
 
 ---
 
+## Milestone 1c: Workspaces (Multi-Tenancy) ✅
+
+Multi-tenant architecture so PauseAI Global and national chapters can operate independently. See [workspaces.md](workspaces.md) for the full design spec.
+
+**Workspace model:**
+- Two workspace types: `global` (exactly one — PauseAI Global) and `chapter` (one per national chapter)
+- Flat hierarchy — no nesting, chapters use tags for internal subdivisions
+- Each workspace has a name, slug, type, and default language
+- Workspace management UI for global admins (create, edit, delete chapter workspaces)
+
+**Workspace-scoped data:**
+- Contacts linked via `contact_workspaces` junction table — a workspace only sees its own contacts
+- Tags, segments, campaigns, communication categories all belong to a workspace
+- Custom fields have three scopes: `core` (all workspaces), `global_internal` (global only), `workspace` (specific workspace)
+- User memberships per workspace via `user_workspaces` junction table
+
+**Two-layer role system:**
+- Global role (on `users` table) + workspace role (on `user_workspaces`)
+- Effective role = max(global role, workspace role)
+- Workspace admins manage their own workspace; global admins manage everything
+- Settings, user management, and navigation all respect effective role
+
+**Workspace context:**
+- Cookie (`pauseai_workspace`), header (`X-Workspace-Id`), or query param
+- `WorkspaceProvider` on client — provides `useWorkspace()`, `useWorkspaceFetch()` (auto-injects header)
+- Server-side: `getServerWorkspaceId()` (cookies), `getActiveWorkspaceId(request)` (API)
+- Workspace switcher in sidebar for multi-workspace users
+
+**Communication preferences:**
+- Categories are workspace-scoped — same name in different workspaces means different categories
+- Preference keys namespaced: `workspaceId:categoryName`
+- Unsubscribe page shows per-workspace sections
+
+**Add-contact flow:**
+- If contact already exists (by email), offers "Add to Workspace" instead of creating a duplicate
+- New contacts automatically linked to the active workspace
+
+**Dev login (development only):**
+- Preset users with different roles and workspace memberships
+- Custom email form with workspace selector dropdown
+- Auto-creates workspace memberships on first login
+
+---
+
 ## Milestone 4: Extended features (future)
 
 - **AI natural language querying** — "show me all French volunteers who joined this year"
@@ -292,7 +336,7 @@ GET    /api/auth/...              — NextAuth.js routes
 - **Discord integration** — bot tracks activity, logs as interactions
 - **Public volunteer dashboard** — volunteers log in, see their profile, upcoming actions
 - **Event management** — create events, track RSVPs, record attendance
-- **Chapter management** — chapters as first-class entities with dashboards
+- ~~**Chapter management** — chapters as first-class entities with dashboards~~ → Replaced by Workspaces (Milestone 1c)
 - **Donor management** — donation tracking, receipts, reports
 - **Notion integration** — bidirectional links, maybe surface CRM data in Notion
 
