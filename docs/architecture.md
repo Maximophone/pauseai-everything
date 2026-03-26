@@ -485,9 +485,7 @@ Used everywhere: sidebar nav visibility, settings access, API authorization.
 ## What's not in v1
 
 - Email template rich-text editor (using string interpolation for now)
-- Dashboard analytics ✅ (Phase 9 — complete)
 - Discord integration
 - AI-powered features (planned — see features.md)
 - Drip/sequence campaigns
 - Public volunteer portal
-- ~~Multi-tenancy~~ ✅ (Phase 10 — workspaces complete)

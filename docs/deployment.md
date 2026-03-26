@@ -152,7 +152,7 @@ railway service worker && railway logs -n 50
 ### Auth flow
 1. Users sign in via **Google OAuth** at `/login`
 2. Sessions use **JWT strategy** (stateless, no session table lookups)
-3. Admin status stored in the `user` table (`is_admin` boolean column)
+3. Role stored in the `user` table (`role` column: `admin`, `member`, `viewer`) — this is the global role. Per-workspace roles are in `user_workspaces`.
 
 ### Admin auto-promotion
 Emails listed in the `ADMIN_EMAILS` environment variable are automatically promoted to admin on their first sign-in. Currently configured: `maxime@pauseai.fr`.

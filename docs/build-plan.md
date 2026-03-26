@@ -232,4 +232,5 @@ Every phase ships with tests. The core data layer and API must be robust.
 - **After Phase 7:** You can send targeted emails to segments. Full Airtable+Mailersend replacement.
 - **After Phase 8b:** Contacts can manage their email subscriptions. Compliant unsubscribe system.
 - **After Phase 8c:** External data flows in automatically. Airtable and Notion contacts sync on schedule with provenance tracking. Table scales to 100k contacts.
-- **After Phase 9:** You have visibility into how the org is doing. Full v1. ← *we are here*
+- **After Phase 9:** You have visibility into how the org is doing. Full v1.
+- **After Phase 10:** Multi-tenant with workspaces. Each chapter operates independently. ← *we are here*
