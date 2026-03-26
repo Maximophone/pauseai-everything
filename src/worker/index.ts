@@ -8,6 +8,7 @@ import { dispatchScriptsTask } from "./tasks/dispatch-scripts";
 import { dispatchCampaignsTask } from "./tasks/dispatch-campaigns";
 import { runSyncTask } from "./tasks/run-sync";
 import { dispatchSyncsTask } from "./tasks/dispatch-syncs";
+import { sendTicketNotificationTask } from "./tasks/send-ticket-notification";
 
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) {
@@ -22,6 +23,7 @@ const taskList: TaskList = {
   dispatch_campaigns: dispatchCampaignsTask,
   run_sync: runSyncTask,
   dispatch_syncs: dispatchSyncsTask,
+  send_ticket_notification: sendTicketNotificationTask,
 };
 
 const cronItems = parseCronItems([

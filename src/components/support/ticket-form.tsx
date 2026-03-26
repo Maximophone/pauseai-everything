@@ -2,14 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useWorkspaceFetch } from "@/components/workspace-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export function TicketForm() {
   const router = useRouter();
-  const workspaceFetch = useWorkspaceFetch();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [type, setType] = useState<"bug" | "feature">("bug");
@@ -23,7 +21,7 @@ export function TicketForm() {
     setError("");
 
     try {
-      const res = await workspaceFetch("/api/support-tickets", {
+      const res = await fetch("/api/support-tickets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title, description, type, priority }),

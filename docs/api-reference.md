@@ -712,13 +712,13 @@ Revoke an API key. **Auth: Admin**
 
 ### `GET /api/support-tickets`
 
-List support tickets (admins see all, non-admins see own). **Auth: Session**
+List all support tickets with optional filters, sorting by newest or most voted. **Auth: Session**
 
-**Response:** { tickets: Ticket[], total, page, pageSize, stats? }
+**Response:** { tickets: Ticket[], total, stats: { open, in_progress, resolved, closed } }
 
 ### `POST /api/support-tickets`
 
-Create a support ticket. **Auth: Session**
+Create a support ticket (creator is auto-subscribed to notifications). **Auth: Session**
 
 **Request body** (`CreateTicketInput`):
 ```
@@ -736,15 +736,15 @@ Create a support ticket. **Auth: Session**
 
 ### `GET /api/support-tickets/:id`
 
-Get a ticket with replies (own ticket or admin). **Auth: Session**
+Get a ticket with replies, vote status, and subscription status. **Auth: Session**
 
-**Response:** { ticket: Ticket, replies: Reply[] }
+**Response:** { ticket: Ticket & { hasVoted }, replies: Reply[], isSubscribed }
 
-**Errors:** `403 not owner/admin`, `404 not found`
+**Errors:** `404 not found`
 
 ### `PUT /api/support-tickets/:id`
 
-Update a ticket (admin: status/priority; owner: title/desc on open tickets). **Auth: Session**
+Update a ticket (admin: status/priority/type; owner: title/desc on open tickets). **Auth: Session**
 
 **Request body** (`UpdateTicketInput`):
 ```
@@ -761,17 +761,25 @@ Update a ticket (admin: status/priority; owner: title/desc on open tickets). **A
 
 **Errors:** `400 validation`, `403 not authorized`, `404 not found`
 
+### `DELETE /api/support-tickets/:id`
+
+Delete a ticket and all its replies (admin only). **Auth: Admin**
+
+**Response:** { success: true }
+
+**Errors:** `403 not admin`, `404 not found`
+
 ### `GET /api/support-tickets/:id/replies`
 
-List replies for a ticket (own ticket or admin). **Auth: Session**
+List replies for a ticket. **Auth: Session**
 
 **Response:** Reply[]
 
-**Errors:** `403 not owner/admin`, `404 not found`
+**Errors:** `404 not found`
 
 ### `POST /api/support-tickets/:id/replies`
 
-Post a reply to a ticket (own ticket or admin). **Auth: Session**
+Post a reply to a ticket (replier is auto-subscribed to notifications). **Auth: Session**
 
 **Request body** (`CreateTicketReplyInput`):
 ```
@@ -782,23 +790,39 @@ Post a reply to a ticket (own ticket or admin). **Auth: Session**
 
 **Response:** Reply (201)
 
-**Errors:** `400 validation`, `403 not owner/admin`, `404 not found`
+**Errors:** `400 validation`, `404 not found`
 
-### `DELETE /api/support-tickets/:id`
+### `POST /api/support-tickets/:id/vote`
 
-Delete a ticket and all its replies (admin only). **Auth: Admin**
+Toggle upvote on a ticket (one vote per user). **Auth: Session**
 
-**Response:** { success: true }
+**Response:** { upvoted: boolean, upvoteCount: number }
 
-**Errors:** `403 not admin`, `404 not found`
+### `POST /api/support-tickets/:id/subscribe`
+
+Subscribe to email notifications for a ticket. **Auth: Session**
+
+**Response:** { subscribed: true }
+
+### `DELETE /api/support-tickets/:id/subscribe`
+
+Unsubscribe from email notifications for a ticket. **Auth: Session**
+
+**Response:** { subscribed: false }
+
+### `GET /api/support-tickets/unsubscribe`
+
+One-click unsubscribe from ticket notifications via email link (HMAC token). No auth required
+
+**Response:** HTML confirmation page
+
+**Errors:** `400 missing params`, `403 invalid token`
 
 ### `GET /api/support-tickets/stats`
 
-Get ticket counts by status for the workspace. **Auth: Admin**
+Get ticket counts by status (global, cross-workspace). **Auth: Session**
 
 **Response:** { open: number, in_progress: number, resolved: number, closed: number }
-
-**Errors:** `403 not admin`
 
 ## Webhooks
 

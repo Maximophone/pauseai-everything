@@ -24,6 +24,7 @@ export const users = pgTable("user", {
   image: text("image"),
   // App-specific fields
   role: userRoleEnum("role").default("viewer").notNull(),
+  subscribeToAllTickets: boolean("subscribe_to_all_tickets").default(false).notNull(),
 });
 
 export const accounts = pgTable(

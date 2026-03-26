@@ -2,12 +2,11 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { useWorkspaceFetch } from "@/components/workspace-provider";
-import { useEffectiveRole } from "@/lib/hooks/use-user-role";
+import { useUserRole } from "@/lib/hooks/use-user-role";
 import { StatusBadge, TypeBadge, PriorityBadge } from "./status-badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { ArrowLeftIcon } from "lucide-react";
+import { ArrowLeftIcon, ThumbsUpIcon, BellIcon, BellOffIcon } from "lucide-react";
 
 type Ticket = {
   id: string;
@@ -16,6 +15,8 @@ type Ticket = {
   type: string;
   status: string;
   priority: string;
+  upvoteCount: number;
+  hasVoted: boolean;
   createdBy: string;
   creatorName: string | null;
   creatorEmail: string;
@@ -34,12 +35,12 @@ type Reply = {
 
 export function TicketDetail({ ticketId }: { ticketId: string }) {
   const router = useRouter();
-  const workspaceFetch = useWorkspaceFetch();
-  const effectiveRole = useEffectiveRole();
-  const isAdmin = effectiveRole === "admin";
+  const role = useUserRole();
+  const isAdmin = role === "admin";
 
   const [ticket, setTicket] = useState<Ticket | null>(null);
   const [replies, setReplies] = useState<Reply[]>([]);
+  const [subscribed, setSubscribed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [replyText, setReplyText] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -47,7 +48,7 @@ export function TicketDetail({ ticketId }: { ticketId: string }) {
 
   const fetchTicket = useCallback(async () => {
     try {
-      const res = await workspaceFetch(`/api/support-tickets/${ticketId}`);
+      const res = await fetch(`/api/support-tickets/${ticketId}`);
       if (!res.ok) {
         router.push("/dashboard/support");
         return;
@@ -55,17 +56,37 @@ export function TicketDetail({ ticketId }: { ticketId: string }) {
       const data = await res.json();
       setTicket(data.ticket);
       setReplies(data.replies);
+      setSubscribed(data.isSubscribed);
     } finally {
       setLoading(false);
     }
-  }, [workspaceFetch, ticketId, router]);
+  }, [ticketId, router]);
 
   useEffect(() => {
     fetchTicket();
   }, [fetchTicket]);
 
+  async function handleVote() {
+    const res = await fetch(`/api/support-tickets/${ticketId}/vote`, { method: "POST" });
+    if (res.ok) {
+      const data = await res.json();
+      setTicket((t) =>
+        t ? { ...t, upvoteCount: data.upvoteCount, hasVoted: data.upvoted } : t
+      );
+    }
+  }
+
+  async function handleSubscribeToggle() {
+    const method = subscribed ? "DELETE" : "POST";
+    const res = await fetch(`/api/support-tickets/${ticketId}/subscribe`, { method });
+    if (res.ok) {
+      const data = await res.json();
+      setSubscribed(data.subscribed);
+    }
+  }
+
   async function handleStatusChange(status: string) {
-    const res = await workspaceFetch(`/api/support-tickets/${ticketId}`, {
+    const res = await fetch(`/api/support-tickets/${ticketId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status }),
@@ -77,7 +98,7 @@ export function TicketDetail({ ticketId }: { ticketId: string }) {
   }
 
   async function handlePriorityChange(priority: string) {
-    const res = await workspaceFetch(`/api/support-tickets/${ticketId}`, {
+    const res = await fetch(`/api/support-tickets/${ticketId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ priority }),
@@ -95,7 +116,7 @@ export function TicketDetail({ ticketId }: { ticketId: string }) {
     setError("");
 
     try {
-      const res = await workspaceFetch(`/api/support-tickets/${ticketId}/replies`, {
+      const res = await fetch(`/api/support-tickets/${ticketId}/replies`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ body: replyText }),
@@ -150,6 +171,35 @@ export function TicketDetail({ ticketId }: { ticketId: string }) {
           <TypeBadge type={ticket.type} />
           <PriorityBadge priority={ticket.priority} />
           <StatusBadge status={ticket.status} />
+        </div>
+
+        {/* Vote + Subscribe row */}
+        <div className="flex items-center gap-3">
+          <Button
+            variant={ticket.hasVoted ? "default" : "outline"}
+            size="sm"
+            onClick={handleVote}
+          >
+            <ThumbsUpIcon className="h-4 w-4 mr-1" />
+            {ticket.upvoteCount}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleSubscribeToggle}
+          >
+            {subscribed ? (
+              <>
+                <BellOffIcon className="h-4 w-4 mr-1" />
+                Unsubscribe
+              </>
+            ) : (
+              <>
+                <BellIcon className="h-4 w-4 mr-1" />
+                Subscribe
+              </>
+            )}
+          </Button>
         </div>
 
         {/* Admin controls */}

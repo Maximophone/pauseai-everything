@@ -5,9 +5,11 @@ import {
   text,
   timestamp,
   boolean,
+  integer,
+  unique,
+  primaryKey,
 } from "drizzle-orm/pg-core";
 import { users } from "./users";
-import { workspaces } from "./workspaces";
 
 export const ticketTypeEnum = pgEnum("ticket_type", ["bug", "feature"]);
 export const ticketStatusEnum = pgEnum("ticket_status", [
@@ -29,9 +31,7 @@ export const supportTickets = pgTable("support_tickets", {
   type: ticketTypeEnum("type").notNull(),
   status: ticketStatusEnum("status").default("open").notNull(),
   priority: ticketPriorityEnum("priority").default("medium").notNull(),
-  workspaceId: uuid("workspace_id")
-    .notNull()
-    .references(() => workspaces.id, { onDelete: "cascade" }),
+  upvoteCount: integer("upvote_count").default(0).notNull(),
   createdBy: text("created_by")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
@@ -57,3 +57,36 @@ export const ticketReplies = pgTable("ticket_replies", {
 
 export type TicketReply = typeof ticketReplies.$inferSelect;
 export type NewTicketReply = typeof ticketReplies.$inferInsert;
+
+export const ticketUpvotes = pgTable(
+  "ticket_upvotes",
+  {
+    ticketId: uuid("ticket_id")
+      .notNull()
+      .references(() => supportTickets.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.ticketId, table.userId] })]
+);
+
+export type TicketUpvote = typeof ticketUpvotes.$inferSelect;
+
+export const ticketSubscriptions = pgTable(
+  "ticket_subscriptions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    ticketId: uuid("ticket_id")
+      .notNull()
+      .references(() => supportTickets.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [unique().on(table.ticketId, table.userId)]
+);
+
+export type TicketSubscription = typeof ticketSubscriptions.$inferSelect;

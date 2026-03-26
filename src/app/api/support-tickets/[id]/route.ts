@@ -2,9 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { checkAuth } from "@/lib/api-auth";
 import { validateBody } from "@/lib/api-validate";
 import { UpdateTicketInput } from "@/lib/schemas/support-tickets";
-import { getActiveWorkspaceId } from "@/lib/workspace-context";
-import { getEffectiveRole } from "@/lib/workspaces";
-import { getTicket, updateTicket, deleteTicket, listReplies } from "@/lib/support-tickets";
+import {
+  getTicket,
+  updateTicket,
+  deleteTicket,
+  listReplies,
+  hasUserVoted,
+  isSubscribed,
+} from "@/lib/support-tickets";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -12,38 +17,36 @@ export async function GET(request: NextRequest, context: RouteContext) {
   const authResult = await checkAuth(request);
   if (!authResult.authenticated) return authResult.error!;
 
-  const workspaceId = await getActiveWorkspaceId(request);
   const { id } = await context.params;
-
-  const ticket = await getTicket(id, workspaceId);
+  const ticket = await getTicket(id);
   if (!ticket) {
     return NextResponse.json({ error: "Ticket not found." }, { status: 404 });
   }
 
-  // Non-admin users can only see their own tickets
-  const effectiveRole = await getEffectiveRole(authResult.userId!, workspaceId);
-  if (effectiveRole !== "admin" && ticket.createdBy !== authResult.userId) {
-    return NextResponse.json({ error: "Not authorized." }, { status: 403 });
-  }
+  const [replies, voted, subscribed] = await Promise.all([
+    listReplies(id),
+    hasUserVoted(id, authResult.userId!),
+    isSubscribed(id, authResult.userId!),
+  ]);
 
-  const replies = await listReplies(id);
-  return NextResponse.json({ ticket, replies });
+  return NextResponse.json({
+    ticket: { ...ticket, hasVoted: voted },
+    replies,
+    isSubscribed: subscribed,
+  });
 }
 
 export async function PUT(request: NextRequest, context: RouteContext) {
   const authResult = await checkAuth(request);
   if (!authResult.authenticated) return authResult.error!;
 
-  const workspaceId = await getActiveWorkspaceId(request);
   const { id } = await context.params;
-
-  const ticket = await getTicket(id, workspaceId);
+  const ticket = await getTicket(id);
   if (!ticket) {
     return NextResponse.json({ error: "Ticket not found." }, { status: 404 });
   }
 
-  const effectiveRole = await getEffectiveRole(authResult.userId!, workspaceId);
-  const isAdmin = effectiveRole === "admin";
+  const isAdmin = authResult.role === "admin";
   const isOwner = ticket.createdBy === authResult.userId;
 
   if (!isAdmin && !isOwner) {
@@ -69,11 +72,11 @@ export async function PUT(request: NextRequest, context: RouteContext) {
         { status: 403 }
       );
     }
-    const updated = await updateTicket(id, allowed, workspaceId);
+    const updated = await updateTicket(id, allowed);
     return NextResponse.json(updated);
   }
 
-  const updated = await updateTicket(id, parsed.data, workspaceId);
+  const updated = await updateTicket(id, parsed.data, authResult.userId!);
   return NextResponse.json(updated);
 }
 
@@ -81,19 +84,16 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
   const authResult = await checkAuth(request);
   if (!authResult.authenticated) return authResult.error!;
 
-  const workspaceId = await getActiveWorkspaceId(request);
-  const { id } = await context.params;
+  if (authResult.role !== "admin") {
+    return NextResponse.json({ error: "Admin access required." }, { status: 403 });
+  }
 
-  const ticket = await getTicket(id, workspaceId);
+  const { id } = await context.params;
+  const ticket = await getTicket(id);
   if (!ticket) {
     return NextResponse.json({ error: "Ticket not found." }, { status: 404 });
   }
 
-  const effectiveRole = await getEffectiveRole(authResult.userId!, workspaceId);
-  if (effectiveRole !== "admin") {
-    return NextResponse.json({ error: "Admin access required." }, { status: 403 });
-  }
-
-  await deleteTicket(id, workspaceId);
+  await deleteTicket(id);
   return NextResponse.json({ success: true });
 }

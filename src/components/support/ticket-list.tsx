@@ -2,11 +2,10 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { useWorkspaceFetch, useWorkspace } from "@/components/workspace-provider";
-import { useEffectiveRole } from "@/lib/hooks/use-user-role";
+import { useUserRole } from "@/lib/hooks/use-user-role";
 import { StatusBadge, TypeBadge, PriorityBadge } from "./status-badge";
 import { Button } from "@/components/ui/button";
-import { PlusIcon } from "lucide-react";
+import { PlusIcon, ThumbsUpIcon } from "lucide-react";
 
 type Ticket = {
   id: string;
@@ -14,6 +13,8 @@ type Ticket = {
   type: string;
   status: string;
   priority: string;
+  upvoteCount: number;
+  hasVoted?: boolean;
   creatorName: string | null;
   creatorEmail: string;
   createdAt: string;
@@ -22,10 +23,8 @@ type Ticket = {
 type TicketStats = Record<string, number>;
 
 export function TicketList() {
-  const workspaceFetch = useWorkspaceFetch();
-  const { activeWorkspace } = useWorkspace();
-  const effectiveRole = useEffectiveRole();
-  const isAdmin = effectiveRole === "admin";
+  const role = useUserRole();
+  const isAdmin = role === "admin";
 
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [total, setTotal] = useState(0);
@@ -33,6 +32,7 @@ export function TicketList() {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [typeFilter, setTypeFilter] = useState<string>("");
+  const [sortBy, setSortBy] = useState<"newest" | "most_voted">("newest");
   const [page, setPage] = useState(1);
   const pageSize = 20;
 
@@ -41,11 +41,12 @@ export function TicketList() {
     const params = new URLSearchParams();
     if (statusFilter) params.set("status", statusFilter);
     if (typeFilter) params.set("type", typeFilter);
+    params.set("sortBy", sortBy);
     params.set("page", String(page));
     params.set("pageSize", String(pageSize));
 
     try {
-      const res = await workspaceFetch(`/api/support-tickets?${params}`);
+      const res = await fetch(`/api/support-tickets?${params}`);
       if (res.ok) {
         const data = await res.json();
         setTickets(data.tickets);
@@ -55,18 +56,18 @@ export function TicketList() {
     } finally {
       setLoading(false);
     }
-  }, [workspaceFetch, statusFilter, typeFilter, page]);
+  }, [statusFilter, typeFilter, sortBy, page]);
 
   useEffect(() => {
     fetchTickets();
-  }, [fetchTickets, activeWorkspace?.id]);
+  }, [fetchTickets]);
 
   const totalPages = Math.ceil(total / pageSize);
 
   return (
     <div className="space-y-6">
-      {/* Admin stats */}
-      {isAdmin && stats && (
+      {/* Stats */}
+      {stats && (
         <div className="grid grid-cols-4 gap-4">
           {(["open", "in_progress", "resolved", "closed"] as const).map((s) => (
             <div key={s} className="rounded-lg border p-4">
@@ -77,7 +78,7 @@ export function TicketList() {
         </div>
       )}
 
-      {/* Filters + actions */}
+      {/* Filters + sort + actions */}
       <div className="flex items-center justify-between gap-4">
         <div className="flex gap-2">
           <select
@@ -100,6 +101,14 @@ export function TicketList() {
             <option value="bug">Bug</option>
             <option value="feature">Feature</option>
           </select>
+          <select
+            value={sortBy}
+            onChange={(e) => { setSortBy(e.target.value as "newest" | "most_voted"); setPage(1); }}
+            className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+          >
+            <option value="newest">Newest</option>
+            <option value="most_voted">Most Voted</option>
+          </select>
         </div>
         <Link href="/dashboard/support/new">
           <Button size="sm">
@@ -114,7 +123,7 @@ export function TicketList() {
         <div className="text-sm text-muted-foreground py-8 text-center">Loading...</div>
       ) : tickets.length === 0 ? (
         <div className="text-sm text-muted-foreground py-8 text-center border rounded-lg">
-          No tickets found. {!isAdmin && "Submit a ticket to report an issue or request a feature."}
+          No tickets found. Submit a ticket to report an issue or request a feature.
         </div>
       ) : (
         <div className="border rounded-lg divide-y">
@@ -125,13 +134,21 @@ export function TicketList() {
               className="block px-4 py-3 hover:bg-accent/50 transition-colors"
             >
               <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0 flex-1">
-                  <div className="font-medium text-sm truncate">{ticket.title}</div>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    {isAdmin && (
-                      <span>{ticket.creatorName || ticket.creatorEmail} &middot; </span>
-                    )}
-                    {new Date(ticket.createdAt).toLocaleDateString()}
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  {/* Upvote count */}
+                  <div className="flex flex-col items-center shrink-0 w-10">
+                    <ThumbsUpIcon
+                      className={`h-4 w-4 ${ticket.hasVoted ? "text-primary fill-primary" : "text-muted-foreground"}`}
+                    />
+                    <span className="text-xs font-medium">{ticket.upvoteCount}</span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium text-sm truncate">{ticket.title}</div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      <span>{ticket.creatorName || ticket.creatorEmail}</span>
+                      <span> &middot; </span>
+                      <span>{new Date(ticket.createdAt).toLocaleDateString()}</span>
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
