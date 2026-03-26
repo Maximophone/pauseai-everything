@@ -206,17 +206,20 @@
   - Docs manifest defines navigation structure (sections + pages)
   - Left sidebar nav within docs layout, highlights active page
   - Server-side file reading with `generateStaticParams` for build optimization
-- [x] Support ticket system: bug reports & feature requests from any user
-  - Schema: `support_tickets` + `ticket_replies` tables (workspace-scoped, FK to users)
+- [x] Support ticket system: cross-workspace open forum with voting and notifications
+  - Schema: `support_tickets`, `ticket_replies`, `ticket_upvotes`, `ticket_subscriptions` tables (cross-workspace, FK to users)
   - Zod schemas: `CreateTicketInput`, `UpdateTicketInput`, `CreateTicketReplyInput`
-  - Business logic: CRUD, pagination, workspace isolation, admin stats
-  - Full REST API: `GET/POST /api/support-tickets`, `GET/PUT/DELETE /api/support-tickets/:id`, `GET/POST /api/support-tickets/:id/replies`, `GET /api/support-tickets/stats`
-  - Auth: any user can create/view own tickets; admins see all, manage status/priority, delete
-  - UI: ticket list with filters + admin stats cards, create form, detail page with admin controls + reply thread
+  - Business logic: CRUD, pagination, upvoting (toggle per user, sort by most voted), subscriptions (per-ticket + global), email notifications
+  - Full REST API: `GET/POST /api/support-tickets`, `GET/PUT/DELETE /api/support-tickets/:id`, `GET/POST /api/support-tickets/:id/replies`, `POST /api/support-tickets/:id/vote`, `POST/DELETE /api/support-tickets/:id/subscribe`, `GET/POST /api/support-tickets/subscribe-all`, `GET /api/support-tickets/unsubscribe`, `GET /api/support-tickets/stats`
+  - Auth: all users see all tickets; admins manage status/priority/delete; owners edit title/desc on open tickets
+  - Voting: one upvote per user, toggle on/off, sort by most voted
+  - Subscriptions: auto-subscribe on create/reply, global subscribe-all toggle (on by default for admins), per-ticket subscribe/unsubscribe
+  - Email notifications: Graphile Worker task `send_ticket_notification` for new replies and status changes, HMAC unsubscribe tokens, one-click email unsubscribe
+  - UI: ticket list with upvote counts + vote indicator, sort toggle, subscribe-all button, create form, detail page with upvote button + subscribe toggle + admin controls + reply thread
   - "Staff" badge on admin replies, closed ticket reply lockout
 - [x] Sidebar nav items: "Support" (LifeBuoyIcon) and "Documentation" (BookOpenIcon), accessible to all roles
 - [x] API docs generation script updated with support ticket endpoints
-- [x] Zod schema tests for all ticket validation (12 test cases)
+- [x] Zod schema tests for all ticket validation (12 test cases), unsubscribe token tests (7 test cases)
 
 ---
 

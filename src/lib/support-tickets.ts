@@ -361,6 +361,21 @@ export async function getTicketSubscribers(
   return result;
 }
 
+export async function getGlobalSubscription(userId: string): Promise<boolean> {
+  const [user] = await db
+    .select({ flag: users.subscribeToAllTickets })
+    .from(users)
+    .where(eq(users.id, userId));
+  return user?.flag ?? false;
+}
+
+export async function setGlobalSubscription(userId: string, subscribed: boolean): Promise<void> {
+  await db
+    .update(users)
+    .set({ subscribeToAllTickets: subscribed })
+    .where(eq(users.id, userId));
+}
+
 // ─── Stats ───────────────────────────────────────────────
 
 export async function getTicketStats() {

@@ -38,10 +38,12 @@ Click the upvote button on any ticket to signal support. Click again to remove y
 
 ## Notifications & subscriptions
 
-- **Auto-subscribe:** You're automatically subscribed when you create a ticket or post a reply.
-- **Manual subscribe/unsubscribe:** Use the bell icon on any ticket detail page to toggle notifications.
+Subscriptions can be controlled at two levels: **globally** (all tickets) and **per ticket**.
+
+- **Subscribe All / Unsubscribe All:** Use the button at the top of the ticket list to toggle global subscription. When enabled, you receive notifications for every ticket. This is on by default for admins and off by default for everyone else.
+- **Per-ticket subscribe/unsubscribe:** Use the bell icon on any ticket detail page to toggle notifications for that specific ticket.
+- **Auto-subscribe:** You're automatically subscribed to a ticket when you create it or post a reply.
 - **Email notifications:** Subscribers receive emails when a new reply is posted or the status changes. Each email includes a one-click unsubscribe link.
-- **Global subscription:** Admins have "subscribe to all tickets" enabled by default, so they receive notifications for every ticket. This can be turned off per-ticket.
 
 ## Replies
 

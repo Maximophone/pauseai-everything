@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useUserRole } from "@/lib/hooks/use-user-role";
 import { StatusBadge, TypeBadge, PriorityBadge } from "./status-badge";
 import { Button } from "@/components/ui/button";
-import { PlusIcon, ThumbsUpIcon } from "lucide-react";
+import { PlusIcon, ThumbsUpIcon, BellIcon, BellOffIcon } from "lucide-react";
 
 type Ticket = {
   id: string;
@@ -29,6 +29,7 @@ export function TicketList() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [total, setTotal] = useState(0);
   const [stats, setStats] = useState<TicketStats | null>(null);
+  const [subscribedToAll, setSubscribedToAll] = useState(false);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [typeFilter, setTypeFilter] = useState<string>("");
@@ -52,6 +53,7 @@ export function TicketList() {
         setTickets(data.tickets);
         setTotal(data.total);
         if (data.stats) setStats(data.stats);
+        if (data.subscribedToAll !== undefined) setSubscribedToAll(data.subscribedToAll);
       }
     } finally {
       setLoading(false);
@@ -61,6 +63,19 @@ export function TicketList() {
   useEffect(() => {
     fetchTickets();
   }, [fetchTickets]);
+
+  async function handleGlobalSubscribeToggle() {
+    const newValue = !subscribedToAll;
+    const res = await fetch("/api/support-tickets/subscribe-all", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ subscribed: newValue }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setSubscribedToAll(data.subscribedToAll);
+    }
+  }
 
   const totalPages = Math.ceil(total / pageSize);
 
@@ -110,12 +125,32 @@ export function TicketList() {
             <option value="most_voted">Most Voted</option>
           </select>
         </div>
-        <Link href="/dashboard/support/new">
-          <Button size="sm">
-            <PlusIcon className="h-4 w-4 mr-1" />
-            New Ticket
+        <div className="flex items-center gap-2">
+          <Button
+            variant={subscribedToAll ? "default" : "outline"}
+            size="sm"
+            onClick={handleGlobalSubscribeToggle}
+            title={subscribedToAll ? "You receive notifications for all tickets" : "Subscribe to all ticket notifications"}
+          >
+            {subscribedToAll ? (
+              <>
+                <BellOffIcon className="h-4 w-4 mr-1" />
+                Unsubscribe All
+              </>
+            ) : (
+              <>
+                <BellIcon className="h-4 w-4 mr-1" />
+                Subscribe All
+              </>
+            )}
           </Button>
-        </Link>
+          <Link href="/dashboard/support/new">
+            <Button size="sm">
+              <PlusIcon className="h-4 w-4 mr-1" />
+              New Ticket
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Ticket list */}

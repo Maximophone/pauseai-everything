@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { checkAuth } from "@/lib/api-auth";
 import { validateBody } from "@/lib/api-validate";
 import { CreateTicketInput } from "@/lib/schemas/support-tickets";
-import { listTickets, createTicket, getTicketStats } from "@/lib/support-tickets";
+import { listTickets, createTicket, getTicketStats, getGlobalSubscription } from "@/lib/support-tickets";
 
 export async function GET(request: NextRequest) {
   const authResult = await checkAuth(request);
@@ -24,9 +24,12 @@ export async function GET(request: NextRequest) {
     pageSize,
   });
 
-  const stats = await getTicketStats();
+  const [stats, subscribedToAll] = await Promise.all([
+    getTicketStats(),
+    getGlobalSubscription(authResult.userId!),
+  ]);
 
-  return NextResponse.json({ ...result, stats });
+  return NextResponse.json({ ...result, stats, subscribedToAll });
 }
 
 export async function POST(request: NextRequest) {

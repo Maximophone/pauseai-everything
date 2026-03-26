@@ -580,6 +580,20 @@ const endpoints: Endpoint[] = [
   },
   {
     method: "GET",
+    path: "/api/support-tickets/subscribe-all",
+    auth: "session",
+    description: "Get current user's global subscription status for all tickets",
+    responseDescription: "{ subscribedToAll: boolean }",
+  },
+  {
+    method: "POST",
+    path: "/api/support-tickets/subscribe-all",
+    auth: "session",
+    description: "Toggle global subscription to all ticket notifications",
+    responseDescription: "{ subscribedToAll: boolean }",
+  },
+  {
+    method: "GET",
     path: "/api/support-tickets/stats",
     auth: "session",
     description: "Get ticket counts by status (global, cross-workspace)",

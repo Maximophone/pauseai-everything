@@ -818,6 +818,18 @@ One-click unsubscribe from ticket notifications via email link (HMAC token). No 
 
 **Errors:** `400 missing params`, `403 invalid token`
 
+### `GET /api/support-tickets/subscribe-all`
+
+Get current user's global subscription status for all tickets. **Auth: Session**
+
+**Response:** { subscribedToAll: boolean }
+
+### `POST /api/support-tickets/subscribe-all`
+
+Toggle global subscription to all ticket notifications. **Auth: Session**
+
+**Response:** { subscribedToAll: boolean }
+
 ### `GET /api/support-tickets/stats`
 
 Get ticket counts by status (global, cross-workspace). **Auth: Session**
