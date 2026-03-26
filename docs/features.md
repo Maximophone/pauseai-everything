@@ -494,29 +494,15 @@ Captured ideas for future consideration. Not prioritized yet.
 
 ---
 
-### Hosted API documentation
+### ~~Hosted API documentation~~ ✅ Done
 
-**Concept:** The auto-generated API reference (from Zod schemas) should also be rendered and served from within the app itself, not just as a markdown file in the repo.
-
-**How it would work:**
-- A page at `/dashboard/settings/api-docs` (or similar, linked from Settings) renders the API reference
-- Could use a simple markdown renderer or a dedicated API docs component
-- Stays in sync because it's generated from the same Zod schemas that the API uses
-- Accessible to anyone with dashboard access (useful for members integrating with the API)
+Implemented as an in-app documentation system at `/dashboard/docs`. Renders all `docs/*.md` files (including the auto-generated API reference) using `react-markdown` with syntax highlighting. Navigation sidebar with sections. Accessible to all roles via "Documentation" in the main sidebar.
 
 ---
 
-### In-app bug reports & feature requests
+### ~~In-app bug reports & feature requests~~ ✅ Done
 
-**Concept:** Give every user the ability to submit bug reports or feature requests directly from the UI, and track their status.
-
-**How it would work:**
-- A small "Feedback" button (or menu item) accessible to all roles
-- Opens a minimal form: type (bug/feature), title, description
-- Submitted reports stored in the DB, visible to the submitter with status updates
-- Admin panel: see all submissions, respond with messages, change status (new → in progress → done → closed)
-- Minimalistic but functional — not a full ticketing system, just enough to capture feedback and close the loop
-- Could send email notifications to admins when new reports come in
+Implemented as a full support ticket system at `/dashboard/support`. Any user can submit bug reports or feature requests. Admins see all tickets with stats dashboard, can change status/priority, and reply with "Staff" badge. Reply thread with closed-ticket lockout. Full REST API (8 endpoints) for API-driven usage. Workspace-scoped with proper authorization.
 
 ---
 

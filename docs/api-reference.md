@@ -10,9 +10,8 @@ Two auth methods are supported:
 
 Auth levels:
 - **No auth**: Public endpoint
-- **Auth: Any**: Any authenticated user (viewer, member, or admin)
-- **Auth: Member**: Requires member or admin role (returns 403 for viewers)
-- **Auth: Admin**: Requires admin role (returns 403 for member/viewer)
+- **Session**: Any authenticated user
+- **Admin**: Requires admin role (returns 403 otherwise)
 
 ## Error Format
 
@@ -24,13 +23,13 @@ Auth levels:
 
 ### `GET /api/contacts`
 
-List contacts with search, pagination, and sorting. **Auth: Any**
+List contacts with search, pagination, and sorting. No auth required
 
 **Response:** { contacts: Contact[], total: number, page: number, pageSize: number }
 
 ### `POST /api/contacts`
 
-Create a new contact. **Auth: Member**
+Create a new contact. No auth required
 
 **Request body** (`CreateContactInput`):
 ```
@@ -48,7 +47,7 @@ Create a new contact. **Auth: Member**
 
 ### `GET /api/contacts/:id`
 
-Get a single contact by ID. **Auth: Any**
+Get a single contact by ID. No auth required
 
 **Response:** Contact
 
@@ -56,7 +55,7 @@ Get a single contact by ID. **Auth: Any**
 
 ### `PUT /api/contacts/:id`
 
-Update a contact (partial update). **Auth: Member**
+Update a contact (partial update). No auth required
 
 **Request body** (`UpdateContactInput`):
 ```
@@ -64,12 +63,12 @@ Update a contact (partial update). **Auth: Member**
   "email": string (email) | null?,
   "firstName": string | null?,
   "lastName": string | null?,
+  "language": string | null?,
+  "globallyUnsubscribed": boolean?,
   "customFields": Record<string, string>?,
-  "communicationPreferences": Record<string, boolean>?
+  "communicationPreferences": Record<string, string>?
 }
 ```
-
-`communicationPreferences` maps category names to opt-in/out status. Example: `{ "newsletter": true, "events": false }`. Missing keys default to opted-in.
 
 **Response:** Contact
 
@@ -77,7 +76,7 @@ Update a contact (partial update). **Auth: Member**
 
 ### `DELETE /api/contacts/:id`
 
-Delete a contact. **Auth: Admin**
+Delete a contact. No auth required
 
 **Response:** { success: true }
 
@@ -85,7 +84,7 @@ Delete a contact. **Auth: Admin**
 
 ### `POST /api/contacts/import`
 
-Bulk import contacts from CSV data. **Auth: Admin**
+Bulk import contacts from CSV data. No auth required
 
 **Request body** (`ImportContactsInput`):
 ```
@@ -102,7 +101,7 @@ Bulk import contacts from CSV data. **Auth: Admin**
 
 ### `GET /api/contacts/:id/interactions`
 
-List interactions for a contact (paginated). **Auth: Any**
+List interactions for a contact (paginated). No auth required
 
 **Response:** { interactions: Interaction[], total, page, pageSize }
 
@@ -110,7 +109,7 @@ List interactions for a contact (paginated). **Auth: Any**
 
 ### `POST /api/contacts/:id/interactions`
 
-Create an interaction for a contact. **Auth: Member**
+Create an interaction for a contact. No auth required
 
 **Request body** (`CreateInteractionInput`):
 ```
@@ -129,7 +128,7 @@ Create an interaction for a contact. **Auth: Member**
 
 ### `GET /api/contacts/:id/tags`
 
-List tags for a contact. **Auth: Any**
+List tags for a contact. No auth required
 
 **Response:** Tag[]
 
@@ -137,7 +136,7 @@ List tags for a contact. **Auth: Any**
 
 ### `POST /api/contacts/:id/tags`
 
-Add a tag to a contact. **Auth: Member**
+Add a tag to a contact. No auth required
 
 **Request body** (`ContactTagInput`):
 ```
@@ -152,7 +151,7 @@ Add a tag to a contact. **Auth: Member**
 
 ### `DELETE /api/contacts/:id/tags`
 
-Remove a tag from a contact. **Auth: Member**
+Remove a tag from a contact. No auth required
 
 **Request body** (`ContactTagInput`):
 ```
@@ -167,7 +166,7 @@ Remove a tag from a contact. **Auth: Member**
 
 ### `GET /api/contacts/tags?ids=uuid1,uuid2`
 
-Get tags for multiple contacts (batch). **Auth: Any**
+Get tags for multiple contacts (batch). No auth required
 
 **Response:** Record<contactId, Tag[]>
 
@@ -175,7 +174,7 @@ Get tags for multiple contacts (batch). **Auth: Any**
 
 ### `DELETE /api/interactions/:id`
 
-Delete an interaction. **Auth: Member**
+Delete an interaction. No auth required
 
 **Response:** { success: true }
 
@@ -185,13 +184,13 @@ Delete an interaction. **Auth: Member**
 
 ### `GET /api/tags`
 
-List all tags. **Auth: Any**
+List all tags. No auth required
 
 **Response:** Tag[]
 
 ### `POST /api/tags`
 
-Create a tag. **Auth: Member**
+Create a tag. No auth required
 
 **Request body** (`CreateTagInput`):
 ```
@@ -207,7 +206,7 @@ Create a tag. **Auth: Member**
 
 ### `PUT /api/tags/:id`
 
-Update a tag. **Auth: Member**
+Update a tag. No auth required
 
 **Request body** (`UpdateTagInput`):
 ```
@@ -223,7 +222,7 @@ Update a tag. **Auth: Member**
 
 ### `DELETE /api/tags/:id`
 
-Delete a tag. **Auth: Admin**
+Delete a tag. No auth required
 
 **Response:** { success: true }
 
@@ -233,13 +232,13 @@ Delete a tag. **Auth: Admin**
 
 ### `GET /api/fields`
 
-List all custom field definitions. **Auth: Any**
+List all custom field definitions. No auth required
 
 **Response:** FieldDefinition[]
 
 ### `POST /api/fields`
 
-Create a custom field definition. **Auth: Admin**
+Create a custom field definition. No auth required
 
 **Request body** (`CreateFieldInput`):
 ```
@@ -249,7 +248,9 @@ Create a custom field definition. **Auth: Admin**
   "fieldType": "text" | "number" | "date" | "select" | "multiselect" | "boolean" | "url" | "email",
   "options": string[] | null?,
   "required": boolean,
-  "sortOrder": number
+  "sortOrder": number,
+  "scope": "core" | "global_internal" | "workspace"?,
+  "workspaceId": string (uuid) | null?
 }
 ```
 
@@ -259,7 +260,7 @@ Create a custom field definition. **Auth: Admin**
 
 ### `PUT /api/fields/:id`
 
-Update a field definition. **Auth: Admin**
+Update a field definition. No auth required
 
 **Request body** (`UpdateFieldInput`):
 ```
@@ -278,7 +279,7 @@ Update a field definition. **Auth: Admin**
 
 ### `DELETE /api/fields/:id`
 
-Delete a field definition. **Auth: Admin**
+Delete a field definition. No auth required
 
 **Response:** { success: true }
 
@@ -288,7 +289,7 @@ Delete a field definition. **Auth: Admin**
 
 ### `GET /api/segments`
 
-List all segments. **Auth: Any**
+List all segments. **Auth: Session**
 
 **Response:** Segment[]
 
@@ -308,7 +309,8 @@ Create a segment. **Auth: Admin**
       "operator": string,
       "value": unknown
     }[]
-  }
+  },
+  "crossWorkspace": boolean?
 }
 ```
 
@@ -318,7 +320,7 @@ Create a segment. **Auth: Admin**
 
 ### `GET /api/segments/:id`
 
-Get a single segment. **Auth: Any**
+Get a single segment. **Auth: Session**
 
 **Response:** Segment
 
@@ -340,7 +342,8 @@ Update a segment. **Auth: Admin**
       "operator": string,
       "value": unknown
     }[]
-  }?
+  }?,
+  "crossWorkspace": boolean?
 }
 ```
 
@@ -358,7 +361,7 @@ Delete a segment. **Auth: Admin**
 
 ### `POST /api/segments/preview`
 
-Preview contacts matching a segment filter. **Auth: Any**
+Preview contacts matching a segment filter. **Auth: Session**
 
 **Request body** (`SegmentPreviewInput`):
 ```
@@ -382,7 +385,7 @@ Preview contacts matching a segment filter. **Auth: Any**
 
 ### `GET /api/campaigns`
 
-List all campaigns. **Auth: Any**
+List all campaigns. **Auth: Session**
 
 **Response:** Campaign[]
 
@@ -404,15 +407,13 @@ Create a campaign. **Auth: Admin**
 }
 ```
 
-`categoryId` links the campaign to a communication category. When set, the campaign respects contact opt-out preferences, and `{{unsubscribe}}` merge variables resolve to a working unsubscribe URL. When `null`, the campaign is transactional (no unsubscribe, no preference filtering).
-
 **Response:** Campaign (201)
 
 **Errors:** `400 validation`
 
 ### `GET /api/campaigns/:id`
 
-Get a single campaign. **Auth: Any**
+Get a single campaign. **Auth: Session**
 
 **Response:** Campaign
 
@@ -471,25 +472,9 @@ Send a preview email for a campaign. **Auth: Admin**
 
 **Errors:** `400 validation/send error`
 
-### `GET /api/campaigns/:id/recipients`
-
-Preview who would receive this campaign based on its segment and category. Contacts who opted out of the campaign's category are included but flagged. **Auth: Any**
-
-**Response:**
-```
-{
-  "count": number,
-  "activeCount": number,
-  "unsubscribedCount": number,
-  "recipients": [
-    { "id": string, "email": string, "firstName": string, "lastName": string, "unsubscribed": boolean }
-  ]
-}
-```
-
 ### `GET /api/campaigns/:id/emails`
 
-List email records for a campaign. **Auth: Any**
+List email records for a campaign. **Auth: Session**
 
 **Response:** Email[]
 
@@ -675,23 +660,7 @@ Execute an automation rule now. **Auth: Admin**
 
 List all users. **Auth: Admin**
 
-**Response:** { id, name, email, image, role }[]
-
-### `POST /api/users`
-
-Invite a user. **Auth: Admin**
-
-**Request body**:
-```
-{
-  "email": string,
-  "role": "admin" | "member" | "viewer"
-}
-```
-
-**Response:** { id, email, role } (201)
-
-**Errors:** `409 already exists`
+**Response:** { id, name, email, image, isAdmin }[]
 
 ### `PUT /api/users/:id`
 
@@ -704,17 +673,9 @@ Update user role. **Auth: Admin**
 }
 ```
 
-**Response:** { id, name, email, role }
+**Response:** { id, name, email, isAdmin }
 
 **Errors:** `400 validation`, `404 not found`
-
-### `DELETE /api/users/:id`
-
-Remove a user. **Auth: Admin**
-
-**Response:** { success: true }
-
-**Errors:** `400 cannot delete self`, `404 not found`
 
 ## Api-keys
 
@@ -747,13 +708,103 @@ Revoke an API key. **Auth: Admin**
 
 **Errors:** `404 not found`
 
+## Support-tickets
+
+### `GET /api/support-tickets`
+
+List support tickets (admins see all, non-admins see own). **Auth: Session**
+
+**Response:** { tickets: Ticket[], total, page, pageSize, stats? }
+
+### `POST /api/support-tickets`
+
+Create a support ticket. **Auth: Session**
+
+**Request body** (`CreateTicketInput`):
+```
+{
+  "title": string,
+  "description": string,
+  "type": "bug" | "feature",
+  "priority": "low" | "medium" | "high"?
+}
+```
+
+**Response:** Ticket (201)
+
+**Errors:** `400 validation`
+
+### `GET /api/support-tickets/:id`
+
+Get a ticket with replies (own ticket or admin). **Auth: Session**
+
+**Response:** { ticket: Ticket, replies: Reply[] }
+
+**Errors:** `403 not owner/admin`, `404 not found`
+
+### `PUT /api/support-tickets/:id`
+
+Update a ticket (admin: status/priority; owner: title/desc on open tickets). **Auth: Session**
+
+**Request body** (`UpdateTicketInput`):
+```
+{
+  "title": string?,
+  "description": string?,
+  "type": "bug" | "feature"?,
+  "status": "open" | "in_progress" | "resolved" | "closed"?,
+  "priority": "low" | "medium" | "high"?
+}
+```
+
+**Response:** Ticket
+
+**Errors:** `400 validation`, `403 not authorized`, `404 not found`
+
+### `GET /api/support-tickets/:id/replies`
+
+List replies for a ticket (own ticket or admin). **Auth: Session**
+
+**Response:** Reply[]
+
+**Errors:** `403 not owner/admin`, `404 not found`
+
+### `POST /api/support-tickets/:id/replies`
+
+Post a reply to a ticket (own ticket or admin). **Auth: Session**
+
+**Request body** (`CreateTicketReplyInput`):
+```
+{
+  "body": string
+}
+```
+
+**Response:** Reply (201)
+
+**Errors:** `400 validation`, `403 not owner/admin`, `404 not found`
+
+### `DELETE /api/support-tickets/:id`
+
+Delete a ticket and all its replies (admin only). **Auth: Admin**
+
+**Response:** { success: true }
+
+**Errors:** `403 not admin`, `404 not found`
+
+### `GET /api/support-tickets/stats`
+
+Get ticket counts by status for the workspace. **Auth: Admin**
+
+**Response:** { open: number, in_progress: number, resolved: number, closed: number }
+
+**Errors:** `403 not admin`
+
 ## Webhooks
 
 ### `POST /api/webhooks/mailersend`
 
-Receive MailerSend delivery events (sent, delivered, bounced, opened, clicked, unsubscribed). No auth required
-
-When an `activity.unsubscribed` event is received, the system looks up the campaign's category and sets that category to `false` in the contact's `communicationPreferences`.
+Receive MailerSend delivery events (sent, delivered, bounced, opened, clicked). No auth required
 
 **Response:** { ok: true }
 
@@ -764,125 +815,6 @@ Receive Tally form submissions, creates/updates contacts and logs interactions. 
 **Response:** { status: "created"|"updated", contactId }
 
 **Errors:** `400 invalid JSON / no email`
-
-## Communication Categories
-
-### `GET /api/communication-categories`
-
-List all email categories. **Auth: Any**
-
-**Response:** Category[]
-
-### `POST /api/communication-categories`
-
-Create a new email category. **Auth: Admin**
-
-**Request body** (`CreateCategoryInput`):
-```
-{
-  "name": string (slug, lowercase, hyphens allowed),
-  "label": string,
-  "description": string?,
-  "sortOrder": number?
-}
-```
-
-**Response:** Category (201)
-
-**Errors:** `400 validation`, `409 duplicate name`
-
-### `GET /api/communication-categories/:id`
-
-Get a single category. **Auth: Any**
-
-**Response:** Category
-
-**Errors:** `404 not found`
-
-### `PUT /api/communication-categories/:id`
-
-Update a category. **Auth: Admin**
-
-**Request body** (`UpdateCategoryInput`):
-```
-{
-  "label": string?,
-  "description": string?,
-  "sortOrder": number?
-}
-```
-
-**Response:** Category
-
-**Errors:** `404 not found`
-
-### `DELETE /api/communication-categories/:id`
-
-Delete a category. **Auth: Admin**
-
-**Response:** { success: true }
-
-**Errors:** `404 not found`
-
-## Unsubscribe (Public)
-
-### `POST /api/unsubscribe`
-
-Process an unsubscribe request. Authenticated by HMAC token (no session required). **Auth: None (token-authenticated)**
-
-**Request body** (`UnsubscribeInput`):
-```
-{
-  "contactId": string (uuid),
-  "category": string,
-  "token": string (hex HMAC),
-  "preferences": Record<string, boolean>?
-}
-```
-
-If `preferences` is provided, all specified categories are updated. Otherwise, only the specified `category` is set to `false` (one-click unsubscribe).
-
-**Response:** { success: true }
-
-**Errors:** `400 validation`, `403 invalid token`, `404 contact not found`
-
-### `GET /api/unsubscribe/preferences?contact=:id&token=:token&category=:name`
-
-Get a contact's subscription status for all categories. Authenticated by HMAC token. **Auth: None (token-authenticated)**
-
-**Response:**
-```
-{
-  "categories": [
-    { "name": string, "label": string, "description": string, "subscribed": boolean }
-  ]
-}
-```
-
-**Errors:** `400 missing params`, `403 invalid token`
-
-## Settings
-
-### `GET /api/settings`
-
-Get all app-level settings as key-value pairs. **Auth: Any**
-
-**Response:** Record<string, string>
-
-### `PUT /api/settings`
-
-Update one or more settings (upsert). **Auth: Admin**
-
-**Request body:** `Record<string, string>`
-
-Example:
-```
-{
-  "mailersend_list_unsubscribe_enabled": "true"
-}
-```
-
-**Response:** Record<string, string> (all settings after update)
 
 ## Appendix: Segment Filter Schema
 

@@ -45,7 +45,11 @@ export async function checkAuth(request: NextRequest): Promise<AuthResult> {
     process.env.NODE_ENV === "development" &&
     process.env.DEV_BYPASS_AUTH === "true"
   ) {
-    return { authenticated: true, userId: undefined, role: "admin" };
+    // Try to find a real user to use as the dev identity
+    const { db } = await import("@/db");
+    const { users } = await import("@/db/schema/users");
+    const [devUser] = await db.select({ id: users.id }).from(users).limit(1);
+    return { authenticated: true, userId: devUser?.id, role: "admin" };
   }
 
   return {

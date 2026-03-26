@@ -15,13 +15,13 @@ import {
 } from "@/components/ui/sidebar"
 import {
   UsersIcon,
-  TagsIcon,
   MailIcon,
   LayoutDashboardIcon,
   SettingsIcon,
-  FilterIcon,
   ZapIcon,
   PlugIcon,
+  BookOpenIcon,
+  LifeBuoyIcon,
 } from "lucide-react"
 
 const ROLE_LEVELS: Record<string, number> = { viewer: 0, member: 1, admin: 2 };
@@ -47,17 +47,15 @@ const allNavItems = [
           title: "Import",
           url: "/dashboard/contacts/import",
         },
+        {
+          title: "Tags",
+          url: "/dashboard/tags",
+        },
+        {
+          title: "Segments",
+          url: "/dashboard/segments",
+        },
       ],
-    },
-    {
-      title: "Tags",
-      url: "/dashboard/tags",
-      icon: (<TagsIcon />),
-    },
-    {
-      title: "Segments",
-      url: "/dashboard/segments",
-      icon: (<FilterIcon />),
     },
     {
       title: "Automations",
@@ -84,6 +82,16 @@ const allNavItems = [
       url: "/dashboard/connections",
       icon: (<PlugIcon />),
       adminOnly: true,
+    },
+    {
+      title: "Support",
+      url: "/dashboard/support",
+      icon: (<LifeBuoyIcon />),
+    },
+    {
+      title: "Documentation",
+      url: "/dashboard/docs",
+      icon: (<BookOpenIcon />),
     },
     {
       title: "Settings",

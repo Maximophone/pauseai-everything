@@ -198,6 +198,26 @@
 - [x] Connection detail pages redirect to connections list on workspace mismatch
 - [x] Connections promoted to top-level sidebar item (admin-only, with PlugIcon) — moved from Settings sub-menu
 
+### Phase 11: Documentation & Support ✅
+
+- [x] In-app documentation system: renders `docs/*.md` files at `/dashboard/docs`
+  - Runtime markdown rendering with `react-markdown` + `remark-gfm` + `rehype-highlight`
+  - `@tailwindcss/typography` prose styling with code syntax highlighting
+  - Docs manifest defines navigation structure (sections + pages)
+  - Left sidebar nav within docs layout, highlights active page
+  - Server-side file reading with `generateStaticParams` for build optimization
+- [x] Support ticket system: bug reports & feature requests from any user
+  - Schema: `support_tickets` + `ticket_replies` tables (workspace-scoped, FK to users)
+  - Zod schemas: `CreateTicketInput`, `UpdateTicketInput`, `CreateTicketReplyInput`
+  - Business logic: CRUD, pagination, workspace isolation, admin stats
+  - Full REST API: `GET/POST /api/support-tickets`, `GET/PUT/DELETE /api/support-tickets/:id`, `GET/POST /api/support-tickets/:id/replies`, `GET /api/support-tickets/stats`
+  - Auth: any user can create/view own tickets; admins see all, manage status/priority, delete
+  - UI: ticket list with filters + admin stats cards, create form, detail page with admin controls + reply thread
+  - "Staff" badge on admin replies, closed ticket reply lockout
+- [x] Sidebar nav items: "Support" (LifeBuoyIcon) and "Documentation" (BookOpenIcon), accessible to all roles
+- [x] API docs generation script updated with support ticket endpoints
+- [x] Zod schema tests for all ticket validation (12 test cases)
+
 ---
 
 ## Testing strategy
@@ -233,4 +253,5 @@ Every phase ships with tests. The core data layer and API must be robust.
 - **After Phase 8b:** Contacts can manage their email subscriptions. Compliant unsubscribe system.
 - **After Phase 8c:** External data flows in automatically. Airtable and Notion contacts sync on schedule with provenance tracking. Table scales to 100k contacts.
 - **After Phase 9:** You have visibility into how the org is doing. Full v1.
-- **After Phase 10:** Multi-tenant with workspaces. Each chapter operates independently. ← *we are here*
+- **After Phase 10:** Multi-tenant with workspaces. Each chapter operates independently.
+- **After Phase 11:** Self-documented with in-app docs and built-in feedback loop via support tickets. ← *we are here*
