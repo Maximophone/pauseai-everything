@@ -6,7 +6,7 @@ import { emails } from "@/db/schema/emails";
 import { communicationCategories } from "@/db/schema/communication-categories";
 import { eq, and, asc, desc, sql } from "drizzle-orm";
 import { getSegment, getSegmentContactIds } from "./segments";
-import { sendEmail, renderTemplate } from "./mailersend";
+import { sendEmail, renderTemplate, resolveFromEmail } from "./mailersend";
 import { buildUnsubscribeUrl } from "./unsubscribe-tokens";
 import { getBooleanSetting, SETTING_KEYS } from "./app-settings";
 
@@ -123,7 +123,7 @@ export async function sendCampaign(campaignId: string) {
     contactIds = allContacts.map((c) => c.id);
   }
 
-  const fromEmail = campaign.fromEmail || process.env.MAILERSEND_FROM_EMAIL || "noreply@pauseai.info";
+  const fromEmail = campaign.fromEmail || await resolveFromEmail() || "noreply@pauseai.info";
   const fromName = campaign.fromName || "PauseAI";
 
   // Look up the category for this campaign (if any)
@@ -290,7 +290,7 @@ export async function sendPreviewEmail(
   const campaign = await getCampaign(campaignId);
   if (!campaign) throw new Error("Campaign not found");
 
-  const fromEmail = campaign.fromEmail || process.env.MAILERSEND_FROM_EMAIL || "noreply@pauseai.info";
+  const fromEmail = campaign.fromEmail || await resolveFromEmail() || "noreply@pauseai.info";
   const fromName = campaign.fromName || "PauseAI";
 
   // Use placeholder merge data for preview
