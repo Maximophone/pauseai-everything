@@ -6,7 +6,7 @@ import { emails } from "@/db/schema/emails";
 import { tags, contactTags } from "@/db/schema/tags";
 import { eq, sql } from "drizzle-orm";
 import { buildSegmentWhere, getSegmentContactIds, getSegment } from "./segments";
-import { sendEmail } from "./mailersend";
+import { sendEmail, resolveFromEmail } from "./mailersend";
 import {
   getScript,
   createScriptRun,
@@ -181,7 +181,7 @@ function buildContext(logs: string[], counters: { emails: number; affected: Set<
         const result = await sendEmail({
           to: [{ email: params.to }],
           from: {
-            email: params.fromEmail || process.env.MAILERSEND_FROM_EMAIL || "noreply@pauseai.info",
+            email: params.fromEmail || await resolveFromEmail() || "noreply@pauseai.info",
             name: params.fromName || "PauseAI",
           },
           subject: params.subject,
@@ -191,7 +191,7 @@ function buildContext(logs: string[], counters: { emails: number; affected: Set<
         // Log in emails table
         await db.insert(emails).values({
           toAddress: params.to,
-          fromAddress: params.fromEmail || process.env.MAILERSEND_FROM_EMAIL || "noreply@pauseai.info",
+          fromAddress: params.fromEmail || await resolveFromEmail() || "noreply@pauseai.info",
           direction: "outbound",
           subject: params.subject,
           body: params.html,
