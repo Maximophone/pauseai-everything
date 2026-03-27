@@ -175,6 +175,41 @@ export async function deleteContact(id: string): Promise<boolean> {
   return result.length > 0;
 }
 
+/**
+ * Remove a contact from a specific workspace.
+ * Deletes the contact_workspaces link. If the contact has no remaining
+ * workspace links, the contact record itself is deleted.
+ * Returns true if the link existed and was removed.
+ */
+export async function removeContactFromWorkspace(
+  contactId: string,
+  workspaceId: string
+): Promise<boolean> {
+  const result = await db
+    .delete(contactWorkspaces)
+    .where(
+      and(
+        eq(contactWorkspaces.contactId, contactId),
+        eq(contactWorkspaces.workspaceId, workspaceId)
+      )
+    )
+    .returning({ contactId: contactWorkspaces.contactId });
+
+  if (result.length === 0) return false;
+
+  // If the contact has no remaining workspace links, delete the record entirely
+  const remaining = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(contactWorkspaces)
+    .where(eq(contactWorkspaces.contactId, contactId));
+
+  if (Number(remaining[0].count) === 0) {
+    await db.delete(contacts).where(eq(contacts.id, contactId));
+  }
+
+  return true;
+}
+
 // ── Field definitions ──────────────────────────────────────
 
 /**

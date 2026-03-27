@@ -296,9 +296,11 @@ export function ContactsTable({
     if (!confirm(`Permanently delete ${selectedIds.length} contact${selectedIds.length !== 1 ? "s" : ""}? This cannot be undone.`)) return;
     setDeleting(true);
     try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (workspaceId) headers["X-Workspace-Id"] = workspaceId;
       const res = await fetch("/api/contacts", {
         method: "DELETE",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ ids: selectedIds }),
       });
       if (res.ok) {

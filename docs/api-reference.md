@@ -76,11 +76,13 @@ Update a contact (partial update). No auth required
 
 ### `DELETE /api/contacts/:id`
 
-Delete a contact. No auth required
+Delete a contact. Requires workspace admin role. Global admins delete the contact globally; workspace admins remove it from their workspace only (the contact record is deleted if it has no remaining workspace links).
+
+**Auth:** Workspace admin (via `X-Workspace-Id` header)
 
 **Response:** { success: true }
 
-**Errors:** `404 not found`
+**Errors:** `403 forbidden`, `404 not found`
 
 ### `POST /api/contacts/import`
 
