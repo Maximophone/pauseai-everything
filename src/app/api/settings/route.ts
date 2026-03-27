@@ -1,13 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkAuth, requireAdmin } from "@/lib/api-auth";
-import { getAllSettings, setSetting } from "@/lib/app-settings";
+import { getAllSettings, setSetting, SENSITIVE_SETTING_KEYS, maskSettingValue } from "@/lib/app-settings";
 
 export async function GET(request: NextRequest) {
   const authResult = await checkAuth(request);
   if (!authResult.authenticated) return authResult.error!;
 
   const settings = await getAllSettings();
-  return NextResponse.json(settings);
+  // Mask sensitive values before returning
+  const masked: Record<string, string> = {};
+  for (const [key, value] of Object.entries(settings)) {
+    masked[key] = SENSITIVE_SETTING_KEYS.has(key) ? maskSettingValue(value) : value;
+  }
+  return NextResponse.json(masked);
 }
 
 export async function PUT(request: NextRequest) {

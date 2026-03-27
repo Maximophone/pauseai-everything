@@ -124,6 +124,11 @@ const allNavItems = [
           title: "Email Categories",
           url: "/dashboard/settings/email-categories",
         },
+        {
+          title: "Integrations",
+          url: "/dashboard/settings/integrations",
+          globalAdminOnly: true,
+        },
       ],
     },
   ]

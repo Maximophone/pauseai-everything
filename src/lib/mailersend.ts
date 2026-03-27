@@ -1,5 +1,26 @@
-const MAILERSEND_API_KEY = process.env.MAILERSEND_API_KEY || "";
 const MAILERSEND_BASE = "https://api.mailersend.com/v1";
+
+async function resolveMailerSendKey(): Promise<string> {
+  try {
+    const { getSetting, SETTING_KEYS } = await import("@/lib/app-settings");
+    const dbKey = await getSetting(SETTING_KEYS.MAILERSEND_API_KEY);
+    if (dbKey) return dbKey;
+  } catch {
+    // DB not available (e.g. during build) — fall through to env
+  }
+  return process.env.MAILERSEND_API_KEY || "";
+}
+
+export async function resolveFromEmail(): Promise<string> {
+  try {
+    const { getSetting, SETTING_KEYS } = await import("@/lib/app-settings");
+    const dbEmail = await getSetting(SETTING_KEYS.MAILERSEND_FROM_EMAIL);
+    if (dbEmail) return dbEmail;
+  } catch {
+    // DB not available — fall through to env
+  }
+  return process.env.MAILERSEND_FROM_EMAIL || "";
+}
 
 type EmailParams = {
   to: { email: string; name?: string }[];
@@ -21,6 +42,7 @@ type MailersendResponse = {
 };
 
 export async function sendEmail(params: EmailParams): Promise<MailersendResponse> {
+  const MAILERSEND_API_KEY = await resolveMailerSendKey();
   if (!MAILERSEND_API_KEY) {
     console.warn("[mailersend] No API key configured, skipping email send");
     return { ok: false, error: "MAILERSEND_API_KEY not configured" };

@@ -3,7 +3,7 @@ import { users } from "@/db/schema/users";
 import { apiKeys } from "@/db/schema/api-keys";
 import { eq } from "drizzle-orm";
 import { createHash, randomBytes } from "crypto";
-import { sendEmail } from "@/lib/mailersend";
+import { sendEmail, resolveFromEmail } from "@/lib/mailersend";
 import type { UserRole } from "@/db/schema/users";
 
 // ── Users ──────────────────────────────────────────────────
@@ -46,7 +46,7 @@ export async function inviteUser(email: string, role: UserRole = "viewer", invit
 
   // Send invitation email
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-  const fromEmail = process.env.MAILERSEND_FROM_EMAIL;
+  const fromEmail = await resolveFromEmail();
 
   if (fromEmail) {
     const inviterLine = invitedByName

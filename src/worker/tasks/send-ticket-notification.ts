@@ -3,7 +3,7 @@ import { db } from "@/db";
 import { supportTickets, ticketReplies } from "@/db/schema/support-tickets";
 import { eq } from "drizzle-orm";
 import { getTicketSubscribers } from "@/lib/support-tickets";
-import { sendEmail } from "@/lib/mailersend";
+import { sendEmail, resolveFromEmail } from "@/lib/mailersend";
 import { buildTicketUnsubscribeUrl } from "@/lib/ticket-unsubscribe-tokens";
 
 interface TicketNotificationPayload {
@@ -16,13 +16,14 @@ interface TicketNotificationPayload {
 }
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-const FROM_EMAIL = process.env.MAILERSEND_FROM_EMAIL || "noreply@pauseai.info";
 
 export const sendTicketNotificationTask: Task = async (payload, helpers) => {
   const { ticketId, event, actorUserId, replyId, newStatus, oldStatus } =
     payload as TicketNotificationPayload;
 
   helpers.logger.info(`Sending ticket notification: ${event} for ticket ${ticketId}`);
+
+  const FROM_EMAIL = (await resolveFromEmail()) || "noreply@pauseai.info";
 
   // Fetch ticket
   const [ticket] = await db
