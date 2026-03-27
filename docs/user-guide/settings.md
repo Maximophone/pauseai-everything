@@ -63,7 +63,7 @@ See the **API Reference** in the Documentation section for all available endpoin
 MailerSend is used to send invitation emails and ticket notifications.
 
 - **API Key** — generate a token in your [MailerSend dashboard](https://app.mailersend.com/api-tokens) with at least *Email sending* permission. The key is stored securely and displayed masked after saving.
-- **From Email Address** — the address emails will be sent from. Must be a verified sender domain in MailerSend (e.g. `noreply@pauseai.fr`).
+- **From Email Address** — the address emails will be sent from. Must use a domain verified in MailerSend. Find your verified domains at [app.mailersend.com/domains](https://app.mailersend.com/domains). Every MailerSend account has a free test domain (e.g. `noreply@test-xxxx.mlsender.net`) that works out of the box. To use your own domain (e.g. `noreply@pauseai.fr`), add and verify it there first.
 
 After updating either value, changes take effect immediately for the next email sent — no redeploy required.
 
