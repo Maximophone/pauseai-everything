@@ -31,20 +31,21 @@ export async function inviteUser(email: string, role: UserRole = "viewer", invit
 
   // Check if user already exists
   const existing = await getUserByEmail(normalizedEmail);
-  if (existing) {
-    return { user: existing, alreadyExists: true };
+  let user = existing;
+
+  if (!existing) {
+    // Create the user record (no name yet — will be populated on first sign-in via Google)
+    const [created] = await db
+      .insert(users)
+      .values({
+        email: normalizedEmail,
+        role,
+      })
+      .returning();
+    user = created;
   }
 
-  // Create the user record (no name yet — will be populated on first sign-in via Google)
-  const [user] = await db
-    .insert(users)
-    .values({
-      email: normalizedEmail,
-      role,
-    })
-    .returning();
-
-  // Send invitation email
+  // Always send the invite email — covers both new invites and re-invites
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
   const fromEmail = await resolveFromEmail();
 
@@ -76,7 +77,7 @@ export async function inviteUser(email: string, role: UserRole = "viewer", invit
     });
   }
 
-  return { user, alreadyExists: false };
+  return { user: user!, alreadyExists: !!existing };
 }
 
 /**
