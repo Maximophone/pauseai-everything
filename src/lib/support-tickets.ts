@@ -337,8 +337,9 @@ export async function getTicketSubscribers(
   ticketId: string,
   excludeUserId?: string
 ): Promise<{ userId: string; email: string; name: string | null }[]> {
-  // Get explicit subscribers
-  const explicit = await db
+  // Only explicit per-ticket subscribers receive reply/status-change notifications.
+  // The subscribeToAllTickets flag is for new-ticket notifications only (handled separately).
+  const rows = await db
     .select({
       userId: ticketSubscriptions.userId,
       email: users.email,
@@ -348,28 +349,9 @@ export async function getTicketSubscribers(
     .innerJoin(users, eq(ticketSubscriptions.userId, users.id))
     .where(eq(ticketSubscriptions.ticketId, ticketId));
 
-  // Get users with subscribeToAllTickets flag
-  const global = await db
-    .select({
-      userId: users.id,
-      email: users.email,
-      name: users.name,
-    })
-    .from(users)
-    .where(eq(users.subscribeToAllTickets, true));
-
-  // Deduplicate and exclude actor
-  const seen = new Set<string>();
-  const result: { userId: string; email: string; name: string | null }[] = [];
-
-  for (const sub of [...explicit, ...global]) {
-    if (seen.has(sub.userId)) continue;
-    if (excludeUserId && sub.userId === excludeUserId) continue;
-    seen.add(sub.userId);
-    result.push(sub as { userId: string; email: string; name: string | null });
-  }
-
-  return result;
+  return rows.filter(
+    (r) => !excludeUserId || r.userId !== excludeUserId
+  ) as { userId: string; email: string; name: string | null }[];
 }
 
 export async function getGlobalSubscription(userId: string): Promise<boolean> {
