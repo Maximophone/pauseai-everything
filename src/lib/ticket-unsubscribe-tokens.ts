@@ -52,3 +52,18 @@ export function buildTicketUnsubscribeUrl(
   const token = generateTicketUnsubscribeToken(userId, ticketId);
   return `${appUrl}/api/support-tickets/unsubscribe?user=${userId}&ticket=${ticketId}&token=${token}`;
 }
+
+/**
+ * Sentinel ticketId used in HMAC tokens for global (subscribe-all) unsubscribe links.
+ */
+export const GLOBAL_UNSUBSCRIBE_TICKET_ID = "__global__";
+
+/**
+ * Build the full unsubscribe URL for global new-ticket notifications.
+ * Clicking this sets subscribeToAllTickets = false for the user.
+ */
+export function buildGlobalUnsubscribeUrl(userId: string): string {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const token = generateTicketUnsubscribeToken(userId, GLOBAL_UNSUBSCRIBE_TICKET_ID);
+  return `${appUrl}/api/support-tickets/unsubscribe?user=${userId}&ticket=${GLOBAL_UNSUBSCRIBE_TICKET_ID}&token=${token}`;
+}

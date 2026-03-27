@@ -130,17 +130,17 @@ export function TicketList() {
             variant={subscribedToAll ? "default" : "outline"}
             size="sm"
             onClick={handleGlobalSubscribeToggle}
-            title={subscribedToAll ? "You receive notifications for all tickets" : "Subscribe to all ticket notifications"}
+            title={subscribedToAll ? "You are notified when new tickets are created — click to turn off" : "Get notified when new tickets are created"}
           >
             {subscribedToAll ? (
               <>
                 <BellOffIcon className="h-4 w-4 mr-1" />
-                Unsubscribe All
+                New ticket alerts: On
               </>
             ) : (
               <>
                 <BellIcon className="h-4 w-4 mr-1" />
-                Subscribe All
+                New ticket alerts: Off
               </>
             )}
           </Button>

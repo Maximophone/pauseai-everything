@@ -137,6 +137,17 @@ export async function createTicket(
     .values({ ticketId: ticket.id, userId })
     .onConflictDoNothing();
 
+  // Notify users subscribed to all new tickets
+  try {
+    await addJob("send_ticket_notification", {
+      ticketId: ticket.id,
+      event: "new_ticket",
+      actorUserId: userId,
+    });
+  } catch {
+    // Don't fail the create if notification enqueueing fails
+  }
+
   return ticket;
 }
 
