@@ -220,6 +220,10 @@
 - [x] Sidebar nav items: "Support" (LifeBuoyIcon) and "Documentation" (BookOpenIcon), accessible to all roles
 - [x] API docs generation script updated with support ticket endpoints
 - [x] Zod schema tests for all ticket validation (12 test cases), unsubscribe token tests (7 test cases)
+- [x] Settings → Integrations page (global admin only): MailerSend API key + from-email configurable in UI
+  - DB-stored values override env vars; takes effect immediately, no redeploy needed
+  - API key masked in GET /api/settings response
+  - `resolveMailerSendKey()` / `resolveFromEmail()` helpers used throughout (web + worker)
 
 ---
 

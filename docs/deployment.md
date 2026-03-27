@@ -99,6 +99,8 @@ railway up --detach --service worker
 
 ## Environment Variables
 
+> **Tip:** Some credentials (MailerSend API key and from-email) can be managed directly in the app at **Settings → Integrations** without touching env vars or redeploying. DB-stored values take precedence over env vars.
+
 ### Web service
 
 | Variable | Description | Required |
@@ -108,8 +110,8 @@ railway up --detach --service worker
 | `NEXTAUTH_URL` | Public URL of the web service | Yes |
 | `AUTH_GOOGLE_ID` | Google OAuth client ID | Yes |
 | `AUTH_GOOGLE_SECRET` | Google OAuth client secret | Yes |
-| `MAILERSEND_API_KEY` | Mailersend API key for sending emails | Yes |
-| `MAILERSEND_FROM_EMAIL` | Default "from" email address | Yes |
+| `MAILERSEND_API_KEY` | Mailersend API key fallback (prefer setting via **Settings → Integrations** in the UI) | No |
+| `MAILERSEND_FROM_EMAIL` | From address fallback (prefer setting via **Settings → Integrations** in the UI) | No |
 | `ADMIN_EMAILS` | Comma-separated emails auto-promoted to admin on sign-in | Recommended |
 | `UNSUBSCRIBE_SECRET` | HMAC secret for unsubscribe tokens (`openssl rand -hex 32`) | Yes |
 | `NEXT_PUBLIC_APP_URL` | Public URL used in unsubscribe links | Yes |
@@ -121,8 +123,8 @@ railway up --detach --service worker
 | Variable | Description | Required |
 |----------|-------------|----------|
 | `DATABASE_URL` | PostgreSQL connection (same as web) | Yes |
-| `MAILERSEND_API_KEY` | Needed for sending campaign emails | Yes |
-| `MAILERSEND_FROM_EMAIL` | Default "from" email address | Yes |
+| `MAILERSEND_API_KEY` | Mailersend API key fallback (prefer setting via the UI) | No |
+| `MAILERSEND_FROM_EMAIL` | From address fallback (prefer setting via the UI) | No |
 | `UNSUBSCRIBE_SECRET` | Same value as web — needed for unsubscribe URL generation during campaign sends | Yes |
 | `NEXT_PUBLIC_APP_URL` | Same value as web — used in unsubscribe URLs | Yes |
 | `NODE_ENV` | `production` | Yes |

@@ -54,6 +54,19 @@ Each campaign must be assigned a category. Contacts who have opted out of a cate
 
 See the **API Reference** in the Documentation section for all available endpoints.
 
+## Integrations
+
+**Settings → Integrations** is only visible to global admins. This is where you configure credentials for third-party services. Values saved here override any environment variables, so you can update API keys without a redeploy.
+
+### MailerSend
+
+MailerSend is used to send invitation emails and ticket notifications.
+
+- **API Key** — generate a token in your [MailerSend dashboard](https://app.mailersend.com/api-tokens) with at least *Email sending* permission. The key is stored securely and displayed masked after saving.
+- **From Email Address** — the address emails will be sent from. Must be a verified sender domain in MailerSend (e.g. `noreply@pauseai.fr`).
+
+After updating either value, changes take effect immediately for the next email sent — no redeploy required.
+
 ## Workspaces
 
 **Settings → Workspaces** is only visible to global admins. From here you can:
