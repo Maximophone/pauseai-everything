@@ -27,6 +27,9 @@ type Interaction = {
   metadata: Record<string, unknown>;
   occurredAt: string;
   createdAt: string;
+  emailConnectionId: string | null;
+  providerMessageId: string | null;
+  visibleToTeam: boolean;
 };
 
 const INTERACTION_TYPES = [
@@ -127,6 +130,16 @@ export function InteractionTimeline({ contactId }: { contactId: string }) {
                   <span className="text-sm font-medium">
                     {typeInfo.label}
                   </span>
+                  {interaction.emailConnectionId && (
+                    <span className="inline-flex items-center rounded-full bg-purple-100 dark:bg-purple-900/30 px-1.5 py-0.5 text-[10px] font-medium text-purple-700 dark:text-purple-400">
+                      Gmail
+                    </span>
+                  )}
+                  {interaction.emailConnectionId && !interaction.visibleToTeam && (
+                    <span className="inline-flex items-center rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                      Private
+                    </span>
+                  )}
                   <span className="text-xs text-muted-foreground">
                     {new Date(interaction.occurredAt).toLocaleDateString(
                       undefined,

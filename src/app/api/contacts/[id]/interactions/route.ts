@@ -26,6 +26,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
   const result = await listInteractionsByContact(id, {
     page: Number(searchParams.get("page")) || 1,
     pageSize: Number(searchParams.get("pageSize")) || 50,
+    currentUserId: authResult.userId,
   });
 
   return NextResponse.json(result);

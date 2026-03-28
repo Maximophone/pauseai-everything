@@ -13,3 +13,4 @@ export * from "./communication-categories";
 export * from "./unsubscribe";
 export * from "./connections";
 export * from "./support-tickets";
+export * from "./email-connections";

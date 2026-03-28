@@ -22,6 +22,7 @@ import {
   PlugIcon,
   BookOpenIcon,
   LifeBuoyIcon,
+  InboxIcon,
 } from "lucide-react"
 
 const ROLE_LEVELS: Record<string, number> = { viewer: 0, member: 1, admin: 2 };
@@ -76,6 +77,11 @@ const allNavItems = [
           url: "/dashboard/email/templates",
         },
       ],
+    },
+    {
+      title: "My Email Contacts",
+      url: "/dashboard/my-email-contacts",
+      icon: (<InboxIcon />),
     },
     {
       title: "Connections",

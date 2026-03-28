@@ -1,0 +1,390 @@
+import { decrypt, encrypt } from "./encryption";
+import { db } from "@/db";
+import { emailConnections } from "@/db/schema/email-connections";
+import { eq } from "drizzle-orm";
+
+// ---------- OAuth helpers ----------
+
+const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
+const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
+
+const GMAIL_SCOPES = [
+  "https://www.googleapis.com/auth/gmail.readonly",
+  "https://www.googleapis.com/auth/userinfo.email",
+];
+
+function getGoogleClientId(): string {
+  const id = process.env.AUTH_GOOGLE_ID;
+  if (!id) throw new Error("AUTH_GOOGLE_ID is required");
+  return id;
+}
+
+function getGoogleClientSecret(): string {
+  const secret = process.env.AUTH_GOOGLE_SECRET;
+  if (!secret) throw new Error("AUTH_GOOGLE_SECRET is required");
+  return secret;
+}
+
+function getGmailCallbackUrl(): string {
+  const base = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  return `${base}/api/auth/gmail/callback`;
+}
+
+/**
+ * Build the Google OAuth authorization URL for Gmail access.
+ * Includes state parameter for CSRF protection.
+ */
+export function buildGmailAuthUrl(state: string): string {
+  const params = new URLSearchParams({
+    client_id: getGoogleClientId(),
+    redirect_uri: getGmailCallbackUrl(),
+    response_type: "code",
+    scope: GMAIL_SCOPES.join(" "),
+    access_type: "offline",
+    prompt: "consent", // Force consent to always get refresh_token
+    state,
+  });
+  return `${GOOGLE_AUTH_URL}?${params.toString()}`;
+}
+
+/**
+ * Exchange an authorization code for tokens.
+ */
+export async function exchangeCodeForTokens(code: string): Promise<{
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: Date;
+  email: string;
+}> {
+  const res = await fetch(GOOGLE_TOKEN_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      code,
+      client_id: getGoogleClientId(),
+      client_secret: getGoogleClientSecret(),
+      redirect_uri: getGmailCallbackUrl(),
+      grant_type: "authorization_code",
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Token exchange failed: ${err}`);
+  }
+
+  const data = await res.json();
+  if (!data.refresh_token) {
+    throw new Error(
+      "No refresh_token received. User may need to revoke access and reconnect."
+    );
+  }
+
+  const expiresAt = new Date(Date.now() + data.expires_in * 1000);
+
+  // Get the user's email from the userinfo endpoint
+  const userInfoRes = await fetch(
+    "https://www.googleapis.com/oauth2/v2/userinfo",
+    { headers: { Authorization: `Bearer ${data.access_token}` } }
+  );
+  const userInfo = await userInfoRes.json();
+
+  return {
+    accessToken: data.access_token,
+    refreshToken: data.refresh_token,
+    expiresAt,
+    email: userInfo.email,
+  };
+}
+
+/**
+ * Refresh an access token using a refresh token.
+ * Updates the stored token in the database.
+ */
+export async function refreshAccessToken(
+  connectionId: string,
+  encryptedRefreshToken: string
+): Promise<string> {
+  const refreshToken = decrypt(encryptedRefreshToken);
+
+  const res = await fetch(GOOGLE_TOKEN_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      refresh_token: refreshToken,
+      client_id: getGoogleClientId(),
+      client_secret: getGoogleClientSecret(),
+      grant_type: "refresh_token",
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    // Mark connection as errored
+    await db
+      .update(emailConnections)
+      .set({
+        status: "error",
+        statusMessage: `Token refresh failed: ${err}`,
+        updatedAt: new Date(),
+      })
+      .where(eq(emailConnections.id, connectionId));
+    throw new Error(`Token refresh failed: ${err}`);
+  }
+
+  const data = await res.json();
+  const newExpiresAt = new Date(Date.now() + data.expires_in * 1000);
+
+  await db
+    .update(emailConnections)
+    .set({
+      accessToken: encrypt(data.access_token),
+      tokenExpiresAt: newExpiresAt,
+      updatedAt: new Date(),
+    })
+    .where(eq(emailConnections.id, connectionId));
+
+  return data.access_token;
+}
+
+/**
+ * Get a valid access token for a connection, refreshing if necessary.
+ */
+export async function getValidAccessToken(connection: {
+  id: string;
+  accessToken: string | null;
+  refreshToken: string;
+  tokenExpiresAt: Date | null;
+}): Promise<string> {
+  // If token exists and not expired (with 60s buffer), use it
+  if (
+    connection.accessToken &&
+    connection.tokenExpiresAt &&
+    connection.tokenExpiresAt.getTime() > Date.now() + 60_000
+  ) {
+    return decrypt(connection.accessToken);
+  }
+
+  // Otherwise refresh
+  return refreshAccessToken(connection.id, connection.refreshToken);
+}
+
+// ---------- Gmail API wrappers ----------
+
+export type GmailMessageHeader = {
+  name: string;
+  value: string;
+};
+
+export type GmailMessageMeta = {
+  id: string;
+  threadId: string;
+  snippet: string;
+  internalDate: string; // epoch ms as string
+  headers: Record<string, string>;
+};
+
+/**
+ * List message IDs matching a query, with pagination.
+ */
+export async function listMessages(
+  accessToken: string,
+  query: string,
+  maxResults = 100,
+  pageToken?: string
+): Promise<{ messageIds: string[]; nextPageToken?: string }> {
+  const params = new URLSearchParams({
+    q: query,
+    maxResults: String(maxResults),
+  });
+  if (pageToken) params.set("pageToken", pageToken);
+
+  const res = await fetch(
+    `https://gmail.googleapis.com/gmail/v1/users/me/messages?${params}`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+
+  if (!res.ok) {
+    throw new Error(`Gmail list messages failed: ${await res.text()}`);
+  }
+
+  const data = await res.json();
+  const messageIds = (data.messages || []).map(
+    (m: { id: string }) => m.id
+  );
+  return { messageIds, nextPageToken: data.nextPageToken };
+}
+
+/**
+ * Get message metadata (headers + snippet, no body).
+ */
+export async function getMessageMetadata(
+  accessToken: string,
+  messageId: string
+): Promise<GmailMessageMeta> {
+  const params = new URLSearchParams({
+    format: "metadata",
+    metadataHeaders: "From",
+  });
+  // Gmail API needs repeated params for multiple headers
+  const url = `https://gmail.googleapis.com/gmail/v1/users/me/messages/${messageId}?format=metadata&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Cc&metadataHeaders=Subject&metadataHeaders=Date`;
+
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+
+  if (!res.ok) {
+    throw new Error(`Gmail get message failed: ${await res.text()}`);
+  }
+
+  const data = await res.json();
+  const headers: Record<string, string> = {};
+  for (const h of data.payload?.headers || []) {
+    headers[h.name.toLowerCase()] = h.value;
+  }
+
+  return {
+    id: data.id,
+    threadId: data.threadId,
+    snippet: data.snippet || "",
+    internalDate: data.internalDate,
+    headers,
+  };
+}
+
+/**
+ * Parse email addresses from a header value like "Display Name <email@example.com>, other@example.com"
+ */
+export function parseEmailAddresses(
+  headerValue: string
+): Array<{ email: string; name: string }> {
+  if (!headerValue) return [];
+
+  const results: Array<{ email: string; name: string }> = [];
+  // Split on commas, but not commas inside quotes
+  const parts = headerValue.split(/,(?=(?:[^"]*"[^"]*")*[^"]*$)/);
+
+  for (const part of parts) {
+    const trimmed = part.trim();
+    // Format: "Display Name <email@example.com>" or just "email@example.com"
+    const angleMatch = trimmed.match(/^"?(.+?)"?\s*<([^>]+)>$/);
+    if (angleMatch) {
+      results.push({
+        name: angleMatch[1].trim().replace(/^"|"$/g, ""),
+        email: angleMatch[2].trim().toLowerCase(),
+      });
+    } else if (trimmed.includes("@")) {
+      results.push({ name: "", email: trimmed.toLowerCase() });
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Fetch unique email addresses the user has sent emails to.
+ * Scans sent messages and extracts To/Cc addresses.
+ */
+export async function fetchSentToContacts(
+  accessToken: string,
+  maxPages = 10
+): Promise<Array<{ email: string; name: string }>> {
+  const seen = new Map<string, string>(); // email -> best name
+  let pageToken: string | undefined;
+
+  for (let page = 0; page < maxPages; page++) {
+    const { messageIds, nextPageToken } = await listMessages(
+      accessToken,
+      "in:sent",
+      100,
+      pageToken
+    );
+
+    if (messageIds.length === 0) break;
+
+    // Batch fetch metadata (up to 20 at a time to avoid rate limits)
+    const batchSize = 20;
+    for (let i = 0; i < messageIds.length; i += batchSize) {
+      const batch = messageIds.slice(i, i + batchSize);
+      const metadataResults = await Promise.all(
+        batch.map((id) => getMessageMetadata(accessToken, id))
+      );
+
+      for (const meta of metadataResults) {
+        const toAddresses = parseEmailAddresses(meta.headers["to"] || "");
+        const ccAddresses = parseEmailAddresses(meta.headers["cc"] || "");
+
+        for (const addr of [...toAddresses, ...ccAddresses]) {
+          const existing = seen.get(addr.email);
+          // Keep the name if we have one and didn't before
+          if (!existing || (!existing && addr.name)) {
+            seen.set(addr.email, addr.name);
+          }
+        }
+      }
+    }
+
+    if (!nextPageToken) break;
+    pageToken = nextPageToken;
+  }
+
+  return Array.from(seen.entries()).map(([email, name]) => ({ email, name }));
+}
+
+/**
+ * Fetch messages since a given date, matching any of the provided email addresses.
+ * Returns metadata for each message (no body).
+ */
+export async function fetchMessagesSince(
+  accessToken: string,
+  sinceDate: Date,
+  emailAddresses: string[],
+  maxPages = 5
+): Promise<GmailMessageMeta[]> {
+  if (emailAddresses.length === 0) return [];
+
+  const afterEpoch = Math.floor(sinceDate.getTime() / 1000);
+  // Build query: messages to/from any of these addresses since the date
+  const addressQuery = emailAddresses
+    .map((e) => `{from:${e} to:${e}}`)
+    .join(" OR ");
+  const query = `after:${afterEpoch} (${addressQuery})`;
+
+  const allMessages: GmailMessageMeta[] = [];
+  let pageToken: string | undefined;
+
+  for (let page = 0; page < maxPages; page++) {
+    const { messageIds, nextPageToken } = await listMessages(
+      accessToken,
+      query,
+      100,
+      pageToken
+    );
+
+    if (messageIds.length === 0) break;
+
+    const batchSize = 20;
+    for (let i = 0; i < messageIds.length; i += batchSize) {
+      const batch = messageIds.slice(i, i + batchSize);
+      const results = await Promise.all(
+        batch.map((id) => getMessageMetadata(accessToken, id))
+      );
+      allMessages.push(...results);
+    }
+
+    if (!nextPageToken) break;
+    pageToken = nextPageToken;
+  }
+
+  return allMessages;
+}
+
+/**
+ * Revoke a Google OAuth token.
+ */
+export async function revokeToken(token: string): Promise<void> {
+  await fetch(`https://oauth2.googleapis.com/revoke?token=${token}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+  });
+}

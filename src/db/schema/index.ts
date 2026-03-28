@@ -14,3 +14,4 @@ export * from "./app-settings";
 export * from "./connections";
 export * from "./workspaces";
 export * from "./support-tickets";
+export * from "./email-connections";

@@ -9,6 +9,8 @@ import { dispatchCampaignsTask } from "./tasks/dispatch-campaigns";
 import { runSyncTask } from "./tasks/run-sync";
 import { dispatchSyncsTask } from "./tasks/dispatch-syncs";
 import { sendTicketNotificationTask } from "./tasks/send-ticket-notification";
+import { syncEmailInteractionsTask } from "./tasks/sync-email-interactions";
+import { dispatchEmailSyncsTask } from "./tasks/dispatch-email-syncs";
 
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) {
@@ -24,6 +26,8 @@ const taskList: TaskList = {
   run_sync: runSyncTask,
   dispatch_syncs: dispatchSyncsTask,
   send_ticket_notification: sendTicketNotificationTask,
+  sync_email_interactions: syncEmailInteractionsTask,
+  dispatch_email_syncs: dispatchEmailSyncsTask,
 };
 
 const cronItems = parseCronItems([
@@ -35,6 +39,8 @@ const cronItems = parseCronItems([
   { task: "dispatch_campaigns", match: "* * * * *", identifier: "campaign_dispatcher" },
   // Every minute — check for scheduled syncs to run
   { task: "dispatch_syncs", match: "* * * * *", identifier: "sync_dispatcher" },
+  // Every minute — check for email connections due for interaction sync
+  { task: "dispatch_email_syncs", match: "* * * * *", identifier: "email_sync_dispatcher" },
 ]);
 
 async function main() {
