@@ -87,7 +87,13 @@ export async function exchangeCodeForTokens(code: string): Promise<{
     "https://www.googleapis.com/oauth2/v2/userinfo",
     { headers: { Authorization: `Bearer ${data.access_token}` } }
   );
+  if (!userInfoRes.ok) {
+    throw new Error(`Failed to fetch user info: ${await userInfoRes.text()}`);
+  }
   const userInfo = await userInfoRes.json();
+  if (!userInfo.email) {
+    throw new Error("No email returned from Google userinfo endpoint");
+  }
 
   return {
     accessToken: data.access_token,
@@ -222,10 +228,6 @@ export async function getMessageMetadata(
   accessToken: string,
   messageId: string
 ): Promise<GmailMessageMeta> {
-  const params = new URLSearchParams({
-    format: "metadata",
-    metadataHeaders: "From",
-  });
   // Gmail API needs repeated params for multiple headers
   const url = `https://gmail.googleapis.com/gmail/v1/users/me/messages/${messageId}?format=metadata&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Cc&metadataHeaders=Subject&metadataHeaders=Date`;
 
@@ -317,7 +319,7 @@ export async function fetchSentToContacts(
         for (const addr of [...toAddresses, ...ccAddresses]) {
           const existing = seen.get(addr.email);
           // Keep the name if we have one and didn't before
-          if (!existing || (!existing && addr.name)) {
+          if (!existing || (existing === "" && addr.name)) {
             seen.set(addr.email, addr.name);
           }
         }
@@ -383,8 +385,9 @@ export async function fetchMessagesSince(
  * Revoke a Google OAuth token.
  */
 export async function revokeToken(token: string): Promise<void> {
-  await fetch(`https://oauth2.googleapis.com/revoke?token=${token}`, {
+  await fetch("https://oauth2.googleapis.com/revoke", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ token }),
   });
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkAuth, requireAuth } from "@/lib/api-auth";
 import { buildGmailAuthUrl } from "@/lib/gmail";
+import { getActiveWorkspaceId } from "@/lib/workspace-context";
 import { randomBytes } from "crypto";
 
 // GET /api/auth/gmail — initiate Gmail OAuth flow
@@ -9,10 +10,12 @@ export async function GET(request: NextRequest) {
   const authError = requireAuth(authResult);
   if (authError) return authError;
 
-  // Generate state token for CSRF protection (includes userId + random nonce)
+  const workspaceId = await getActiveWorkspaceId(request);
+
+  // Generate state token for CSRF protection (includes userId, workspaceId + random nonce)
   const nonce = randomBytes(16).toString("hex");
   const state = Buffer.from(
-    JSON.stringify({ userId: authResult.userId, nonce })
+    JSON.stringify({ userId: authResult.userId, workspaceId, nonce })
   ).toString("base64url");
 
   const authUrl = buildGmailAuthUrl(state);

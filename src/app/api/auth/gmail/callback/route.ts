@@ -4,7 +4,6 @@ import { exchangeCodeForTokens } from "@/lib/gmail";
 import { encrypt } from "@/lib/encryption";
 import { db } from "@/db";
 import { emailConnections } from "@/db/schema/email-connections";
-import { getActiveWorkspaceId } from "@/lib/workspace-context";
 
 // GET /api/auth/gmail/callback — handle Google OAuth callback
 export async function GET(request: NextRequest) {
@@ -40,7 +39,8 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // Verify the state contains the correct userId
+  // Verify the state contains the correct userId and extract workspaceId
+  let workspaceId: string;
   try {
     const stateData = JSON.parse(
       Buffer.from(state, "base64url").toString("utf8")
@@ -50,6 +50,12 @@ export async function GET(request: NextRequest) {
         `${redirectBase}?error=${encodeURIComponent("User mismatch in OAuth state")}`
       );
     }
+    if (!stateData.workspaceId) {
+      return NextResponse.redirect(
+        `${redirectBase}?error=${encodeURIComponent("Missing workspace in OAuth state")}`
+      );
+    }
+    workspaceId = stateData.workspaceId;
   } catch {
     return NextResponse.redirect(
       `${redirectBase}?error=${encodeURIComponent("Invalid state format")}`
@@ -58,7 +64,6 @@ export async function GET(request: NextRequest) {
 
   try {
     const tokens = await exchangeCodeForTokens(code);
-    const workspaceId = await getActiveWorkspaceId(request);
 
     // Upsert: if connection already exists for this user+provider+email, update it
     await db

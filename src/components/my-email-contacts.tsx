@@ -50,9 +50,12 @@ export function MyEmailContacts() {
       const res = await wsFetch("/api/email-connections");
       if (res.ok) {
         setConnections(await res.json());
+        setError(null);
+      } else {
+        setError("Failed to load email connections.");
       }
     } catch {
-      // ignore
+      setError("Failed to load email connections.");
     } finally {
       setLoading(false);
     }
@@ -148,11 +151,13 @@ function ConnectedView({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<string | null>(null);
+  const [contactsError, setContactsError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [showSettings, setShowSettings] = useState(false);
 
   const fetchContacts = useCallback(async () => {
     setLoadingContacts(true);
+    setContactsError(null);
     try {
       const res = await wsFetch(
         `/api/email-connections/${connection.id}/contacts`
@@ -160,9 +165,11 @@ function ConnectedView({
       if (res.ok) {
         const data = await res.json();
         setGmailContacts(data.contacts);
+      } else {
+        setContactsError("Failed to load Gmail contacts. Please try refreshing.");
       }
     } catch {
-      // ignore
+      setContactsError("Failed to load Gmail contacts. Please try refreshing.");
     } finally {
       setLoadingContacts(false);
     }
@@ -253,10 +260,23 @@ function ConnectedView({
 
   const toggleSelectAll = () => {
     const importable = filteredContacts.filter((c) => !c.inCurrentWorkspace);
-    if (selected.size === importable.length && importable.length > 0) {
-      setSelected(new Set());
+    const allFilteredSelected =
+      importable.length > 0 &&
+      importable.every((c) => selected.has(c.email));
+    if (allFilteredSelected) {
+      // Deselect only the filtered importable contacts
+      setSelected((prev) => {
+        const next = new Set(prev);
+        for (const c of importable) next.delete(c.email);
+        return next;
+      });
     } else {
-      setSelected(new Set(importable.map((c) => c.email)));
+      // Add all filtered importable contacts to selection
+      setSelected((prev) => {
+        const next = new Set(prev);
+        for (const c of importable) next.add(c.email);
+        return next;
+      });
     }
   };
 
@@ -356,6 +376,13 @@ function ConnectedView({
         )}
       </div>
 
+      {/* Contacts error */}
+      {contactsError && (
+        <div className="bg-destructive/10 text-destructive rounded-md px-4 py-2 text-sm">
+          {contactsError}
+        </div>
+      )}
+
       {/* Contacts table */}
       {loadingContacts ? (
         <div className="flex items-center justify-center py-12">
@@ -369,12 +396,10 @@ function ConnectedView({
                 <th className="w-10 px-3 py-2">
                   <input
                     type="checkbox"
-                    checked={
-                      selected.size > 0 &&
-                      selected.size ===
-                        filteredContacts.filter((c) => !c.inCurrentWorkspace)
-                          .length
-                    }
+                    checked={(() => {
+                      const importable = filteredContacts.filter((c) => !c.inCurrentWorkspace);
+                      return importable.length > 0 && importable.every((c) => selected.has(c.email));
+                    })()}
                     onChange={toggleSelectAll}
                     className="rounded"
                   />

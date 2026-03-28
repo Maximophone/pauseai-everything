@@ -80,7 +80,7 @@ export const syncEmailInteractionsTask: Task = async (payload, helpers) => {
   for (const contact of contactRows) {
     if (!contact.email) continue;
     const setting = syncSettings.find((s) => s.contactId === contact.id);
-    emailToContact.set(contact.email.toLowerCase(), {
+    emailToContact.set(contact.email.toLowerCase().trim(), {
       id: contact.id,
       visible: setting?.interactionsVisible ?? true,
     });
@@ -121,15 +121,22 @@ export const syncEmailInteractionsTask: Task = async (payload, helpers) => {
   let skipped = 0;
 
   for (const msg of messages) {
-    // Check if already imported (dedup)
-    const [existing] = await db
-      .select({ id: interactions.id })
-      .from(interactions)
-      .where(eq(interactions.providerMessageId, msg.id));
+    // Check if already imported (dedup by providerMessageId)
+    if (msg.id) {
+      const [existing] = await db
+        .select({ id: interactions.id })
+        .from(interactions)
+        .where(
+          and(
+            eq(interactions.providerMessageId, msg.id),
+            eq(interactions.emailConnectionId, emailConnectionId)
+          )
+        );
 
-    if (existing) {
-      skipped++;
-      continue;
+      if (existing) {
+        skipped++;
+        continue;
+      }
     }
 
     // Find which CRM contact this message relates to
