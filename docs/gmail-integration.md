@@ -293,6 +293,9 @@ The Google OAuth client in Google Cloud Console needs the Gmail API enabled and 
 - Junk/automated email addresses (e.g. `01000199a213f3cd-...@send.happenstance.fyi`) appear at the top of the list because they start with numbers. Need filtering or sorting improvements — consider deprioritizing addresses that look automated (noreply, UUIDs, tracking domains).
 - When adding a Gmail contact to the CRM, the user should be able to **edit the name** before importing. Gmail header names can be incorrect, missing, or formatted oddly.
 
+### Contact detail page integration
+- When viewing a contact, if the current user has a connected Gmail account, the system should check whether the contact's email appears in their Gmail history. If so, show a prompt/button to enable interaction syncing for that contact — a quick entry point without needing to go through the My Email Contacts page.
+
 ## What This Does NOT Cover
 
 - **Sending emails via Gmail** (Tier 3) — future enhancement
