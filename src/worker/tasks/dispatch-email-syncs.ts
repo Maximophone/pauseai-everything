@@ -23,7 +23,7 @@ export const dispatchEmailSyncsTask: Task = async (_payload, helpers) => {
         eq(emailConnections.status, "connected"),
         or(
           isNull(emailConnections.lastSyncedAt),
-          sql`${emailConnections.lastSyncedAt} + (${emailConnections.syncIntervalMinutes} || ' minutes')::interval <= ${now}`
+          sql`${emailConnections.lastSyncedAt} + (${emailConnections.syncIntervalMinutes} || ' minutes')::interval <= ${now.toISOString()}`
         )
       )
     );
