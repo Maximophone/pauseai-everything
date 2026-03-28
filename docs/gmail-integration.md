@@ -281,6 +281,18 @@ The Google OAuth client in Google Cloud Console needs the Gmail API enabled and 
 - The `visible_to_team` flag ensures users control what colleagues can see
 - Admin visibility: admins can see that a user has connected Gmail and sync statistics, but cannot read synced email content
 
+## Known Issues & Improvements (from first testing, 2026-03-28)
+
+### Interactions display
+- Only emails **sent by** the user are synced — received emails are missing. The sync should include both directions.
+- No visual indicator on the interaction timeline showing whether an interaction is **visible to all** or **private to the user**. Users need to see and control this at a glance.
+- Visibility should be controllable **per interaction** (not just per contact). A user may want most interactions with a contact to be visible but flag specific sensitive ones as private.
+- The overall interactions UX needs a design pass — think about what information is most useful and how to present it.
+
+### My Email Contacts page
+- Junk/automated email addresses (e.g. `01000199a213f3cd-...@send.happenstance.fyi`) appear at the top of the list because they start with numbers. Need filtering or sorting improvements — consider deprioritizing addresses that look automated (noreply, UUIDs, tracking domains).
+- When adding a Gmail contact to the CRM, the user should be able to **edit the name** before importing. Gmail header names can be incorrect, missing, or formatted oddly.
+
 ## What This Does NOT Cover
 
 - **Sending emails via Gmail** (Tier 3) — future enhancement
