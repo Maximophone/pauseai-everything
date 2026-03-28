@@ -15,6 +15,7 @@ export const docsManifest: DocSection[] = [
     pages: [
       { slug: "welcome", title: "Welcome & Overview", file: "user-guide/welcome.md" },
       { slug: "contacts", title: "Contacts", file: "user-guide/contacts.md" },
+      { slug: "my-email-contacts", title: "My Email Contacts", file: "user-guide/my-email-contacts.md" },
       { slug: "email", title: "Email", file: "user-guide/email.md" },
       { slug: "automations", title: "Automations", file: "user-guide/automations.md" },
       { slug: "connections", title: "Connections & Sync", file: "user-guide/connections.md" },
