@@ -115,6 +115,7 @@ railway up --detach --service worker
 | `ADMIN_EMAILS` | Comma-separated emails auto-promoted to admin on sign-in | Recommended |
 | `UNSUBSCRIBE_SECRET` | HMAC secret for unsubscribe tokens (`openssl rand -hex 32`) | Yes |
 | `NEXT_PUBLIC_APP_URL` | Public URL used in unsubscribe links | Yes |
+| `EMAIL_ENCRYPTION_KEY` | AES-256 key for encrypting Gmail OAuth tokens (`openssl rand -hex 32`) | Yes (if Gmail integration used) |
 | `NODE_ENV` | Must be `production` | Yes |
 | `DEV_BYPASS_AUTH` | Must be `false` in production (bypass only works when NODE_ENV=development) | No |
 
@@ -127,6 +128,7 @@ railway up --detach --service worker
 | `MAILERSEND_FROM_EMAIL` | From address fallback (prefer setting via the UI) | No |
 | `UNSUBSCRIBE_SECRET` | Same value as web — needed for unsubscribe URL generation during campaign sends | Yes |
 | `NEXT_PUBLIC_APP_URL` | Same value as web — used in unsubscribe URLs | Yes |
+| `EMAIL_ENCRYPTION_KEY` | Same value as web — needed for Gmail token decryption during sync | Yes (if Gmail integration used) |
 | `NODE_ENV` | `production` | Yes |
 
 ### Setting variables
@@ -172,6 +174,13 @@ The Google OAuth app must have the production URL registered as an authorized re
 https://web-production-4523c.up.railway.app/api/auth/callback/google
 ```
 
+For Gmail integration, also add the Gmail OAuth callback:
+```
+https://web-production-4523c.up.railway.app/api/auth/gmail/callback
+```
+
+The Gmail API must be enabled in the Google Cloud project, and the OAuth consent screen must include the `gmail.readonly` scope.
+
 Configure this in the [Google Cloud Console](https://console.cloud.google.com/apis/credentials).
 
 ## Worker Jobs
@@ -182,6 +191,8 @@ Configure this in the [Google Cloud Console](https://console.cloud.google.com/ap
 | `run_script` | On-demand or scheduled | Executes a user-defined script in a sandboxed VM |
 | `dispatch_scripts` | Cron: every minute (`* * * * *`) | Checks for enabled scripts with cron schedules and enqueues `run_script` jobs |
 | `detect_churn` | Cron: daily at 6am UTC (`0 6 * * *`) | Flags dormant contacts based on inactivity |
+| `sync_email_interactions` | On-demand (enqueued by dispatcher or manual refresh) | Fetches Gmail messages, matches to CRM contacts, creates interactions |
+| `dispatch_email_syncs` | Cron: every minute (`* * * * *`) | Enqueues email connections whose sync interval has elapsed |
 
 ## Troubleshooting
 

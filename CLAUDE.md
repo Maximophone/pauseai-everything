@@ -11,6 +11,9 @@ CRM and operations platform for PauseAI Global. Built with Next.js 16 (App Route
 - **Business logic:** `src/lib/*.ts`
 - **Connectors:** `src/lib/connectors/` (Airtable, Notion, Demo)
 - **Sync engine:** `src/lib/sync-engine.ts`
+- **Email connections schema:** `src/db/schema/email-connections.ts` (email_connections + email_contact_settings tables)
+- **Gmail client:** `src/lib/gmail.ts` (OAuth, message fetching, address parsing)
+- **Encryption:** `src/lib/encryption.ts` (AES-256-GCM token encryption)
 - **Background workers:** `src/worker/` (Graphile Worker)
 - **UI components:** `src/components/` (React + shadcn/ui)
 - **Workspace design:** See [docs/workspaces.md](docs/workspaces.md) for the multi-tenancy specification
@@ -57,3 +60,6 @@ The app supports multiple workspaces: one **global** workspace (PauseAI Global) 
 - Workspace switching triggers `window.location.reload()` — don't use refs to detect changes; check entity workspace ownership after fetch instead
 - Connections UI lives at `/dashboard/connections` (top-level sidebar, admin-only), not under Settings
 - When using `stripNulls()` in API routes, extract nullable fields that carry meaning (like `segmentId`, `categoryId`) before stripping
+- Email connections are **user-scoped** (not workspace-scoped like Airtable/Notion connections). Imported contacts belong to the active workspace.
+- Email interaction visibility: a user's own synced emails are always visible to them; other users only see interactions where `visible_to_team = true`
+- OAuth tokens for email connections are encrypted at rest with AES-256-GCM (`EMAIL_ENCRYPTION_KEY` env var)

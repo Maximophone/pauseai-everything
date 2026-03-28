@@ -225,6 +225,28 @@
   - API key masked in GET /api/settings response
   - `resolveMailerSendKey()` / `resolveFromEmail()` helpers used throughout (web + worker)
 
+### Phase 12: Personal Email Integration (My Email Contacts) ✅
+
+- [x] Schema: `email_connections` table (user-scoped, provider, encrypted OAuth tokens, sync settings, status)
+- [x] Schema: `email_contact_settings` table (per-contact sync and visibility toggles)
+- [x] Schema: `interactions` table additions — `email_connection_id` FK, `provider_message_id` dedup index, `visible_to_team` boolean
+- [x] AES-256-GCM token encryption (`src/lib/encryption.ts`, `EMAIL_ENCRYPTION_KEY` env var)
+- [x] Gmail API client (`src/lib/gmail.ts`): OAuth flow, message fetching, address parsing
+- [x] Zod validation schemas for email connections and contact settings
+- [x] Gmail OAuth flow: `GET /api/auth/gmail` (initiate) + `GET /api/auth/gmail/callback` (exchange + encrypt + store)
+- [x] Email connections CRUD: list, delete (with token revocation), update default settings
+- [x] Gmail contacts list: browse everyone user has emailed, with CRM match status
+- [x] Contact import: add Gmail contacts to the active workspace
+- [x] Manual refresh: trigger on-demand sync via worker job
+- [x] Per-contact settings: sync interactions on/off, visible to team on/off, bulk update
+- [x] Worker task `sync_email_interactions`: fetch Gmail messages, match to CRM contacts, create interactions (subject + snippet only)
+- [x] Worker task `dispatch_email_syncs`: cron every minute, enqueue connections whose sync interval has elapsed
+- [x] Interaction visibility filtering: own synced emails always visible; others see only `visible_to_team = true`
+- [x] UI: "My Email Contacts" page (`/dashboard/my-email-contacts`) with connect/disconnect, contacts table, import, settings
+- [x] UI: Gmail badge + "Private" indicator on contact interaction timeline
+- [x] UI: Sidebar nav item "My Email Contacts" (InboxIcon, visible to all roles)
+- [x] Provider-agnostic schema design (supports future Outlook/IMAP)
+
 ---
 
 ## Testing strategy
@@ -261,4 +283,5 @@ Every phase ships with tests. The core data layer and API must be robust.
 - **After Phase 8c:** External data flows in automatically. Airtable and Notion contacts sync on schedule with provenance tracking. Table scales to 100k contacts.
 - **After Phase 9:** You have visibility into how the org is doing. Full v1.
 - **After Phase 10:** Multi-tenant with workspaces. Each chapter operates independently.
-- **After Phase 11:** Self-documented with in-app docs and built-in feedback loop via support tickets. ← *we are here*
+- **After Phase 11:** Self-documented with in-app docs and built-in feedback loop via support tickets.
+- **After Phase 12:** Users can connect their personal Gmail to discover contacts, import them, and auto-log email interactions. ← *we are here*

@@ -852,6 +852,126 @@ Receive Tally form submissions, creates/updates contacts and logs interactions. 
 
 **Errors:** `400 invalid JSON / no email`
 
+## Gmail OAuth
+
+### `GET /api/auth/gmail`
+
+Initiate Gmail OAuth flow. Redirects the user to Google's consent screen requesting `gmail.readonly` scope. This is a separate OAuth flow from the login flow. **Auth: Session**
+
+**Response:** Redirect to Google OAuth
+
+### `GET /api/auth/gmail/callback`
+
+Handle the Gmail OAuth callback. Exchanges the authorization code for tokens, encrypts them, and stores the email connection. **Auth: Session**
+
+**Response:** Redirect to `/dashboard/my-email-contacts`
+
+## Email Connections
+
+### `GET /api/email-connections`
+
+List the current user's email connections. **Auth: Session**
+
+**Response:** EmailConnection[]
+
+### `DELETE /api/email-connections/:id`
+
+Disconnect an email connection and revoke the OAuth token. **Auth: Session**
+
+**Response:** { success: true }
+
+**Errors:** `404 not found`, `403 not owner`
+
+### `PUT /api/email-connections/:id/settings`
+
+Update default sync settings for an email connection. **Auth: Session**
+
+**Request body:**
+```
+{
+  "syncInteractions": boolean?,
+  "interactionsVisible": boolean?
+}
+```
+
+**Response:** EmailConnection
+
+**Errors:** `404 not found`, `403 not owner`
+
+### `GET /api/email-connections/:id/contacts`
+
+List contacts from the user's Gmail with CRM match status (matched by email). **Auth: Session**
+
+**Response:** { contacts: GmailContact[], total: number }
+
+**Errors:** `404 not found`, `403 not owner`
+
+### `POST /api/email-connections/:id/contacts/import`
+
+Import Gmail contacts to the active workspace. **Auth: Session**
+
+**Request body:**
+```
+{
+  "emails": string[]
+}
+```
+
+**Response:** { imported: number, skipped: number }
+
+**Errors:** `400 validation`, `404 not found`, `403 not owner`
+
+### `POST /api/email-connections/:id/refresh`
+
+Trigger a manual email sync (enqueues a worker job). **Auth: Session**
+
+**Response:** { queued: true }
+
+**Errors:** `404 not found`, `403 not owner`
+
+## Email Contact Settings
+
+### `GET /api/email-contact-settings`
+
+List per-contact sync settings for the current user's email connections. **Auth: Session**
+
+**Response:** EmailContactSetting[]
+
+### `PUT /api/email-contact-settings/:contactId`
+
+Update sync settings for a specific contact. **Auth: Session**
+
+**Request body:**
+```
+{
+  "syncInteractions": boolean?,
+  "interactionsVisible": boolean?
+}
+```
+
+**Response:** EmailContactSetting
+
+**Errors:** `404 not found`
+
+### `PUT /api/email-contact-settings`
+
+Bulk update per-contact sync settings. **Auth: Session**
+
+**Request body:**
+```
+{
+  "settings": {
+    "contactId": string (uuid),
+    "syncInteractions": boolean?,
+    "interactionsVisible": boolean?
+  }[]
+}
+```
+
+**Response:** { updated: number }
+
+**Errors:** `400 validation`
+
 ## Appendix: Segment Filter Schema
 
 Used in segment creation and preview endpoints:

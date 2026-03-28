@@ -18,6 +18,7 @@ A Next.js web app + background worker that replaces Airtable + manual email work
 - **Communication preferences** — three-state subscription model (subscribed/unsubscribed/neutral) per workspace per category; contacts must be explicitly subscribed to receive categorized emails; public unsubscribe page with preference center; HMAC-signed unsubscribe links; `{{unsubscribe}}` merge variable for in-body links
 - **Scripts** — write JavaScript automation scripts that run on a schedule or on demand (e.g. flag dormant contacts, bulk-update fields)
 - **Settings** — manage workspaces, custom fields, users (per-workspace), API keys, email categories, app-level settings
+- **My Email Contacts** — connect your personal Gmail account to browse email contacts, import them to the workspace, and auto-log email interactions on contact timelines. User-scoped connections with per-contact sync/visibility settings, encrypted OAuth tokens, and worker-based periodic sync.
 - **Role-based access** — two-layer role system (global + workspace roles) with invite-only login via Google OAuth
 
 ## Tech stack
@@ -66,6 +67,7 @@ AUTH_GOOGLE_SECRET=...
 DEV_BYPASS_AUTH=true   # skip Google login in development
 ADMIN_EMAILS=you@example.com   # auto-promote to admin
 UNSUBSCRIBE_SECRET=...         # openssl rand -hex 32
+EMAIL_ENCRYPTION_KEY=...       # openssl rand -hex 32 (for Gmail OAuth token encryption)
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
@@ -103,6 +105,7 @@ pauseai-everything/
 │   │   │   ├── email/          # Campaigns
 │   │   │   ├── segments/       # Segment builder
 │   │   │   ├── automations/    # Script editor (JS automation)
+│   │   │   ├── my-email-contacts/ # Gmail integration (personal email contacts)
 │   │   │   └── settings/       # Workspaces, fields, users, API keys, email categories
 │   │   ├── api/                # API route handlers
 │   │   │   ├── contacts/
@@ -114,6 +117,9 @@ pauseai-everything/
 │   │   │   ├── users/
 │   │   │   ├── api-keys/
 │   │   │   ├── communication-categories/
+│   │   │   ├── auth/gmail/         # Gmail OAuth flow
+│   │   │   ├── email-connections/  # Email connection CRUD + contacts + import
+│   │   │   ├── email-contact-settings/ # Per-contact sync settings
 │   │   │   ├── settings/
 │   │   │   ├── unsubscribe/
 │   │   │   └── webhooks/
@@ -165,6 +171,7 @@ npm run docs:api      # Regenerate docs/api-reference.md from Zod schemas
 | [docs/build-plan.md](docs/build-plan.md) | Build phases with completion status |
 | [docs/features.md](docs/features.md) | Feature specs, backlog, and future ideas |
 | [docs/workspaces.md](docs/workspaces.md) | Multi-tenancy (workspaces) design specification |
+| [docs/gmail-integration.md](docs/gmail-integration.md) | Gmail / personal email integration design doc |
 | [docs/future-features.md](docs/future-features.md) | Out-of-scope ideas captured for later |
 
 ## Auth & Permissions

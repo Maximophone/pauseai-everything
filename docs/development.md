@@ -50,6 +50,7 @@ Edit `.env`:
 | `ADMIN_EMAILS` | Comma-separated emails auto-promoted to admin | e.g. `you@example.com` |
 | `UNSUBSCRIBE_SECRET` | HMAC secret for unsubscribe tokens | `openssl rand -hex 32` |
 | `NEXT_PUBLIC_APP_URL` | Public URL for unsubscribe links | `http://localhost:3000` |
+| `EMAIL_ENCRYPTION_KEY` | AES-256 key for encrypting Gmail OAuth tokens | `openssl rand -hex 32` (required for Gmail integration) |
 | `DEV_BYPASS_AUTH` | Set to `true` to skip Google login in dev | Dev only |
 
 **Two auth modes for development:**
@@ -264,6 +265,7 @@ All table definitions are in `src/db/schema/`:
 | `communication-categories.ts` | `communication_categories` |
 | `app-settings.ts` | `app_settings` (key-value store) |
 | `connections.ts` | `connections`, `sync_configurations`, `sync_runs` |
+| `email-connections.ts` | `email_connections`, `email_contact_settings` |
 | `users.ts` | `user`, `account`, `session`, `verificationToken` (NextAuth tables) |
 | `index.ts` | Re-exports all schemas |
 
@@ -326,6 +328,9 @@ Your schema references a table that doesn't exist yet. Run `npx drizzle-kit push
 
 **Worker crashes on startup**
 Check `DATABASE_URL` is set. The worker requires it and will throw immediately if missing.
+
+**Gmail integration setup**
+To use the personal email integration locally, you need a Google Cloud project with the Gmail API enabled and an OAuth client configured. Add `http://localhost:3000/api/auth/gmail/callback` as an authorized redirect URI (this is separate from the login OAuth callback). Set `AUTH_GOOGLE_ID` and `AUTH_GOOGLE_SECRET` to the same Google OAuth client, and set `EMAIL_ENCRYPTION_KEY` to a random 32-byte hex string (`openssl rand -hex 32`).
 
 **Google OAuth "redirect_uri_mismatch"**
 The callback URL `http://localhost:3000/api/auth/callback/google` must be in your Google Cloud Console's authorized redirect URIs.

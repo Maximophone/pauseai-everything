@@ -15,14 +15,15 @@ A custom-built platform for PauseAI Global that starts as a CRM and grows into t
 │  Contacts, lifecycle stages, interactions,           │
 │  segments, campaigns, email orchestration,           │
 │  admin dashboard, background jobs, scripts,          │
-│  external data sync (connections)                    │
-└──┬──────────┬──────────────┬───────────────┬─────────┘
-   │          │              │               │
-┌──▼───┐ ┌───▼─────┐ ┌─────▼─────┐  ┌──────▼──────┐
-│Airt- │ │Mailer-  │ │   Tally   │  │   Notion    │
-│able  │ │send     │ │  (forms)  │  │ (data sync  │
-│(sync)│ │ (email) │ │           │  │  + wiki)    │
-└──────┘ └─────────┘ └───────────┘  └─────────────┘
+│  external data sync (connections),                   │
+│  personal email integration (Gmail)                  │
+└──┬──────────┬──────────────┬───────────────┬─────────┬──────────┐
+   │          │              │               │         │
+┌──▼───┐ ┌───▼─────┐ ┌─────▼─────┐  ┌──────▼──────┐ ┌▼────────┐
+│Airt- │ │Mailer-  │ │   Tally   │  │   Notion    │ │ Gmail   │
+│able  │ │send     │ │  (forms)  │  │ (data sync  │ │ (email  │
+│(sync)│ │ (email) │ │           │  │  + wiki)    │ │  sync)  │
+└──────┘ └─────────┘ └───────────┘  └─────────────┘ └─────────┘
 ```
 
 **The app owns:**
@@ -34,12 +35,14 @@ A custom-built platform for PauseAI Global that starts as a CRM and grows into t
 - Communication preferences and unsubscribe management
 - Background jobs and automations (JavaScript scripts with cron scheduling)
 - External data sync — one-way import from connected data sources
+- Personal email integration — users connect Gmail to browse email contacts, import to CRM, and auto-log interactions
 
 **External services:**
 - **Mailersend** — sends the actual emails
 - **Tally** — collects form submissions via webhooks
 - **Airtable** — data sync source (one-way import of contacts)
 - **Notion** — data sync source + docs/wiki
+- **Gmail API** — personal email contact discovery and interaction sync (user-scoped, OAuth with `gmail.readonly`)
 
 ## Tech stack
 
@@ -84,10 +87,12 @@ Two processes from the same codebase, sharing the same Postgres database.
 │  - send_campaign                     │
 │  - run_script                        │
 │  - detect_churn                      │
+│  - sync_email_interactions           │
 │                                      │
 │  Cron jobs (every minute):           │
 │  - dispatch_campaigns                │
 │  - dispatch_scripts                  │
+│  - dispatch_email_syncs              │
 │                                      │
 │  Cron jobs (daily):                  │
 │  - detect_churn (6am UTC)            │
@@ -116,6 +121,8 @@ Two processes from the same codebase, sharing the same Postgres database.
 | `connections` | External data source credentials and status |
 | `sync_configurations` | Per-resource sync settings, field mapping, schedule |
 | `sync_runs` | Sync execution history with statistics |
+| `email_connections` | User-scoped email provider connections (Gmail etc.), encrypted OAuth tokens, sync settings |
+| `email_contact_settings` | Per-contact sync and visibility settings for email connections |
 
 ### Multi-tenancy tables
 
@@ -246,6 +253,13 @@ Three auth paths:
 3. Preset users: admin (global admin), member, viewer, France chapter admin
 4. Only available when `NODE_ENV=development`
 
+**Gmail OAuth (personal email integration)**
+1. User clicks "Connect Gmail" on `/dashboard/my-email-contacts`
+2. `GET /api/auth/gmail` redirects to Google with `gmail.readonly` scope (separate from login OAuth)
+3. Google callback hits `/api/auth/gmail/callback`, which exchanges the code for tokens
+4. Tokens are encrypted with AES-256-GCM (`EMAIL_ENCRYPTION_KEY`) and stored in `email_connections`
+5. Connection is user-scoped (not workspace-scoped) — the user owns it across workspaces
+
 **API keys (machine-to-machine)**
 1. Admin creates a key in Settings > API Keys
 2. Key is shown once, then stored as a SHA-256 hash in the DB
@@ -348,6 +362,19 @@ DELETE /api/connections/:id/syncs/:syncId                   delete sync config
 POST   /api/connections/:id/syncs/:syncId/run               trigger sync run
 GET    /api/connections/:id/syncs/:syncId/runs              list sync runs
 
+# Email Connections (user-scoped, personal email integration)
+GET    /api/auth/gmail                                     initiate Gmail OAuth
+GET    /api/auth/gmail/callback                            Gmail OAuth callback
+GET    /api/email-connections                              list user's connections
+DELETE /api/email-connections/:id                          disconnect + revoke
+PUT    /api/email-connections/:id/settings                 update default sync settings
+GET    /api/email-connections/:id/contacts                 list Gmail contacts with CRM match
+POST   /api/email-connections/:id/contacts/import          import contacts to workspace
+POST   /api/email-connections/:id/refresh                  trigger manual sync
+GET    /api/email-contact-settings                         list per-contact settings
+PUT    /api/email-contact-settings/:contactId              update per-contact settings
+PUT    /api/email-contact-settings                         bulk update settings
+
 # Inbound webhooks
 POST   /api/webhooks/tally        Tally form submission intake
 POST   /api/webhooks/mailersend   Mailersend delivery/tracking/unsubscribe events
@@ -364,6 +391,8 @@ POST   /api/webhooks/mailersend   Mailersend delivery/tracking/unsubscribe event
 | `dispatch_scripts` | Cron: `* * * * *` | Enqueues scripts whose cron schedule matches current time |
 | `run_sync` | On-demand | Fetches records from external source and syncs to contacts |
 | `dispatch_syncs` | Cron: `* * * * *` | Enqueues sync configs whose schedule is due |
+| `sync_email_interactions` | On-demand | Fetches Gmail messages, matches to CRM contacts, creates interactions |
+| `dispatch_email_syncs` | Cron: `* * * * *` | Enqueues email connections whose sync interval has elapsed |
 
 ## Hosting and deployment
 

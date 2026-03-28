@@ -78,6 +78,18 @@ Each connection (external database sync) targets a specific workspace. When a sy
 
 The connection configuration must include a `workspace_id` field specifying the target workspace.
 
+### Email Connections (Personal Email Integration)
+
+Email connections (Gmail integration) are **user-scoped**, not workspace-scoped. This is intentionally different from data sync connections (Airtable, Notion) which are workspace-scoped.
+
+- Each user owns their email connection — it is tied to their user account, not a workspace
+- The connection persists across workspace switches
+- When a user imports Gmail contacts, they are added to the **currently active workspace**
+- Synced email interactions are associated with the user's email connection, not a workspace directly
+- Visibility of synced interactions follows user-scoped rules: the owner always sees their own synced emails; other users only see interactions marked `visible_to_team = true`
+
+This design reflects the fact that a user's email inbox is personal, while the contacts and interactions they choose to share belong to whichever workspace they import into.
+
 ## User Experience Flows
 
 ### Workspace Switcher

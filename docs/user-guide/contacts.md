@@ -45,6 +45,10 @@ Go to **Contacts → Import** to bulk-import contacts from a CSV file.
 
 Duplicate detection is based on email address. If a contact with the same email already exists, their fields will be updated rather than creating a duplicate.
 
+### Importing from Gmail
+
+You can also import contacts from your personal Gmail account. Go to **My Email Contacts** in the sidebar, connect your Gmail account, and browse everyone you have emailed. Select contacts and click "Add to Workspace" to import them. See the [My Email Contacts](my-email-contacts.md) guide for details.
+
 ## Tags
 
 Tags are simple labels you attach to contacts for flexible categorization. Examples: "volunteer", "board-member", "media-contact", "event-attendee-2026".

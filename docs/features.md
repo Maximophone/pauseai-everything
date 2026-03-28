@@ -423,6 +423,49 @@ The contacts table uses **AG Grid Infinite Row Model** to handle 10k–100k cont
 
 ---
 
+## Milestone 1d: Personal Email Integration (My Email Contacts) ✅
+
+Users can connect their personal Gmail account to the CRM to discover contacts, import them, and auto-log email interactions.
+
+### 1d.1 Gmail connection
+
+- User-scoped OAuth connection (separate from login OAuth, requests `gmail.readonly`)
+- OAuth tokens encrypted at rest (AES-256-GCM, `EMAIL_ENCRYPTION_KEY` env var)
+- One connection per user per provider per email address
+- Connection management: connect, disconnect (with token revocation), status tracking
+- Provider-agnostic schema — `provider` column supports future Outlook/IMAP
+
+### 1d.2 Email contacts table
+
+- "My Email Contacts" sidebar item (visible to all users, InboxIcon)
+- **Not connected state**: centered card with "Connect Gmail Account" button
+- **Connected state**: table of everyone the user has emailed (from Gmail sent messages, not just Google Contacts)
+- CRM match highlighting: contacts already in the workspace shown at the top with "In Workspace" badge
+- Bulk "Add to Workspace" action for importing multiple contacts at once
+- Per-contact toggles: sync interactions (on/off), visible to team (on/off)
+- Search/filter within the Gmail contacts list
+- Connection settings: default sync/visibility preferences, sync interval
+
+### 1d.3 Interaction sync
+
+- Worker task `sync_email_interactions`: fetches messages since last sync, matches to CRM contacts, creates interaction records
+- Worker dispatcher `dispatch_email_syncs`: cron every minute, enqueues due sync jobs based on interval
+- Manual "Sync Now" button for on-demand refresh
+- Dedup via `provider_message_id` (Gmail message ID, indexed)
+- Interactions store subject + snippet only (body not stored for privacy)
+- Type: `email_sent` or `email_received` based on From/To matching
+
+### 1d.4 Visibility controls
+
+- `visible_to_team` flag on each synced interaction (default from per-contact setting)
+- Your own synced emails always visible to you regardless of flag
+- Other users only see interactions where `visible_to_team = true`
+- Gmail-synced interactions show "Gmail" badge and "Private" indicator on contact timeline
+- Per-contact settings: `email_contact_settings` table with sync/visibility toggles
+- CRM contacts default to sync **on** (easy opt-out); new imports respect connection defaults
+
+---
+
 ## Ideas / Backlog
 
 Captured ideas for future consideration. Not prioritized yet.

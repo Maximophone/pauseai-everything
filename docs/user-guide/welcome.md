@@ -49,6 +49,7 @@ The sidebar gives you access to everything:
 - **Email** — create and send campaigns
 - **Automations** — automated scripts and rules
 - **Connections** — sync contacts from external systems (admin only)
+- **My Email Contacts** — connect your personal Gmail to browse email contacts, import them to the workspace, and auto-log email interactions
 - **Support** — report issues or request features
 - **Documentation** — you are here
 - **Settings** — user management, custom fields, API keys (admin only)
