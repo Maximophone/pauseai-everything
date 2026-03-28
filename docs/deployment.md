@@ -168,20 +168,22 @@ This development convenience flag **only activates when both conditions are met*
 
 In production (`NODE_ENV=production`), the bypass is **always inactive** regardless of the `DEV_BYPASS_AUTH` value. It is still good practice to set it to `false` or remove it in production.
 
-### Google OAuth setup
-The Google OAuth app must have the production URL registered as an authorized redirect URI:
-```
-https://web-production-4523c.up.railway.app/api/auth/callback/google
-```
+### Google Cloud project
+All OAuth and Gmail API credentials live in the **`pauseai-everything`** GCP project. The OAuth consent screen is set to **External** (users with any email domain can connect). While in "Testing" mode, only manually added test users can authenticate — submit for verification when ready for general access.
 
-For Gmail integration, also add the Gmail OAuth callback:
-```
-https://web-production-4523c.up.railway.app/api/auth/gmail/callback
-```
+A single OAuth client is used for both login and Gmail integration. The following redirect URIs and origins must be configured in [Google Cloud Console](https://console.cloud.google.com/apis/credentials?project=pauseai-everything):
 
-The Gmail API must be enabled in the Google Cloud project, and the OAuth consent screen must include the `gmail.readonly` scope.
+**Authorized redirect URIs:**
+- `http://localhost:3000/api/auth/callback/google` (login — dev)
+- `http://localhost:3000/api/auth/gmail/callback` (Gmail — dev)
+- `https://web-production-4523c.up.railway.app/api/auth/callback/google` (login — prod)
+- `https://web-production-4523c.up.railway.app/api/auth/gmail/callback` (Gmail — prod)
 
-Configure this in the [Google Cloud Console](https://console.cloud.google.com/apis/credentials).
+**Authorized JavaScript origins:**
+- `http://localhost:3000`
+- `https://web-production-4523c.up.railway.app`
+
+The Gmail API and the `gmail.readonly` scope must be enabled in the project.
 
 ## Worker Jobs
 

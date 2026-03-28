@@ -330,7 +330,20 @@ Your schema references a table that doesn't exist yet. Run `npx drizzle-kit push
 Check `DATABASE_URL` is set. The worker requires it and will throw immediately if missing.
 
 **Gmail integration setup**
-To use the personal email integration locally, you need a Google Cloud project with the Gmail API enabled and an OAuth client configured. Add `http://localhost:3000/api/auth/gmail/callback` as an authorized redirect URI (this is separate from the login OAuth callback). Set `AUTH_GOOGLE_ID` and `AUTH_GOOGLE_SECRET` to the same Google OAuth client, and set `EMAIL_ENCRYPTION_KEY` to a random 32-byte hex string (`openssl rand -hex 32`).
+The personal email integration requires a Google Cloud project with the Gmail API enabled. We use the **`pauseai-everything`** GCP project for this. The OAuth consent screen is set to **External** (so users with any email domain can connect) and the Gmail API is enabled.
+
+The same OAuth client (`AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET`) is used for both login and Gmail. The following **authorized redirect URIs** must be configured in [Google Cloud Console](https://console.cloud.google.com/apis/credentials?project=pauseai-everything):
+
+- `http://localhost:3000/api/auth/callback/google` (login — dev)
+- `http://localhost:3000/api/auth/gmail/callback` (Gmail — dev)
+- `https://web-production-4523c.up.railway.app/api/auth/callback/google` (login — prod)
+- `https://web-production-4523c.up.railway.app/api/auth/gmail/callback` (Gmail — prod)
+
+And these **authorized JavaScript origins**:
+- `http://localhost:3000`
+- `https://web-production-4523c.up.railway.app`
+
+Set `EMAIL_ENCRYPTION_KEY` to a random 32-byte hex string (`openssl rand -hex 32`). This must be the same value in both the web and worker services.
 
 **Google OAuth "redirect_uri_mismatch"**
 The callback URL `http://localhost:3000/api/auth/callback/google` must be in your Google Cloud Console's authorized redirect URIs.
