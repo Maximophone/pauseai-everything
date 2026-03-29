@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useHasRole } from "@/lib/hooks/use-user-role";
+import { useWorkspaceFetch } from "@/components/workspace-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -57,6 +58,7 @@ export function ContactDetailForm({
   syncSource?: SyncSource | null;
 }) {
   const router = useRouter();
+  const wsFetch = useWorkspaceFetch();
   const canEdit = useHasRole("member");
   const isAdmin = useHasRole("admin");
 
@@ -118,7 +120,7 @@ export function ContactDetailForm({
 
     setDeleting(true);
     try {
-      await fetch(`/api/contacts/${contact.id}`, { method: "DELETE" });
+      await wsFetch(`/api/contacts/${contact.id}`, { method: "DELETE" });
       router.push("/dashboard/contacts");
       router.refresh();
     } catch {

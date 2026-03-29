@@ -3,11 +3,13 @@ import {
   getContact,
   updateContact,
   deleteContact,
+  removeContactFromWorkspace,
   validateCustomFields,
 } from "@/lib/contacts";
 import { validateBody } from "@/lib/api-validate";
 import { UpdateContactInput } from "@/lib/schemas";
-import { checkAuth, requireAuth, requireMember, requireAdmin } from "@/lib/api-auth";
+import { checkAuth, requireAuth, requireMember } from "@/lib/api-auth";
+import { getActiveWorkspaceId, requireWorkspaceAdmin } from "@/lib/workspace-context";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -71,19 +73,33 @@ export async function PUT(
 }
 
 // DELETE /api/contacts/:id
+// Global admins delete the contact globally.
+// Workspace admins remove the contact from the active workspace only
+// (and delete the record if it has no remaining workspace links).
 export async function DELETE(
   request: NextRequest,
   context: RouteContext
 ) {
   const authResult = await checkAuth(request);
-  const authError = requireAdmin(authResult);
+  const workspaceId = await getActiveWorkspaceId(request);
+  const authError = await requireWorkspaceAdmin(authResult, workspaceId);
   if (authError) return authError;
-  const { id } = await context.params;
-  const deleted = await deleteContact(id);
 
-  if (!deleted) {
-    return NextResponse.json({ error: "Contact not found." }, { status: 404 });
+  const { id } = await context.params;
+
+  // Global admins: hard delete the contact entirely
+  if (authResult.role === "admin") {
+    const deleted = await deleteContact(id);
+    if (!deleted) {
+      return NextResponse.json({ error: "Contact not found." }, { status: 404 });
+    }
+    return NextResponse.json({ success: true });
   }
 
+  // Workspace admins: remove from workspace only
+  const removed = await removeContactFromWorkspace(id, workspaceId);
+  if (!removed) {
+    return NextResponse.json({ error: "Contact not found in this workspace." }, { status: 404 });
+  }
   return NextResponse.json({ success: true });
 }

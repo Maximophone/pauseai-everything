@@ -14,6 +14,15 @@ The **All Contacts** page shows a table of all contacts in your current workspac
 
 The table supports large datasets (tens of thousands of contacts) with server-side pagination.
 
+### Deleting contacts
+
+Deleting a contact is workspace-scoped:
+
+- **Workspace admins** remove the contact from their workspace. If the contact is not linked to any other workspace, the record is deleted entirely.
+- **Global admins** delete the contact globally, removing it from all workspaces at once.
+
+This applies to both single-contact deletion (from the detail page) and bulk deletion (from the table).
+
 ## Contact detail
 
 Click a contact's name to open their detail page. Here you'll find:

@@ -7,12 +7,13 @@ import {
 } from "@/lib/contacts";
 import { validateBody } from "@/lib/api-validate";
 import { CreateContactInput } from "@/lib/schemas";
-import { checkAuth, requireAuth, requireMember, requireAdmin } from "@/lib/api-auth";
-import { getActiveWorkspaceId, requireWorkspaceMember } from "@/lib/workspace-context";
+import { checkAuth, requireAuth } from "@/lib/api-auth";
+import { getActiveWorkspaceId, requireWorkspaceMember, requireWorkspaceAdmin } from "@/lib/workspace-context";
 import { addContactToWorkspace } from "@/lib/workspaces";
 import { db } from "@/db";
 import { contacts } from "@/db/schema/contacts";
-import { inArray } from "drizzle-orm";
+import { contactWorkspaces } from "@/db/schema/workspaces";
+import { inArray, and, eq, sql, notInArray } from "drizzle-orm";
 import { z } from "zod";
 import { getTagsForContacts } from "@/lib/tags";
 
@@ -117,10 +118,12 @@ const BatchDeleteInput = z.object({
   ids: z.array(z.string().uuid()).min(1).max(10000),
 });
 
-// DELETE /api/contacts — batch delete contacts by IDs (admin only)
+// DELETE /api/contacts — batch delete contacts
+// Global admins: hard delete. Workspace admins: remove from workspace only.
 export async function DELETE(request: NextRequest) {
   const authResult = await checkAuth(request);
-  const authError = requireAdmin(authResult);
+  const workspaceId = await getActiveWorkspaceId(request);
+  const authError = await requireWorkspaceAdmin(authResult, workspaceId);
   if (authError) return authError;
 
   const body = await request.json();
@@ -128,7 +131,40 @@ export async function DELETE(request: NextRequest) {
   if (!parsed.success) return parsed.error;
 
   const { ids } = parsed.data;
-  await db.delete(contacts).where(inArray(contacts.id, ids));
+
+  if (authResult.role === "admin") {
+    // Global admin: hard delete all
+    await db.delete(contacts).where(inArray(contacts.id, ids));
+  } else {
+    // Workspace admin: remove workspace links
+    await db
+      .delete(contactWorkspaces)
+      .where(
+        and(
+          inArray(contactWorkspaces.contactId, ids),
+          eq(contactWorkspaces.workspaceId, workspaceId)
+        )
+      );
+
+    // Delete contact records that have no remaining workspace links
+    const orphaned = await db
+      .select({ id: contacts.id })
+      .from(contacts)
+      .where(
+        and(
+          inArray(contacts.id, ids),
+          sql`${contacts.id} NOT IN (
+            SELECT ${contactWorkspaces.contactId} FROM ${contactWorkspaces}
+          )`
+        )
+      );
+
+    if (orphaned.length > 0) {
+      await db
+        .delete(contacts)
+        .where(inArray(contacts.id, orphaned.map((o) => o.id)));
+    }
+  }
 
   return NextResponse.json({ deleted: ids.length });
 }
