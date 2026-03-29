@@ -16,8 +16,8 @@ Moved token to POST request body instead of query parameter.
 
 ## High
 
-### 5. OAuth state contains userId in plaintext — NEEDS INPUT
-The OAuth `state` parameter is just base64url-encoded JSON `{ userId, nonce }`. The `userId` is visible to anyone who can observe the redirect URL (browser extensions, network logs, referrer headers). The state should be an opaque server-side token or encrypted. Requires design decision on approach (encrypt with EMAIL_ENCRYPTION_KEY? use opaque session-stored token?).
+### 5. ~~OAuth state contains userId in plaintext~~ — WONTFIX
+The OAuth `state` parameter contains base64url-encoded `{ userId, workspaceId, nonce }`. These are random UUIDs (not secrets), CSRF protection is intact via cookie comparison, and keeping IDs visible aids debugging. Not a meaningful security risk.
 
 ### 6. ~~No workspace scoping on email-contact-settings GET endpoint~~ — FIXED
 Added workspace filtering to the GET endpoint so it only returns settings for connections in the active workspace.
