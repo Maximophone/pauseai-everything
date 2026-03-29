@@ -2,6 +2,7 @@ import {
   pgTable,
   uuid,
   text,
+  integer,
   boolean,
   timestamp,
   uniqueIndex,
@@ -35,7 +36,7 @@ export const emailConnections = pgTable(
       .notNull()
       .default(true),
     lastSyncedAt: timestamp("last_synced_at"),
-    syncIntervalMinutes: text("sync_interval_minutes").notNull().default("5"),
+    syncIntervalMinutes: integer("sync_interval_minutes").notNull().default(5),
     status: text("status").notNull().default("connected"), // "connected" | "error" | "disconnected"
     statusMessage: text("status_message"),
     createdAt: timestamp("created_at").defaultNow().notNull(),

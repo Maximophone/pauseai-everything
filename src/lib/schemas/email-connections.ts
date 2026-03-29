@@ -5,7 +5,7 @@ import { z } from "zod";
 export const UpdateEmailConnectionSettingsInput = z.object({
   defaultSyncInteractions: z.boolean().optional(),
   defaultInteractionsVisible: z.boolean().optional(),
-  syncIntervalMinutes: z.enum(["1", "5", "15", "30", "60"]).optional(),
+  syncIntervalMinutes: z.union([z.literal(1), z.literal(5), z.literal(15), z.literal(30), z.literal(60)]).optional(),
 });
 export type UpdateEmailConnectionSettingsInput = z.infer<
   typeof UpdateEmailConnectionSettingsInput

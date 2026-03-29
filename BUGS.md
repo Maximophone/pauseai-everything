@@ -36,20 +36,20 @@ Fixed condition from `(!existing || (!existing && addr.name))` to `(!existing ||
 ### 10. ~~`userInfoRes` response not checked for errors~~ — FIXED
 Added `res.ok` check and email presence validation after fetching user info from Google.
 
-### 11. `syncIntervalMinutes` stored as text, not integer — NEEDS INPUT
-The column is `text("sync_interval_minutes")` but represents a numeric value. Changing to integer requires a DB migration.
+### 11. ~~`syncIntervalMinutes` stored as text, not integer~~ — FIXED
+Changed column from `text` to `integer` in schema, updated Zod schema to use numeric literals, simplified dispatch SQL (no more `::int` cast needed), and generated migration.
 
 ### 12. ~~`getMessageMetadata` builds URL manually, ignores the `params` variable~~ — FIXED
 Removed the dead `URLSearchParams` variable.
 
-### 13. Connection settings panel is read-only — NEEDS INPUT
-The `ConnectionSettings` component receives `onUpdate` callback but never calls it and provides no way to edit settings. Needs UI design for the editing interface.
+### 13. ~~Connection settings panel is read-only~~ — FIXED
+Added toggle buttons for boolean settings and a dropdown for sync interval. Wired up `onUpdate` to call the settings API and refresh the connection list.
 
-### 14. Import endpoint processes contacts sequentially with N+1 queries — NEEDS INPUT
-Each contact in the import array results in 2-3 separate DB queries. Architectural optimization needed for batch processing.
+### 14. ~~Import endpoint processes contacts sequentially with N+1 queries~~ — FIXED
+Batch-loads existing contacts and workspace memberships upfront (2 queries total), then only does individual queries for new contact creation and workspace linking.
 
-### 15. `fetchSentToContacts` makes up to 1000 sequential API calls — NEEDS INPUT
-Architectural change needed — could use Gmail batch API or implement caching.
+### 15. ~~`fetchSentToContacts` makes up to 1000 sequential API calls~~ — FIXED
+Implemented Gmail batch API (`POST /batch/gmail/v1`) with `multipart/mixed` request/response parsing. Fetches up to 50 message metadata per single HTTP request instead of individual calls. Applied to both `fetchSentToContacts` and `fetchMessagesSince`.
 
 ## Low
 

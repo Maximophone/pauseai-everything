@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import { decrypt, encrypt } from "./encryption";
 import { db } from "@/db";
 import { emailConnections } from "@/db/schema/email-connections";
@@ -254,6 +255,149 @@ export async function getMessageMetadata(
   };
 }
 
+// ---------- Gmail Batch API ----------
+
+const GMAIL_BATCH_ENDPOINT = "https://gmail.googleapis.com/batch/gmail/v1";
+const METADATA_QUERY_PARAMS =
+  "format=metadata&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Cc&metadataHeaders=Subject&metadataHeaders=Date";
+const BATCH_SIZE = 50; // stay within Gmail rate limits (250 units/s, 5 units per messages.get)
+
+/**
+ * Build a multipart/mixed body for a Gmail batch request.
+ */
+function buildBatchBody(messageIds: string[], boundary: string): string {
+  const parts = messageIds.map((id, index) => {
+    const path = `/gmail/v1/users/me/messages/${id}?${METADATA_QUERY_PARAMS}`;
+    return [
+      `--${boundary}`,
+      "Content-Type: application/http",
+      `Content-ID: <item${index}>`,
+      "",
+      `GET ${path} HTTP/1.1`,
+      "",
+    ].join("\r\n");
+  });
+  return parts.join("\r\n") + `\r\n--${boundary}--`;
+}
+
+/**
+ * Parse a multipart/mixed batch response into individual JSON responses.
+ */
+function parseBatchResponse(
+  responseText: string,
+  contentType: string
+): Array<{ statusCode: number; body: Record<string, unknown> | string }> {
+  const boundaryMatch = contentType.match(/boundary=(.+)/);
+  if (!boundaryMatch) {
+    throw new Error("No boundary found in batch response Content-Type");
+  }
+  const boundary = boundaryMatch[1].trim();
+  const parts = responseText.split(`--${boundary}`);
+  const results: Array<{
+    statusCode: number;
+    body: Record<string, unknown> | string;
+  }> = [];
+
+  for (const part of parts) {
+    if (!part.trim() || part.trim() === "--") continue;
+
+    const httpMatch = part.match(/HTTP\/1\.1 (\d+)/);
+    if (!httpMatch) continue;
+
+    const statusCode = parseInt(httpMatch[1], 10);
+
+    // Find the JSON body after the double newline following the HTTP status line
+    const httpIdx = part.indexOf("HTTP/1.1");
+    // Try \r\n\r\n first, then \n\n
+    let jsonStart = part.indexOf("\r\n\r\n", httpIdx);
+    let jsonStr =
+      jsonStart !== -1 ? part.substring(jsonStart + 4).trim() : "";
+    if (!jsonStr) {
+      jsonStart = part.indexOf("\n\n", httpIdx);
+      jsonStr = jsonStart !== -1 ? part.substring(jsonStart + 2).trim() : "";
+    }
+
+    try {
+      results.push({ statusCode, body: JSON.parse(jsonStr) });
+    } catch {
+      results.push({ statusCode, body: jsonStr });
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Fetch metadata for multiple messages in a single batch HTTP request.
+ * Max 50 per call to stay within Gmail rate limits.
+ */
+async function batchGetMessageMetadata(
+  accessToken: string,
+  messageIds: string[]
+): Promise<GmailMessageMeta[]> {
+  const boundary = `batch_${randomUUID()}`;
+  const body = buildBatchBody(messageIds, boundary);
+
+  const res = await fetch(GMAIL_BATCH_ENDPOINT, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": `multipart/mixed; boundary=${boundary}`,
+    },
+    body,
+  });
+
+  if (!res.ok) {
+    throw new Error(`Batch request failed: ${res.status} ${await res.text()}`);
+  }
+
+  const responseText = await res.text();
+  const ct = res.headers.get("content-type") || "";
+  const parsed = parseBatchResponse(responseText, ct);
+  const results: GmailMessageMeta[] = [];
+
+  for (const { statusCode, body: respBody } of parsed) {
+    if (statusCode !== 200 || typeof respBody === "string") continue;
+
+    const data = respBody as Record<string, unknown>;
+    const headers: Record<string, string> = {};
+    const payload = data.payload as
+      | { headers?: Array<{ name: string; value: string }> }
+      | undefined;
+    for (const h of payload?.headers || []) {
+      headers[h.name.toLowerCase()] = h.value;
+    }
+
+    results.push({
+      id: data.id as string,
+      threadId: data.threadId as string,
+      snippet: (data.snippet as string) || "",
+      internalDate: data.internalDate as string,
+      headers,
+    });
+  }
+
+  return results;
+}
+
+/**
+ * Fetch metadata for many message IDs, splitting into batch-size chunks.
+ */
+export async function batchGetAllMessageMetadata(
+  accessToken: string,
+  messageIds: string[]
+): Promise<GmailMessageMeta[]> {
+  const allResults: GmailMessageMeta[] = [];
+
+  for (let i = 0; i < messageIds.length; i += BATCH_SIZE) {
+    const chunk = messageIds.slice(i, i + BATCH_SIZE);
+    const results = await batchGetMessageMetadata(accessToken, chunk);
+    allResults.push(...results);
+  }
+
+  return allResults;
+}
+
 /**
  * Parse email addresses from a header value like "Display Name <email@example.com>, other@example.com"
  */
@@ -304,24 +448,21 @@ export async function fetchSentToContacts(
 
     if (messageIds.length === 0) break;
 
-    // Batch fetch metadata (up to 20 at a time to avoid rate limits)
-    const batchSize = 20;
-    for (let i = 0; i < messageIds.length; i += batchSize) {
-      const batch = messageIds.slice(i, i + batchSize);
-      const metadataResults = await Promise.all(
-        batch.map((id) => getMessageMetadata(accessToken, id))
-      );
+    // Batch fetch metadata using Gmail batch API
+    const metadataResults = await batchGetAllMessageMetadata(
+      accessToken,
+      messageIds
+    );
 
-      for (const meta of metadataResults) {
-        const toAddresses = parseEmailAddresses(meta.headers["to"] || "");
-        const ccAddresses = parseEmailAddresses(meta.headers["cc"] || "");
+    for (const meta of metadataResults) {
+      const toAddresses = parseEmailAddresses(meta.headers["to"] || "");
+      const ccAddresses = parseEmailAddresses(meta.headers["cc"] || "");
 
-        for (const addr of [...toAddresses, ...ccAddresses]) {
-          const existing = seen.get(addr.email);
-          // Keep the name if we have one and didn't before
-          if (!existing || (existing === "" && addr.name)) {
-            seen.set(addr.email, addr.name);
-          }
+      for (const addr of [...toAddresses, ...ccAddresses]) {
+        const existing = seen.get(addr.email);
+        // Keep the name if we have one and didn't before
+        if (!existing || (existing === "" && addr.name)) {
+          seen.set(addr.email, addr.name);
         }
       }
     }
@@ -365,14 +506,9 @@ export async function fetchMessagesSince(
 
     if (messageIds.length === 0) break;
 
-    const batchSize = 20;
-    for (let i = 0; i < messageIds.length; i += batchSize) {
-      const batch = messageIds.slice(i, i + batchSize);
-      const results = await Promise.all(
-        batch.map((id) => getMessageMetadata(accessToken, id))
-      );
-      allMessages.push(...results);
-    }
+    // Batch fetch metadata using Gmail batch API
+    const results = await batchGetAllMessageMetadata(accessToken, messageIds);
+    allMessages.push(...results);
 
     if (!nextPageToken) break;
     pageToken = nextPageToken;

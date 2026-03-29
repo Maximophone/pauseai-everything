@@ -3,7 +3,7 @@ import { db } from "@/db";
 import { emailConnections, emailContactSettings } from "@/db/schema/email-connections";
 import { contacts } from "@/db/schema/contacts";
 import { contactWorkspaces } from "@/db/schema/workspaces";
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { checkAuth, requireAuth } from "@/lib/api-auth";
 import { validateBody } from "@/lib/api-validate";
 import { ImportGmailContactsInput } from "@/lib/schemas";
@@ -42,6 +42,34 @@ export async function POST(
   const parsed = validateBody(ImportGmailContactsInput, body);
   if (!parsed.success) return parsed.error;
 
+  const entries = parsed.data.contacts;
+  const emails = entries.map((e) => e.email.toLowerCase());
+
+  // Batch 1: Find all existing contacts by email in one query
+  const existingContacts = await db
+    .select({ id: contacts.id, email: contacts.email })
+    .from(contacts)
+    .where(inArray(contacts.email, emails));
+
+  const emailToContactId = new Map(
+    existingContacts.map((c) => [c.email?.toLowerCase(), c.id])
+  );
+
+  // Batch 2: Check which existing contacts are already in this workspace
+  const existingIds = existingContacts.map((c) => c.id);
+  const workspaceMemberships = existingIds.length > 0
+    ? await db
+        .select({ contactId: contactWorkspaces.contactId })
+        .from(contactWorkspaces)
+        .where(
+          and(
+            inArray(contactWorkspaces.contactId, existingIds),
+            eq(contactWorkspaces.workspaceId, connection.workspaceId)
+          )
+        )
+    : [];
+  const inWorkspaceSet = new Set(workspaceMemberships.map((m) => m.contactId));
+
   const results = {
     created: 0,
     addedToWorkspace: 0,
@@ -50,34 +78,26 @@ export async function POST(
     errors: [] as Array<{ email: string; error: string }>,
   };
 
-  for (const entry of parsed.data.contacts) {
-    try {
-      // Check if contact already exists by email
-      const [existing] = await db
-        .select()
-        .from(contacts)
-        .where(eq(contacts.email, entry.email.toLowerCase()));
+  // Process each contact: only do individual queries for creates and workspace adds
+  const settingsToUpsert: Array<{
+    emailConnectionId: string;
+    contactId: string;
+    syncInteractions: boolean;
+    interactionsVisible: boolean;
+  }> = [];
 
+  for (const entry of entries) {
+    try {
+      const normalizedEmail = entry.email.toLowerCase();
+      const existingId = emailToContactId.get(normalizedEmail);
       let contactId: string;
 
-      if (existing) {
-        contactId = existing.id;
+      if (existingId) {
+        contactId = existingId;
 
-        // Check if already in this workspace
-        const [inWorkspace] = await db
-          .select()
-          .from(contactWorkspaces)
-          .where(
-            and(
-              eq(contactWorkspaces.contactId, contactId),
-              eq(contactWorkspaces.workspaceId, connection.workspaceId)
-            )
-          );
-
-        if (inWorkspace) {
+        if (inWorkspaceSet.has(contactId)) {
           results.alreadyInWorkspace++;
         } else {
-          // Add to workspace
           await db.insert(contactWorkspaces).values({
             contactId,
             workspaceId: connection.workspaceId,
@@ -86,14 +106,14 @@ export async function POST(
           results.addedToWorkspace++;
         }
       } else {
-        // Create new contact
+        // Create new contact (must be individual — createContact also links to workspace)
         const nameParts = (entry.name || "").split(" ");
         const firstName = nameParts[0] || null;
         const lastName = nameParts.slice(1).join(" ") || null;
 
         const newContact = await createContact(
           {
-            email: entry.email.toLowerCase(),
+            email: normalizedEmail,
             firstName,
             lastName,
             customFields: {},
@@ -104,33 +124,39 @@ export async function POST(
         results.created++;
       }
 
-      // Create or update email_contact_settings
-      await db
-        .insert(emailContactSettings)
-        .values({
-          emailConnectionId: id,
-          contactId,
-          syncInteractions: entry.syncInteractions,
-          interactionsVisible: entry.interactionsVisible,
-        })
-        .onConflictDoUpdate({
-          target: [
-            emailContactSettings.emailConnectionId,
-            emailContactSettings.contactId,
-          ],
-          set: {
-            syncInteractions: entry.syncInteractions,
-            interactionsVisible: entry.interactionsVisible,
-            updatedAt: new Date(),
-          },
-        });
-      results.settingsCreated++;
+      settingsToUpsert.push({
+        emailConnectionId: id,
+        contactId,
+        syncInteractions: entry.syncInteractions,
+        interactionsVisible: entry.interactionsVisible,
+      });
     } catch (err) {
       results.errors.push({
         email: entry.email,
         error: err instanceof Error ? err.message : "Unknown error",
       });
     }
+  }
+
+  // Batch 3: Upsert all email_contact_settings at once
+  if (settingsToUpsert.length > 0) {
+    for (const setting of settingsToUpsert) {
+      await db
+        .insert(emailContactSettings)
+        .values(setting)
+        .onConflictDoUpdate({
+          target: [
+            emailContactSettings.emailConnectionId,
+            emailContactSettings.contactId,
+          ],
+          set: {
+            syncInteractions: setting.syncInteractions,
+            interactionsVisible: setting.interactionsVisible,
+            updatedAt: new Date(),
+          },
+        });
+    }
+    results.settingsCreated = settingsToUpsert.length;
   }
 
   return NextResponse.json(results, { status: 201 });

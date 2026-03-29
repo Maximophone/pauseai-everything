@@ -20,7 +20,7 @@ type EmailConnection = {
   providerAccountEmail: string;
   defaultSyncInteractions: boolean;
   defaultInteractionsVisible: boolean;
-  syncIntervalMinutes: string;
+  syncIntervalMinutes: number;
   lastSyncedAt: string | null;
   status: string;
   statusMessage: string | null;
@@ -342,7 +342,7 @@ function ConnectedView({
       {showSettings && (
         <ConnectionSettings
           connection={connection}
-          onUpdate={() => {}}
+          onUpdate={fetchConnections}
         />
       )}
 
@@ -582,25 +582,79 @@ function GmailContactRow({
 
 function ConnectionSettings({
   connection,
+  onUpdate,
 }: {
   connection: EmailConnection;
   onUpdate: () => void;
 }) {
+  const wsFetch = useWorkspaceFetch();
+  const [saving, setSaving] = useState(false);
+
+  const updateSetting = async (data: Record<string, unknown>) => {
+    setSaving(true);
+    try {
+      await wsFetch(`/api/email-connections/${connection.id}/settings`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      onUpdate();
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="border rounded-md p-4 bg-muted/30 space-y-3">
-      <h4 className="text-sm font-medium">Default settings for new contacts</h4>
-      <div className="grid grid-cols-2 gap-4 text-sm">
-        <div>
+      <h4 className="text-sm font-medium">
+        Default settings for new contacts
+        {saving && <Loader2Icon className="inline h-3 w-3 ml-2 animate-spin" />}
+      </h4>
+      <div className="grid grid-cols-3 gap-4 text-sm">
+        <div className="space-y-1">
           <label className="text-muted-foreground">Sync interactions by default</label>
-          <p className="font-medium">{connection.defaultSyncInteractions ? "Yes" : "No"}</p>
+          <button
+            onClick={() => updateSetting({ defaultSyncInteractions: !connection.defaultSyncInteractions })}
+            disabled={saving}
+            className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium ${
+              connection.defaultSyncInteractions
+                ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                : "bg-muted text-muted-foreground"
+            }`}
+          >
+            {connection.defaultSyncInteractions ? <CheckIcon className="h-3 w-3" /> : <XIcon className="h-3 w-3" />}
+            {connection.defaultSyncInteractions ? "Yes" : "No"}
+          </button>
         </div>
-        <div>
-          <label className="text-muted-foreground">Interactions visible to team by default</label>
-          <p className="font-medium">{connection.defaultInteractionsVisible ? "Yes" : "No"}</p>
+        <div className="space-y-1">
+          <label className="text-muted-foreground">Visible to team by default</label>
+          <button
+            onClick={() => updateSetting({ defaultInteractionsVisible: !connection.defaultInteractionsVisible })}
+            disabled={saving}
+            className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium ${
+              connection.defaultInteractionsVisible
+                ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                : "bg-muted text-muted-foreground"
+            }`}
+          >
+            {connection.defaultInteractionsVisible ? <CheckIcon className="h-3 w-3" /> : <XIcon className="h-3 w-3" />}
+            {connection.defaultInteractionsVisible ? "Yes" : "No"}
+          </button>
         </div>
-        <div>
+        <div className="space-y-1">
           <label className="text-muted-foreground">Sync interval</label>
-          <p className="font-medium">Every {connection.syncIntervalMinutes} minutes</p>
+          <select
+            value={connection.syncIntervalMinutes}
+            onChange={(e) => updateSetting({ syncIntervalMinutes: Number(e.target.value) })}
+            disabled={saving}
+            className="rounded-md border border-input bg-background px-2 py-1.5 text-xs"
+          >
+            <option value={1}>Every 1 minute</option>
+            <option value={5}>Every 5 minutes</option>
+            <option value={15}>Every 15 minutes</option>
+            <option value={30}>Every 30 minutes</option>
+            <option value={60}>Every 60 minutes</option>
+          </select>
         </div>
       </div>
     </div>
