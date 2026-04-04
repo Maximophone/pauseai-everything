@@ -11,7 +11,7 @@ import { contacts } from "@/db/schema/contacts";
 import { contactWorkspaces } from "@/db/schema/workspaces";
 import { tags } from "@/db/schema/tags";
 import { fieldDefinitions } from "@/db/schema/field-definitions";
-import { eq, and, asc } from "drizzle-orm";
+import { eq, and, asc, sql } from "drizzle-orm";
 import { getConnector } from "./connectors";
 import { decryptCredentials } from "./credentials-encryption";
 import { addTagToContact } from "./tags";
@@ -264,38 +264,12 @@ async function processRecords(
       }
 
       const email = mapped.email.toLowerCase().trim();
-      const [existing] = await db.select().from(contacts).where(eq(contacts.email, email));
 
       let contactId: string;
 
-      if (existing) {
-        if (config.duplicateStrategy === "skip") {
-          // Still ensure workspace link exists even when skipping
-          if (workspaceId) {
-            await db
-              .insert(contactWorkspaces)
-              .values({ contactId: existing.id, workspaceId, subscriptionStatus: "neutral" })
-              .onConflictDoNothing();
-          }
-          ctx.counts.skipped++;
-          continue;
-        }
-        const mergedFields = { ...existing.customFields, ...mapped.customFields };
-        await db
-          .update(contacts)
-          .set({
-            firstName: mapped.firstName || existing.firstName,
-            lastName: mapped.lastName || existing.lastName,
-            customFields: mergedFields,
-            syncConfigurationId: config.id,
-            syncedFields: syncedFieldsList,
-            updatedAt: new Date(),
-          })
-          .where(eq(contacts.id, existing.id));
-        contactId = existing.id;
-        ctx.counts.updated++;
-      } else {
-        const [created] = await db
+      if (config.duplicateStrategy === "skip") {
+        // Try to insert; if email already exists, do nothing and return the existing row
+        const [result] = await db
           .insert(contacts)
           .values({
             email,
@@ -306,9 +280,59 @@ async function processRecords(
             syncConfigurationId: config.id,
             syncedFields: syncedFieldsList,
           })
+          .onConflictDoNothing()
           .returning({ id: contacts.id });
-        contactId = created.id;
-        ctx.counts.created++;
+
+        if (result) {
+          // New contact was created
+          contactId = result.id;
+          ctx.counts.created++;
+        } else {
+          // Contact already existed — skip but ensure workspace link
+          const [existing] = await db.select({ id: contacts.id }).from(contacts).where(eq(contacts.email, email));
+          if (!existing) { ctx.counts.errored++; continue; }
+          contactId = existing.id;
+          ctx.counts.skipped++;
+        }
+      } else {
+        // Upsert: insert or update on email conflict (atomic, no race condition)
+        const [upserted] = await db
+          .insert(contacts)
+          .values({
+            email,
+            firstName: mapped.firstName,
+            lastName: mapped.lastName,
+            customFields: mapped.customFields ?? {},
+            createdByWorkspaceId: workspaceId,
+            syncConfigurationId: config.id,
+            syncedFields: syncedFieldsList,
+          })
+          .onConflictDoUpdate({
+            target: contacts.email,
+            set: {
+              firstName: sql`COALESCE(NULLIF(excluded.first_name, ''), ${contacts.firstName})`,
+              lastName: sql`COALESCE(NULLIF(excluded.last_name, ''), ${contacts.lastName})`,
+              customFields: sql`${contacts.customFields} || excluded.custom_fields`,
+              syncConfigurationId: config.id,
+              syncedFields: syncedFieldsList,
+              updatedAt: new Date(),
+            },
+          })
+          .returning({ id: contacts.id });
+
+        contactId = upserted.id;
+        // Determine if this was a create or update by checking createdAt vs updatedAt
+        // For simplicity, count based on whether the record's createdByWorkspaceId matches
+        // (new rows have our workspaceId, existing ones may not)
+        const [check] = await db
+          .select({ createdAt: contacts.createdAt, updatedAt: contacts.updatedAt })
+          .from(contacts)
+          .where(eq(contacts.id, contactId));
+        if (check && check.createdAt.getTime() === check.updatedAt?.getTime()) {
+          ctx.counts.created++;
+        } else {
+          ctx.counts.updated++;
+        }
       }
 
       // Ensure contact is linked to the connection's workspace
@@ -320,7 +344,7 @@ async function processRecords(
       }
 
       if (mapped.tags.length > 0) {
-        await applyTagsToContact(contactId, mapped.tags);
+        await applyTagsToContact(contactId, mapped.tags, workspaceId);
       }
     } catch (err) {
       log(ctx, `Row ${i + 1}: error — ${errorMessage(err)}`);
@@ -396,16 +420,29 @@ function applyMapping(
   return { email, firstName, lastName, customFields, tags };
 }
 
-async function applyTagsToContact(contactId: string, tagNames: string[]) {
+async function applyTagsToContact(contactId: string, tagNames: string[], workspaceId: string | null) {
   for (const name of tagNames) {
     const trimmed = name.trim();
     if (!trimmed) continue;
-    // Find or create tag by name
-    let [tag] = await db.select().from(tags).where(eq(tags.name, trimmed));
+
+    // Find or create tag by name, scoped to workspace.
+    // Uses ON CONFLICT DO NOTHING + re-select to avoid race conditions.
+    const tagCondition = workspaceId
+      ? and(eq(tags.name, trimmed), eq(tags.workspaceId, workspaceId))
+      : and(eq(tags.name, trimmed), sql`${tags.workspaceId} IS NULL`);
+
+    let [tag] = await db.select().from(tags).where(tagCondition);
     if (!tag) {
-      [tag] = await db.insert(tags).values({ name: trimmed }).returning();
+      await db
+        .insert(tags)
+        .values({ name: trimmed, workspaceId })
+        .onConflictDoNothing();
+      // Re-select to get the ID (either we inserted or another concurrent process did)
+      [tag] = await db.select().from(tags).where(tagCondition);
     }
-    await addTagToContact(contactId, tag.id);
+    if (tag) {
+      await addTagToContact(contactId, tag.id);
+    }
   }
 }
 

@@ -138,29 +138,29 @@ Connection credentials were stored as plaintext JSONB. Created `src/lib/credenti
 #### 36. Tally webhook creates contacts without workspace association
 **File:** `src/app/api/webhooks/tally/route.ts:183-189` — **FIXED as part of #26**
 
-#### 37. Race condition in sync-engine contact upsert
+#### 37. ~~Race condition in sync-engine contact upsert~~ — FIXED
 **File:** `src/lib/sync-engine.ts:263-309`
-Classic check-then-act: queries for existing contact by email, then either updates or inserts. Two concurrent syncs processing the same email will both see "not found", both try to insert, and one fails on the unique email constraint.
+Replaced check-then-act with atomic `ON CONFLICT DO UPDATE` upsert (for update strategy) and `ON CONFLICT DO NOTHING` + re-select (for skip strategy). No more race window.
 
-#### 38. Race condition in sync-engine tag creation
+#### 38. ~~Race condition in sync-engine tag creation~~ — FIXED
 **File:** `src/lib/sync-engine.ts:396-406`
-`applyTagsToContact()` does a select-then-insert for each tag without transactions. Concurrent syncs can both find a tag missing and both try to insert it, causing a unique constraint violation.
+Replaced select-then-insert with `ON CONFLICT DO NOTHING` + re-select pattern. If two concurrent syncs try to create the same tag, one inserts and the other gets the existing row.
 
-#### 39. Tag lookup in sync-engine ignores workspace scoping
+#### 39. ~~Tag lookup in sync-engine ignores workspace scoping~~ — FIXED
 **File:** `src/lib/sync-engine.ts:401`
-`db.select().from(tags).where(eq(tags.name, trimmed))` looks up tags globally by name. Tags are supposed to be workspace-scoped. A sync in workspace A could match a tag from workspace B.
+`applyTagsToContact()` now accepts `workspaceId` and filters/creates tags scoped to the connection's workspace.
 
-#### 40. `verifyUnsubscribeToken` silently returns false when secret is missing
-**File:** `src/lib/unsubscribe-tokens.ts:34`
-If `UNSUBSCRIBE_SECRET` is not set, `verifyUnsubscribeToken()` silently returns `false` for all tokens — contacts cannot unsubscribe.
+#### 40. ~~`verifyUnsubscribeToken` silently returns false when secret is missing~~ — FIXED
+**File:** `src/lib/unsubscribe-tokens.ts:34`, `src/lib/ticket-unsubscribe-tokens.ts:31`
+Both verify functions now log `console.error` when `UNSUBSCRIBE_SECRET` is missing, making the misconfiguration visible in server logs. Still returns false (safe default) but no longer silent.
 
 #### 41. Campaign sends proceed without unsubscribe URL when secret is missing
 **File:** `src/lib/campaigns.ts:197-202`
 When `buildUnsubscribeUrl()` throws (secret not configured), the email is sent with an empty `unsubscribe` merge variable. Potential CAN-SPAM / GDPR compliance violation.
 
-#### 42. `listFieldDefinitions` backward-compat path leaks all fields
+#### 42. ~~`listFieldDefinitions` backward-compat path leaks all fields~~ — FIXED
 **File:** `src/lib/contacts.ts`
-When called without `workspaceId`, returns all field definitions from all workspaces.
+When called without `workspaceId`, now returns only core fields (safe default) instead of all fields from all workspaces.
 
 #### 43. N+1 queries per record in sync-engine
 **File:** `src/lib/sync-engine.ts:252-327`

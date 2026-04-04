@@ -240,10 +240,11 @@ export async function removeContactFromWorkspace(
  */
 export async function listFieldDefinitions(workspaceId?: string, isGlobalWorkspace?: boolean) {
   if (!workspaceId) {
-    // Backward compat: return all
+    // No workspace context: return only core fields (safe default, no cross-workspace leakage)
     return db
       .select()
       .from(fieldDefinitions)
+      .where(eq(fieldDefinitions.scope, "core"))
       .orderBy(asc(fieldDefinitions.sortOrder));
   }
 

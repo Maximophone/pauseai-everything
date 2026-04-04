@@ -31,7 +31,10 @@ export function verifyUnsubscribeToken(
   categoryName: string,
   token: string
 ): boolean {
-  if (!getSecret()) return false;
+  if (!getSecret()) {
+    console.error("UNSUBSCRIBE_SECRET is not configured — cannot verify unsubscribe tokens. Contacts will be unable to unsubscribe.");
+    return false;
+  }
 
   try {
     const expected = generateUnsubscribeToken(contactId, workspaceId, categoryName);

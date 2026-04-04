@@ -28,7 +28,10 @@ export function verifyTicketUnsubscribeToken(
   ticketId: string,
   token: string
 ): boolean {
-  if (!getSecret()) return false;
+  if (!getSecret()) {
+    console.error("UNSUBSCRIBE_SECRET is not configured — cannot verify ticket unsubscribe tokens.");
+    return false;
+  }
 
   try {
     const expected = generateTicketUnsubscribeToken(userId, ticketId);
