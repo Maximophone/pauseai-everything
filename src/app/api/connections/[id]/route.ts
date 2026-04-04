@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { checkAuth, requireAdmin } from "@/lib/api-auth";
 import { validateBody } from "@/lib/api-validate";
 import { UpdateConnectionInput } from "@/lib/schemas";
+import { decryptCredentials, encryptCredentials } from "@/lib/credentials-encryption";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -24,7 +25,11 @@ export async function GET(request: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Connection not found" }, { status: 404 });
   }
 
-  return NextResponse.json(connection);
+  // Decrypt credentials before returning
+  return NextResponse.json({
+    ...connection,
+    credentials: decryptCredentials(connection.credentials),
+  });
 }
 
 // PUT /api/connections/:id
@@ -38,13 +43,19 @@ export async function PUT(request: NextRequest, { params }: Params) {
   const parsed = validateBody(UpdateConnectionInput, body);
   if (!parsed.success) return parsed.error;
 
+  // Encrypt credentials if provided
+  const dataToSet = {
+    ...parsed.data,
+    ...(parsed.data.credentials
+      ? { credentials: encryptCredentials(parsed.data.credentials) }
+      : {}),
+    status: "untested", // reset status when credentials change
+    updatedAt: new Date(),
+  };
+
   const [updated] = await db
     .update(connections)
-    .set({
-      ...parsed.data,
-      status: "untested", // reset status when credentials change
-      updatedAt: new Date(),
-    })
+    .set(dataToSet)
     .where(eq(connections.id, id))
     .returning();
 

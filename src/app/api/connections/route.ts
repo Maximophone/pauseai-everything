@@ -7,6 +7,7 @@ import { validateBody } from "@/lib/api-validate";
 import { CreateConnectionInput } from "@/lib/schemas";
 import { getConnector } from "@/lib/connectors";
 import { getActiveWorkspaceId } from "@/lib/workspace-context";
+import { encryptCredentials } from "@/lib/credentials-encryption";
 
 // GET /api/connections — list all connections
 export async function GET(request: NextRequest) {
@@ -59,7 +60,7 @@ export async function POST(request: NextRequest) {
     .values({
       name: parsed.data.name,
       connectorType: parsed.data.connectorType,
-      credentials: parsed.data.credentials,
+      credentials: encryptCredentials(parsed.data.credentials),
       workspaceId,
     })
     .returning();

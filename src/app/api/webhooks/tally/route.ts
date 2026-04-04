@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createHmac, timingSafeEqual } from "crypto";
 import { createContact } from "@/lib/contacts";
 import { createInteraction } from "@/lib/interactions";
+import { getGlobalWorkspaceId } from "@/lib/workspaces";
 import { db } from "@/db";
 import { contacts } from "@/db/schema/contacts";
 import { eq } from "drizzle-orm";
@@ -87,11 +89,48 @@ type TallyPayload = {
   };
 };
 
+/**
+ * Verify Tally webhook signature.
+ * Tally signs webhooks with HMAC-SHA256 using a shared signing secret.
+ * The signature is sent in the `tally-signature` header.
+ *
+ * @see https://tally.so/help/webhooks#webhook-signing
+ */
+function verifyTallySignature(
+  rawBody: string,
+  signature: string | null
+): boolean {
+  const secret = process.env.TALLY_WEBHOOK_SIGNING_SECRET;
+  if (!secret) {
+    console.error("TALLY_WEBHOOK_SIGNING_SECRET is not configured — rejecting webhook");
+    return false;
+  }
+  if (!signature) return false;
+
+  const expected = createHmac("sha256", secret).update(rawBody).digest("base64");
+  try {
+    const a = Buffer.from(signature, "base64");
+    const b = Buffer.from(expected, "base64");
+    if (a.length !== b.length) return false;
+    return timingSafeEqual(a, b);
+  } catch {
+    return false;
+  }
+}
+
 export async function POST(request: NextRequest) {
+  const rawBody = await request.text();
+
+  // Verify webhook signature
+  const signature = request.headers.get("tally-signature");
+  if (!verifyTallySignature(rawBody, signature)) {
+    return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+  }
+
   let payload: TallyPayload;
 
   try {
-    payload = await request.json();
+    payload = JSON.parse(rawBody);
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
@@ -179,13 +218,17 @@ export async function POST(request: NextRequest) {
       .where(eq(contacts.id, existing.id));
     contactId = existing.id;
   } else {
-    // Create new contact
-    const contact = await createContact({
-      email,
-      firstName,
-      lastName,
-      customFields,
-    });
+    // Create new contact, linked to the global workspace
+    const globalWorkspaceId = await getGlobalWorkspaceId();
+    const contact = await createContact(
+      {
+        email,
+        firstName,
+        lastName,
+        customFields,
+      },
+      globalWorkspaceId
+    );
     contactId = contact.id;
   }
 

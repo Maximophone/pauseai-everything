@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   getContact,
+  getContactForWorkspace,
   updateContact,
   deleteContact,
   removeContactFromWorkspace,
@@ -9,7 +10,7 @@ import {
 import { validateBody } from "@/lib/api-validate";
 import { UpdateContactInput } from "@/lib/schemas";
 import { checkAuth, requireAuth, requireMember } from "@/lib/api-auth";
-import { getActiveWorkspaceId, requireWorkspaceAdmin } from "@/lib/workspace-context";
+import { getActiveWorkspaceId, requireWorkspaceAdmin, requireWorkspaceMember } from "@/lib/workspace-context";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -21,8 +22,14 @@ export async function GET(
   const authResult = await checkAuth(request);
   const authError = requireAuth(authResult);
   if (authError) return authError;
+
+  const workspaceId = await getActiveWorkspaceId(request);
   const { id } = await context.params;
-  const contact = await getContact(id);
+
+  // Global admins can see any contact; others only see contacts in their workspace
+  const contact = authResult.role === "admin"
+    ? await getContact(id)
+    : await getContactForWorkspace(id, workspaceId);
 
   if (!contact) {
     return NextResponse.json({ error: "Contact not found." }, { status: 404 });
@@ -37,9 +44,21 @@ export async function PUT(
   context: RouteContext
 ) {
   const authResult = await checkAuth(request);
-  const authError = requireMember(authResult);
-  if (authError) return authError;
+  const workspaceId = await getActiveWorkspaceId(request);
+  const memberError = await requireWorkspaceMember(authResult, workspaceId);
+  if (memberError) return memberError;
+
   const { id } = await context.params;
+
+  // Verify contact belongs to the active workspace (global admins bypass)
+  const contact = authResult.role === "admin"
+    ? await getContact(id)
+    : await getContactForWorkspace(id, workspaceId);
+
+  if (!contact) {
+    return NextResponse.json({ error: "Contact not found." }, { status: 404 });
+  }
+
   const body = await request.json();
   const parsed = validateBody(UpdateContactInput, body);
   if (!parsed.success) return parsed.error;

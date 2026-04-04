@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkAuth } from "@/lib/api-auth";
-import { requireWorkspaceAdmin } from "@/lib/workspace-context";
+import { requireWorkspaceMember, requireWorkspaceAdmin } from "@/lib/workspace-context";
 import {
   getWorkspaceMembers,
   addUserToWorkspace,
@@ -12,9 +12,12 @@ type Params = { params: Promise<{ id: string }> };
 // GET /api/workspaces/:id/members
 export async function GET(request: NextRequest, { params }: Params) {
   const authResult = await checkAuth(request);
-  if (!authResult.authenticated) return authResult.error!;
-
   const { id } = await params;
+
+  // Must be a member of the workspace (or global admin) to list members
+  const memberError = await requireWorkspaceMember(authResult, id);
+  if (memberError) return memberError;
+
   const members = await getWorkspaceMembers(id);
   return NextResponse.json(members);
 }

@@ -4,6 +4,7 @@ import { connections } from "@/db/schema/connections";
 import { eq } from "drizzle-orm";
 import { checkAuth, requireAdmin } from "@/lib/api-auth";
 import { getConnector } from "@/lib/connectors";
+import { decryptCredentials } from "@/lib/credentials-encryption";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -27,7 +28,8 @@ export async function POST(request: NextRequest, { params }: Params) {
     const connector = getConnector(
       connection.connectorType as Parameters<typeof getConnector>[0]
     );
-    const message = await connector.testConnection(connection.credentials);
+    const credentials = decryptCredentials(connection.credentials);
+    const message = await connector.testConnection(credentials);
 
     await db
       .update(connections)

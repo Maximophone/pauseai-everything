@@ -17,9 +17,7 @@ import { userWorkspaces, workspaces } from "@/db/schema/workspaces";
 const isDev = process.env.NODE_ENV === "development";
 
 const providers: Provider[] = [
-  Google({
-    allowDangerousEmailAccountLinking: true,
-  }),
+  Google({}),
 ];
 
 // Dev-only Credentials provider — lets you sign in as any email

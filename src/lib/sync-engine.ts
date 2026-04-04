@@ -13,6 +13,7 @@ import { tags } from "@/db/schema/tags";
 import { fieldDefinitions } from "@/db/schema/field-definitions";
 import { eq, and, asc } from "drizzle-orm";
 import { getConnector } from "./connectors";
+import { decryptCredentials } from "./credentials-encryption";
 import { addTagToContact } from "./tags";
 
 // ── Types ──────────────────────────────────────────────────
@@ -84,9 +85,11 @@ export async function executeSyncRun(
   try {
     const connector = getConnector(connection.connectorType as Parameters<typeof getConnector>[0]);
 
+    const credentials = decryptCredentials(connection.credentials);
+
     log(ctx, "Testing connection...");
     try {
-      await connector.testConnection(connection.credentials);
+      await connector.testConnection(credentials);
       log(ctx, "Connection OK");
     } catch (err) {
       await db
@@ -97,7 +100,7 @@ export async function executeSyncRun(
     }
 
     log(ctx, "Validating external schema...");
-    const currentSchema = await connector.getSchema(connection.credentials, config.externalResource);
+    const currentSchema = await connector.getSchema(credentials, config.externalResource);
     log(ctx, `Found ${currentSchema.length} external fields`);
 
     const schemaIssues = validateExternalSchema(config, currentSchema);
@@ -115,7 +118,7 @@ export async function executeSyncRun(
     log(ctx, "Schema validation passed");
 
     log(ctx, "Fetching records...");
-    const allRecords = await fetchAllRecords(connector, connection.credentials, config.externalResource, ctx);
+    const allRecords = await fetchAllRecords(connector, credentials, config.externalResource, ctx);
     ctx.counts.fetched = allRecords.length;
     log(ctx, `Fetched ${allRecords.length} records total`);
 

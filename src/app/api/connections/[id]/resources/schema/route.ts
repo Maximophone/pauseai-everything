@@ -4,6 +4,7 @@ import { connections } from "@/db/schema/connections";
 import { eq } from "drizzle-orm";
 import { checkAuth, requireAdmin } from "@/lib/api-auth";
 import { getConnector } from "@/lib/connectors";
+import { decryptCredentials } from "@/lib/credentials-encryption";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -34,7 +35,8 @@ export async function GET(request: NextRequest, { params }: Params) {
     const connector = getConnector(
       connection.connectorType as Parameters<typeof getConnector>[0]
     );
-    const schema = await connector.getSchema(connection.credentials, resource);
+    const credentials = decryptCredentials(connection.credentials);
+    const schema = await connector.getSchema(credentials, resource);
     return NextResponse.json(schema);
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err);

@@ -114,6 +114,28 @@ export async function getContact(id: string): Promise<Contact | undefined> {
   return contact;
 }
 
+/**
+ * Get a contact by ID, but only if it belongs to the given workspace.
+ * Returns undefined if the contact doesn't exist or isn't linked to the workspace.
+ */
+export async function getContactForWorkspace(
+  id: string,
+  workspaceId: string
+): Promise<Contact | undefined> {
+  const [contact] = await db
+    .select({ contact: contacts })
+    .from(contacts)
+    .innerJoin(
+      contactWorkspaces,
+      and(
+        eq(contactWorkspaces.contactId, contacts.id),
+        eq(contactWorkspaces.workspaceId, workspaceId)
+      )
+    )
+    .where(eq(contacts.id, id));
+  return contact?.contact;
+}
+
 export async function findContactByEmail(
   email: string
 ): Promise<Contact | undefined> {
