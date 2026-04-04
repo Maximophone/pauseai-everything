@@ -114,7 +114,7 @@ export function generateApiKey(): { key: string; prefix: string; hash: string } 
   return { key, prefix, hash };
 }
 
-export async function createApiKey(userId: string, name: string) {
+export async function createApiKey(userId: string, workspaceId: string, name: string) {
   const { key, prefix, hash } = generateApiKey();
 
   const [apiKey] = await db
@@ -124,6 +124,7 @@ export async function createApiKey(userId: string, name: string) {
       keyHash: hash,
       keyPrefix: prefix,
       userId,
+      workspaceId,
     })
     .returning();
 
@@ -131,14 +132,35 @@ export async function createApiKey(userId: string, name: string) {
   return { ...apiKey, rawKey: key };
 }
 
-export async function listApiKeys(userId?: string) {
-  if (userId) {
-    return db
-      .select()
-      .from(apiKeys)
-      .where(eq(apiKeys.userId, userId));
-  }
-  return db.select().from(apiKeys);
+/**
+ * List API keys for a workspace, including creator info.
+ * Returns all keys belonging to the workspace (created by any user).
+ */
+export async function listApiKeysForWorkspace(workspaceId: string) {
+  return db
+    .select({
+      id: apiKeys.id,
+      name: apiKeys.name,
+      keyPrefix: apiKeys.keyPrefix,
+      userId: apiKeys.userId,
+      workspaceId: apiKeys.workspaceId,
+      isActive: apiKeys.isActive,
+      lastUsedAt: apiKeys.lastUsedAt,
+      createdAt: apiKeys.createdAt,
+      creatorName: users.name,
+      creatorEmail: users.email,
+    })
+    .from(apiKeys)
+    .innerJoin(users, eq(apiKeys.userId, users.id))
+    .where(eq(apiKeys.workspaceId, workspaceId));
+}
+
+/**
+ * Get an API key by ID (for ownership/permission checks).
+ */
+export async function getApiKey(id: string) {
+  const [apiKey] = await db.select().from(apiKeys).where(eq(apiKeys.id, id));
+  return apiKey ?? null;
 }
 
 export async function deleteApiKey(id: string) {

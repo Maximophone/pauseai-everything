@@ -117,9 +117,9 @@ Only checked `checkAuth()`. Any authenticated user could read any workspace's de
 **File:** `src/app/api/workspaces/[id]/members/route.ts`
 Only checked `checkAuth()`. Any authenticated user could list all members of any workspace. Added `requireWorkspaceMember` check.
 
-#### 32. API keys always grant admin role
-**File:** `src/lib/api-auth.ts:24`
-`checkAuth()` returns `role: "admin"` for every valid API key, regardless of the key creator's actual role. Requires architectural planning for scoped API keys.
+#### 32. ~~API keys always grant admin role~~ — FIXED
+**Files:** `src/lib/api-auth.ts`, `src/db/schema/api-keys.ts`, `src/lib/users.ts`, `src/app/api/api-keys/route.ts`, `src/app/api/api-keys/[id]/route.ts`, `src/components/api-keys-manager.tsx`
+`checkAuth()` now looks up the user's actual role from the database instead of hardcoding `"admin"`. API keys are workspace-scoped: each key has a `workspace_id` column, keys are created in the active workspace, listed per-workspace (with creator name/email), and workspace admins can manage all keys in their workspace. The API key holder passes `X-Workspace-Id` per-request, and effective role is checked the same way as session auth.
 
 #### 33. ~~`PUT /api/workspaces/:id` accepts raw body without validation~~ — FIXED
 **File:** `src/app/api/workspaces/[id]/route.ts:21-33`

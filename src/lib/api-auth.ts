@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { validateApiKey } from "@/lib/users";
+import { validateApiKey, getUser } from "@/lib/users";
 import type { UserRole } from "@/db/schema/users";
 
 export type AuthResult = {
@@ -21,7 +21,10 @@ export async function checkAuth(request: NextRequest): Promise<AuthResult> {
     const key = authHeader.slice(7);
     const apiKey = await validateApiKey(key);
     if (apiKey) {
-      return { authenticated: true, userId: apiKey.userId, role: "admin" };
+      // Look up the user's actual role instead of hardcoding admin
+      const user = await getUser(apiKey.userId);
+      const role: UserRole = user?.role ?? "viewer";
+      return { authenticated: true, userId: apiKey.userId, role };
     }
     return {
       authenticated: false,

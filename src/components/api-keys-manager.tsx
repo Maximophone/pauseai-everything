@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useHasRole } from "@/lib/hooks/use-user-role";
+import { useWorkspaceFetch } from "@/components/workspace-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PlusIcon, Trash2Icon, CopyIcon, CheckIcon } from "lucide-react";
@@ -10,13 +11,18 @@ type ApiKey = {
   id: string;
   name: string;
   keyPrefix: string;
+  userId: string;
+  workspaceId: string;
   isActive: boolean;
   lastUsedAt: string | null;
   createdAt: string;
+  creatorName: string | null;
+  creatorEmail: string | null;
 };
 
 export function ApiKeysManager() {
   const isAdmin = useHasRole("admin");
+  const workspaceFetch = useWorkspaceFetch();
   const [keys, setKeys] = useState<ApiKey[]>([]);
   const [loading, setLoading] = useState(true);
   const [newName, setNewName] = useState("");
@@ -25,7 +31,7 @@ export function ApiKeysManager() {
   const [copied, setCopied] = useState(false);
 
   async function fetchKeys() {
-    const res = await fetch("/api/api-keys");
+    const res = await workspaceFetch("/api/api-keys");
     if (res.ok) {
       setKeys(await res.json());
     }
@@ -34,13 +40,14 @@ export function ApiKeysManager() {
 
   useEffect(() => {
     fetchKeys();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function createKey() {
     if (!newName.trim()) return;
     setCreating(true);
 
-    const res = await fetch("/api/api-keys", {
+    const res = await workspaceFetch("/api/api-keys", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: newName.trim() }),
@@ -59,7 +66,7 @@ export function ApiKeysManager() {
     if (!confirm("Revoke this API key? It will stop working immediately."))
       return;
 
-    const res = await fetch(`/api/api-keys/${id}`, { method: "DELETE" });
+    const res = await workspaceFetch(`/api/api-keys/${id}`, { method: "DELETE" });
     if (res.ok) {
       setKeys(keys.filter((k) => k.id !== id));
     }
@@ -145,7 +152,8 @@ export function ApiKeysManager() {
                 <div className="text-xs text-muted-foreground">
                   <code>{key.keyPrefix}...</code>
                   {" · "}
-                  Created{" "}
+                  Created by {key.creatorName || key.creatorEmail || "Unknown"}
+                  {" · "}
                   {new Date(key.createdAt).toLocaleDateString()}
                   {key.lastUsedAt && (
                     <>
