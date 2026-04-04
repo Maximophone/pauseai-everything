@@ -1,4 +1,16 @@
+import { randomUUID } from "crypto";
+
 const MAILERSEND_BASE = "https://api.mailersend.com/v1";
+
+/**
+ * Returns the current email mode: "sandbox" or "live".
+ * Default (if unset): "sandbox" — fail safe, never accidentally send real emails.
+ */
+export function getEmailMode(): "sandbox" | "live" {
+  const mode = process.env.EMAIL_MODE?.toLowerCase();
+  if (mode === "live") return "live";
+  return "sandbox";
+}
 
 async function resolveMailerSendKey(): Promise<string> {
   try {
@@ -22,7 +34,7 @@ export async function resolveFromEmail(): Promise<string> {
   return process.env.MAILERSEND_FROM_EMAIL || "";
 }
 
-type EmailParams = {
+export type EmailParams = {
   to: { email: string; name?: string }[];
   from: { email: string; name?: string };
   subject: string;
@@ -33,15 +45,78 @@ type EmailParams = {
   listUnsubscribe?: string;
   /** Whether to actually send the list_unsubscribe param (requires Professional+ plan). */
   includeListUnsubscribeHeader?: boolean;
+  /** Optional metadata for sandbox capture. Not sent to Mailersend. */
+  _sandbox?: {
+    campaignId?: string;
+    workspaceId?: string;
+  };
 };
 
-type MailersendResponse = {
+export type MailersendResponse = {
   ok: boolean;
   messageId?: string;
   error?: string;
 };
 
+/**
+ * Send an email. In sandbox mode (EMAIL_MODE=sandbox or unset), writes to the
+ * sandbox_emails table instead of calling Mailersend. In live mode, sends via
+ * the Mailersend API. All email-sending paths in the app MUST go through this
+ * function so the sandbox interception is reliable.
+ */
 export async function sendEmail(params: EmailParams): Promise<MailersendResponse> {
+  if (getEmailMode() === "sandbox") {
+    return sendEmailSandbox(params);
+  }
+  return sendEmailLive(params);
+}
+
+async function sendEmailSandbox(params: EmailParams): Promise<MailersendResponse> {
+  const { db } = await import("@/db");
+  const { sandboxEmails } = await import("@/db/schema/sandbox-emails");
+
+  const messageId = `sandbox_${randomUUID()}`;
+  const now = new Date();
+  const recipient = params.to[0] || { email: "unknown", name: undefined };
+
+  // Build headers object representing what would have been sent
+  const headers: Record<string, string> = {};
+  if (params.listUnsubscribe && params.includeListUnsubscribeHeader) {
+    headers["List-Unsubscribe"] = `<${params.listUnsubscribe}>`;
+    headers["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click";
+  }
+  if (params.tags?.length) {
+    headers["X-Tags"] = params.tags.join(", ");
+  }
+
+  // Extract campaignId from tags if not provided in _sandbox metadata
+  let campaignId = params._sandbox?.campaignId ?? null;
+  if (!campaignId && params.tags) {
+    const campaignTag = params.tags.find((t) => t.startsWith("campaign:"));
+    if (campaignTag) campaignId = campaignTag.replace("campaign:", "");
+  }
+
+  await db.insert(sandboxEmails).values({
+    messageId,
+    toEmail: recipient.email,
+    toName: recipient.name ?? null,
+    fromEmail: params.from.email,
+    fromName: params.from.name ?? null,
+    subject: params.subject,
+    bodyHtml: params.html,
+    headers,
+    campaignId,
+    workspaceId: params._sandbox?.workspaceId ?? null,
+    status: "sent",
+    statusHistory: [{ event: "sent", timestamp: now.toISOString() }],
+  });
+
+  console.log(`[mailersend:sandbox] Captured email to ${recipient.email}: "${params.subject}" (${messageId})`);
+
+  return { ok: true, messageId };
+}
+
+async function sendEmailLive(params: EmailParams): Promise<MailersendResponse> {
   const MAILERSEND_API_KEY = await resolveMailerSendKey();
   if (!MAILERSEND_API_KEY) {
     console.warn("[mailersend] No API key configured, skipping email send");

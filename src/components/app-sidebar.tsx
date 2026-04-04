@@ -23,6 +23,7 @@ import {
   BookOpenIcon,
   LifeBuoyIcon,
   InboxIcon,
+  FlaskConicalIcon,
 } from "lucide-react"
 
 const ROLE_LEVELS: Record<string, number> = { viewer: 0, member: 1, admin: 2 };
@@ -90,6 +91,13 @@ const allNavItems = [
       adminOnly: true,
     },
     {
+      title: "Sandbox",
+      url: "/dashboard/sandbox",
+      icon: (<FlaskConicalIcon />),
+      adminOnly: true,
+      sandboxOnly: true,
+    },
+    {
       title: "Support",
       url: "/dashboard/support",
       icon: (<LifeBuoyIcon />),
@@ -146,6 +154,14 @@ export function AppSidebar({
   user: { name: string; email: string; avatar: string; role: string }
 }) {
   const { activeWorkspace } = useWorkspace();
+  const [isSandbox, setIsSandbox] = React.useState(false);
+
+  React.useEffect(() => {
+    fetch("/api/sandbox/status")
+      .then((r) => r.json())
+      .then((data) => setIsSandbox(data.mode === "sandbox"))
+      .catch(() => setIsSandbox(false));
+  }, []);
 
   // Effective role = max(global role, workspace role)
   const globalLevel = ROLE_LEVELS[user.role] ?? 0;
@@ -157,7 +173,10 @@ export function AppSidebar({
   const navItems = (isAdmin
     ? allNavItems
     : allNavItems.filter((item) => !("adminOnly" in item && item.adminOnly))
-  ).map((item) => {
+  ).filter((item) => {
+    if ("sandboxOnly" in item && item.sandboxOnly && !isSandbox) return false;
+    return true;
+  }).map((item) => {
     if (!item.items || isGlobalAdmin) return item;
     return {
       ...item,

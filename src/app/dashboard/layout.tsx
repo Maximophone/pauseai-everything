@@ -10,6 +10,7 @@ import { auth } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import { SessionProvider } from "@/components/session-provider"
 import { WorkspaceProvider, type WorkspaceInfo } from "@/components/workspace-provider"
+import { SandboxBanner } from "@/components/sandbox-banner"
 import type { UserRole } from "@/db/schema/users"
 import { listWorkspaces, getUserWorkspaces } from "@/lib/workspaces"
 
@@ -78,6 +79,7 @@ export default async function DashboardLayout({
           <SidebarProvider>
             <AppSidebar user={user} />
             <SidebarInset>
+              <SandboxBanner />
               <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
                 <SidebarTrigger className="-ml-1" />
                 <Separator

@@ -118,6 +118,7 @@ railway up --detach --service worker
 | `EMAIL_ENCRYPTION_KEY` | AES-256 key for encrypting OAuth tokens and connection credentials (`openssl rand -hex 32`) | Yes |
 | `MAILERSEND_WEBHOOK_SIGNING_SECRET` | HMAC secret for verifying Mailersend webhook signatures (from Mailersend dashboard) | Yes (if using Mailersend) |
 | `TALLY_WEBHOOK_SIGNING_SECRET` | HMAC secret for verifying Tally webhook signatures (from Tally form settings) | Yes (if using Tally forms) |
+| `EMAIL_MODE` | `live` for production (sends real email via Mailersend). Defaults to `sandbox` if unset — never set to `sandbox` in production | Yes |
 | `NODE_ENV` | Must be `production` | Yes |
 | `DEV_BYPASS_AUTH` | Must be `false` in production (bypass only works when NODE_ENV=development) | No |
 

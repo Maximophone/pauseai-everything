@@ -14,6 +14,8 @@ CRM and operations platform for PauseAI Global. Built with Next.js 16 (App Route
 - **Email connections schema:** `src/db/schema/email-connections.ts` (email_connections + email_contact_settings tables)
 - **Gmail client:** `src/lib/gmail.ts` (OAuth, message fetching, address parsing)
 - **Encryption:** `src/lib/encryption.ts` (AES-256-GCM), `src/lib/credentials-encryption.ts` (connection credential encrypt/decrypt)
+- **Email event processing:** `src/lib/email-events.ts` (shared webhook/sandbox event logic)
+- **Sandbox schema:** `src/db/schema/sandbox-emails.ts` (sandbox_emails table)
 - **Background workers:** `src/worker/` (Graphile Worker)
 - **UI components:** `src/components/` (React + shadcn/ui)
 - **Workspace design:** See [docs/workspaces.md](docs/workspaces.md) for the multi-tenancy specification
@@ -69,6 +71,9 @@ The app supports multiple workspaces: one **global** workspace (PauseAI Global) 
 - Webhook endpoints (Mailersend, Tally) require HMAC signature verification — set `MAILERSEND_WEBHOOK_SIGNING_SECRET` and `TALLY_WEBHOOK_SIGNING_SECRET` env vars
 - Contact API endpoints (`GET/PUT /api/contacts/:id`) enforce workspace scoping — non-admin users can only access contacts linked to their active workspace
 - Categorized campaigns enforce unsubscribe mechanism: `sendCampaign()` refuses to send unless `allowNoUnsubscribe` is `true` on the campaign record. The UI warns at save-time and sets the flag only with explicit user acknowledgment
+- **Sandbox mode:** `EMAIL_MODE=sandbox` (default if unset) intercepts all outbound email in `sendEmail()` and writes to `sandbox_emails` table instead of calling Mailersend. `EMAIL_MODE=live` sends real email. All email-sending paths MUST go through `sendEmail()` in `src/lib/mailersend.ts`
+- Sandbox API endpoints (`/api/sandbox/*`) only function when `EMAIL_MODE=sandbox`; they return 404 in live mode. All require admin role
+- Sandbox event simulation (`POST /api/sandbox/emails/:id/simulate`) reuses the same `processEmailEvent()` logic as the Mailersend webhook handler — tests the real code path
 
 ## End-of-Session Ritual
 

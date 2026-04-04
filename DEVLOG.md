@@ -4,6 +4,34 @@ Reverse-chronological log of development sessions. Each entry is self-contained.
 
 ---
 
+## 2026-04-04 — Sandbox mode (email testing)
+
+**What:** Implemented sandbox mode that intercepts all outbound email at the application level, writing to a `sandbox_emails` table instead of calling Mailersend. Enables safe end-to-end testing of the entire campaign pipeline — including event simulation — without any real email leaving the system.
+
+**Key changes:**
+- `src/lib/mailersend.ts` — Added `getEmailMode()` (reads `EMAIL_MODE` env var, defaults to `sandbox`), split `sendEmail()` into `sendEmailLive()` and `sendEmailSandbox()` paths. Added optional `_sandbox` metadata param for callers to pass campaignId/workspaceId
+- `src/lib/email-events.ts` — New module: extracted webhook event processing logic (`processEmailEvent`, `recalculateCampaignCounts`, `handleUnsubscribe`) from the Mailersend webhook handler into shared functions. Both the webhook and sandbox simulate endpoint call the same code
+- `src/app/api/webhooks/mailersend/route.ts` — Refactored to use shared `processEmailEvent()` from email-events.ts
+- `src/db/schema/sandbox-emails.ts` — New `sandbox_emails` table (message_id, to/from, rendered body, headers, campaign/workspace FKs, status + status_history)
+- `src/app/api/sandbox/` — 6 new endpoints: status, list (with filters), detail, simulate event, bulk simulate, clear
+- `src/components/sandbox-banner.tsx` — Persistent amber banner when in sandbox mode
+- `src/components/sandbox-email-viewer.tsx` — Full viewer UI at `/dashboard/sandbox` with table, detail panel, event simulation buttons, HTML preview iframe
+- `src/components/app-sidebar.tsx` — Sandbox nav item (flask icon, admin-only, sandbox-mode-only)
+- `src/lib/campaigns.ts` — Pass `_sandbox: { campaignId, workspaceId }` to enrich sandbox records
+
+**Decisions:**
+- Default to `sandbox` when `EMAIL_MODE` is unset — fail-safe, never accidentally send real email
+- Single interception point in `sendEmail()` — all 6 call sites (campaigns, previews, scripts, invitations, ticket notifications) are automatically covered
+- Event simulation reuses the real webhook processing code via `processEmailEvent()` — not a separate fake path. This means simulating "unsubscribed" actually updates the contact's communication preferences, simulating "delivered" updates campaign stats, etc.
+- Sandbox API returns 404 (not 403) in live mode — the sandbox shouldn't exist as a concept in production
+- campaignId is extracted from tags (`campaign:xxx`) as fallback when `_sandbox` metadata isn't provided — makes the interception work even for call sites that don't pass explicit metadata
+
+**Open items:**
+- Migration file (`drizzle/0004_sandbox-emails.sql`) exists but `drizzle-kit migrate` fails due to missing earlier migration file (`0000_harsh_crusher_hogan.sql`). Table was created via direct SQL. Need to fix migration history or use `drizzle-kit push` approach
+- Branch `feature/sandbox-mode` not yet merged to main
+
+---
+
 ## 2026-04-04 — Workspace-scoped API keys (bug #32)
 
 **What:** Redesigned API key system to be workspace-scoped with proper role resolution, fixing the last high-severity security bug.

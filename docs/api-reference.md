@@ -989,6 +989,56 @@ Bulk update per-contact sync settings. **Auth: Session**
 
 **Errors:** `400 validation`
 
+## Sandbox (Email Testing)
+
+All sandbox endpoints require admin role and only function when `EMAIL_MODE=sandbox`. Returns 404 in live mode.
+
+### `GET /api/sandbox/status`
+
+Check current email mode. No auth required.
+
+**Response:** `{ mode: "sandbox" | "live" }`
+
+### `GET /api/sandbox/emails`
+
+List captured sandbox emails with optional filters. Admin required.
+
+**Query params:** `campaignId`, `to` (email), `workspaceId`, `status`, `since` (ISO timestamp), `limit` (default 50, max 500), `offset`
+
+**Response:** `{ emails: SandboxEmail[], total: number }`
+
+### `GET /api/sandbox/emails/:id`
+
+Get a single sandbox email with full detail (rendered HTML body, headers, etc.). Admin required.
+
+**Response:** Full `SandboxEmail` object
+
+### `POST /api/sandbox/emails/:id/simulate`
+
+Simulate a recipient event on one sandbox email. Calls the same internal logic as the Mailersend webhook handler. Admin required.
+
+**Body:** `{ event: "delivered" | "opened" | "clicked" | "bounced" | "complained" | "unsubscribed", url?: string }`
+
+**Response:** Updated `SandboxEmail` object
+
+### `POST /api/sandbox/emails/simulate-bulk`
+
+Simulate an event on all matching sandbox emails. Admin required.
+
+**Body:** `{ filter: { campaignId?, to?, workspaceId?, status?, since? }, event: string }`
+
+**Response:** `{ affected: number }`
+
+### `DELETE /api/sandbox/emails`
+
+Clear sandbox emails. Admin required.
+
+**Body (optional):** `{ campaignId: string }` — scope deletion to one campaign, or omit to clear everything.
+
+**Response:** `{ deleted: number }`
+
+---
+
 ## Appendix: Segment Filter Schema
 
 Used in segment creation and preview endpoints:

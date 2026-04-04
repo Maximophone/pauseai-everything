@@ -272,6 +272,7 @@ export async function sendCampaign(campaignId: string) {
       tags: [`campaign:${campaignId}`],
       listUnsubscribe,
       includeListUnsubscribeHeader,
+      _sandbox: { campaignId, workspaceId: campaignWorkspaceId ?? undefined },
     });
 
     // Log the email
