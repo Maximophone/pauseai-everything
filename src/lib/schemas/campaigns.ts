@@ -9,6 +9,7 @@ export const CreateCampaignInput = z.object({
   segmentId: z.string().uuid().nullable().optional(),
   categoryId: z.string().uuid().nullable().optional(),
   scheduledAt: z.string().datetime().nullable().optional(),
+  allowNoUnsubscribe: z.boolean().optional(),
 });
 export type CreateCampaignInput = z.infer<typeof CreateCampaignInput>;
 
@@ -21,6 +22,7 @@ export const UpdateCampaignInput = z.object({
   segmentId: z.string().uuid().nullable().optional(),
   categoryId: z.string().uuid().nullable().optional(),
   scheduledAt: z.string().datetime().nullable().optional(),
+  allowNoUnsubscribe: z.boolean().optional(),
 });
 export type UpdateCampaignInput = z.infer<typeof UpdateCampaignInput>;
 

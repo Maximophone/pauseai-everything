@@ -37,6 +37,7 @@ export async function createCampaign(data: {
   workspaceId?: string;
   scheduledAt?: Date | null;
   createdBy?: string;
+  allowNoUnsubscribe?: boolean;
 }) {
   const [campaign] = await db.insert(campaigns).values(data).returning();
   return campaign;
@@ -54,6 +55,7 @@ export async function updateCampaign(
     categoryId: string | null;
     status: string;
     scheduledAt: string | Date | null;
+    allowNoUnsubscribe: boolean;
   }>
 ) {
   // Convert scheduledAt string to Date for Drizzle
@@ -156,7 +158,7 @@ export async function sendCampaign(campaignId: string) {
   // Determine if the email body references the {{unsubscribe}} merge variable
   const bodyReferencesUnsubscribe = campaign.body.includes("{{unsubscribe}}");
 
-  // Warn if the campaign has a category but no unsubscribe mechanism is available
+  // Enforce unsubscribe mechanism for categorized campaigns
   if (categoryName) {
     const hasListUnsubscribeHeader = includeListUnsubscribeHeader && canGenerateUnsubscribeUrls;
     const hasBodyUnsubscribeLink = bodyReferencesUnsubscribe && canGenerateUnsubscribeUrls;
@@ -172,10 +174,23 @@ export async function sendCampaign(campaignId: string) {
       if (!bodyReferencesUnsubscribe) {
         reasons.push("email body does not contain {{unsubscribe}} merge variable");
       }
+
+      if (!campaign.allowNoUnsubscribe) {
+        // Reset status back to draft since we're refusing to send
+        await db
+          .update(campaigns)
+          .set({ status: "draft", updatedAt: new Date() })
+          .where(eq(campaigns.id, campaignId));
+        throw new Error(
+          `Campaign has category "${categoryName}" but no working unsubscribe mechanism (${reasons.join("; ")}). ` +
+          `Either add an unsubscribe link to the email or edit the campaign and acknowledge the risk.`
+        );
+      }
+
       console.warn(
         `[campaigns] WARNING: Campaign "${campaign.name}" (${campaignId}) has category "${categoryName}" but NO working unsubscribe mechanism. ` +
         `Reasons: ${reasons.join("; ")}. ` +
-        `This may violate CAN-SPAM/GDPR requirements. Sending will proceed but recipients will have no way to unsubscribe from this category.`
+        `Proceeding because allowNoUnsubscribe is set. This may violate CAN-SPAM/GDPR requirements.`
       );
     }
   }

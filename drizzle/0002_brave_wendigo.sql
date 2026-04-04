@@ -1,0 +1,1 @@
+ALTER TABLE "campaigns" ADD COLUMN "allow_no_unsubscribe" boolean DEFAULT false NOT NULL;

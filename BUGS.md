@@ -155,8 +155,12 @@ Replaced select-then-insert with `ON CONFLICT DO NOTHING` + re-select pattern. I
 Both verify functions now log `console.error` when `UNSUBSCRIBE_SECRET` is missing, making the misconfiguration visible in server logs. Still returns false (safe default) but no longer silent.
 
 #### 41. ~~Campaign sends proceed without unsubscribe URL when secret is missing~~ — FIXED
-**File:** `src/lib/campaigns.ts:197-202`
-When `buildUnsubscribeUrl()` throws (secret not configured), the email was sent silently with an empty `unsubscribe` merge variable. Now: pre-flight check tests both unsubscribe mechanisms (List-Unsubscribe header + `{{unsubscribe}}` body link). If a categorized campaign has neither working, emits a loud `console.warn` with specific reasons (missing secret, header disabled, no merge variable in body). Warning also returned in the `sendCampaign` result and logged by the worker task.
+**Files:** `src/db/schema/campaigns.ts`, `src/lib/campaigns.ts`, `src/lib/schemas/campaigns.ts`, `src/components/campaign-manager.tsx`, `src/app/api/campaigns/unsubscribe-status/route.ts`
+When `buildUnsubscribeUrl()` throws (secret not configured), the email was sent silently with an empty `unsubscribe` merge variable. Three-layer fix:
+1. **Database:** New `allow_no_unsubscribe` boolean column on campaigns (default `false`).
+2. **UI (save-time warning):** When creating or editing a categorized campaign without a working unsubscribe mechanism, a modal dialog explains which mechanisms are missing, the CAN-SPAM/GDPR risks, and advises the user to fix the issue. "Go Back & Fix" returns to the editor; "Save Anyway" sets `allowNoUnsubscribe: true` on the campaign.
+3. **Server-side enforcement:** `sendCampaign()` refuses to send a categorized campaign without a working unsubscribe mechanism unless `allowNoUnsubscribe` is `true`. Resets status to `draft` and throws an error. If the flag is set, proceeds with a `console.warn` for logging.
+New `GET /api/campaigns/unsubscribe-status` endpoint returns server-side infrastructure status (secret configured, List-Unsubscribe setting) for the UI check.
 
 #### 42. ~~`listFieldDefinitions` backward-compat path leaks all fields~~ — FIXED
 **File:** `src/lib/contacts.ts`

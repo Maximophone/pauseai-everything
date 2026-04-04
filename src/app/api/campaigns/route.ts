@@ -35,6 +35,7 @@ export async function POST(request: NextRequest) {
     scheduledAt: parsed.data.scheduledAt ? new Date(parsed.data.scheduledAt) : null,
     createdBy: authResult.userId,
     workspaceId,
+    allowNoUnsubscribe: parsed.data.allowNoUnsubscribe,
   });
 
   return NextResponse.json(campaign, { status: 201 });

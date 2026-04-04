@@ -6,6 +6,14 @@ import { useHasRole } from "@/lib/hooks/use-user-role";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
   PlusIcon,
   SendIcon,
   Trash2Icon,
@@ -20,6 +28,7 @@ import {
   PencilIcon,
   SaveIcon,
   XIcon,
+  ShieldAlertIcon,
 } from "lucide-react";
 
 type Segment = {
@@ -91,6 +100,133 @@ const emailStatusColors: Record<string, string> = {
   complained: "text-orange-600 bg-orange-50",
 };
 
+/**
+ * Check whether a campaign with a category has a working unsubscribe mechanism.
+ * Returns a list of warning strings, or empty array if everything is fine.
+ */
+async function checkUnsubscribeWarnings(
+  categoryId: string | null | undefined,
+  body: string
+): Promise<string[]> {
+  // No category = transactional email, no unsubscribe needed
+  if (!categoryId) return [];
+
+  const warnings: string[] = [];
+  const bodyHasUnsubscribeVar = body.includes("{{unsubscribe}}");
+
+  // Fetch server-side unsubscribe infrastructure status
+  let secretConfigured = true;
+  let listUnsubscribeEnabled = false;
+  try {
+    const res = await fetch("/api/campaigns/unsubscribe-status");
+    if (res.ok) {
+      const status = await res.json();
+      secretConfigured = status.secretConfigured;
+      listUnsubscribeEnabled = status.listUnsubscribeEnabled;
+    }
+  } catch {
+    // If we can't reach the endpoint, assume the worst
+    secretConfigured = false;
+  }
+
+  const hasListUnsubscribeHeader = listUnsubscribeEnabled && secretConfigured;
+  const hasBodyUnsubscribeLink = bodyHasUnsubscribeVar && secretConfigured;
+
+  if (hasListUnsubscribeHeader || hasBodyUnsubscribeLink) return [];
+
+  // Build specific warnings
+  if (!secretConfigured) {
+    warnings.push(
+      "The UNSUBSCRIBE_SECRET environment variable is not configured. Unsubscribe links cannot be generated."
+    );
+  }
+  if (!listUnsubscribeEnabled) {
+    warnings.push(
+      "The List-Unsubscribe header is disabled. This header allows email clients to show a native unsubscribe button. It can be enabled in Settings (requires MailerSend Professional+ plan)."
+    );
+  }
+  if (!bodyHasUnsubscribeVar) {
+    warnings.push(
+      "The email body does not contain the {{unsubscribe}} merge variable. Recipients will not see an unsubscribe link in the email."
+    );
+  }
+
+  return warnings;
+}
+
+/**
+ * Shared warning dialog for missing unsubscribe mechanisms.
+ */
+function UnsubscribeWarningDialog({
+  open,
+  warnings,
+  onClose,
+  onProceed,
+}: {
+  open: boolean;
+  warnings: string[];
+  onClose: () => void;
+  onProceed: () => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-destructive">
+            <ShieldAlertIcon className="h-5 w-5" />
+            Missing Unsubscribe Mechanism
+          </DialogTitle>
+          <DialogDescription>
+            This campaign has a communication category but recipients will have <strong>no way to unsubscribe</strong>.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-3 py-2">
+          <div className="rounded-md bg-destructive/10 border border-destructive/20 p-3 space-y-2">
+            <p className="text-sm font-medium text-destructive">Issues detected:</p>
+            <ul className="text-sm text-destructive/90 list-disc pl-5 space-y-1">
+              {warnings.map((w, i) => (
+                <li key={i}>{w}</li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="rounded-md bg-muted p-3 text-sm space-y-2">
+            <p className="font-medium">Why this matters:</p>
+            <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
+              <li>
+                <strong>CAN-SPAM Act</strong> requires commercial emails to include a clear unsubscribe mechanism. Violations can result in penalties of up to $50,000 per email.
+              </li>
+              <li>
+                <strong>GDPR</strong> requires that recipients can withdraw consent at any time. Emails without an unsubscribe option may violate this requirement.
+              </li>
+              <li>
+                Emails without unsubscribe links are more likely to be <strong>flagged as spam</strong>, harming your sender reputation.
+              </li>
+            </ul>
+          </div>
+
+          <p className="text-sm text-muted-foreground">
+            <strong>Recommended:</strong> Add{" "}
+            <code className="bg-muted px-1 rounded text-xs">{'<a href="{{unsubscribe}}">Unsubscribe</a>'}</code>{" "}
+            to your email body, or enable the List-Unsubscribe header in Settings.
+          </p>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Go Back & Fix
+          </Button>
+          <Button variant="destructive" onClick={onProceed}>
+            <ShieldAlertIcon className="mr-2 h-4 w-4" />
+            Save Anyway
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function CampaignDetail({
   campaign,
   segments,
@@ -125,6 +261,8 @@ function CampaignDetail({
   );
   const [saving, setSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+  const [editUnsubWarnings, setEditUnsubWarnings] = useState<string[]>([]);
+  const [showEditUnsubWarning, setShowEditUnsubWarning] = useState(false);
 
   function startEditing() {
     setEditName(campaign.name);
@@ -139,8 +277,21 @@ function CampaignDetail({
     setEditing(true);
   }
 
-  async function saveEdits() {
+  async function saveEdits(allowNoUnsubscribe = false) {
     if (!editName.trim() || !editSubject.trim() || !editBody.trim()) return;
+
+    // Check for missing unsubscribe mechanism before saving
+    if (!allowNoUnsubscribe) {
+      setSaving(true);
+      const warnings = await checkUnsubscribeWarnings(editCategoryId || null, editBody);
+      if (warnings.length > 0) {
+        setEditUnsubWarnings(warnings);
+        setShowEditUnsubWarning(true);
+        setSaving(false);
+        return;
+      }
+    }
+
     setSaving(true);
     setEditError(null);
 
@@ -156,6 +307,7 @@ function CampaignDetail({
         segmentId: editSegmentId || null,
         categoryId: editCategoryId || null,
         scheduledAt: editScheduledAt || null,
+        ...(allowNoUnsubscribe ? { allowNoUnsubscribe: true } : {}),
       }),
     });
 
@@ -337,7 +489,7 @@ function CampaignDetail({
         <div className="flex gap-2">
           <Button
             size="sm"
-            onClick={saveEdits}
+            onClick={() => saveEdits()}
             disabled={saving || !editName.trim() || !editSubject.trim() || !editBody.trim()}
           >
             <SaveIcon className="mr-1 h-3 w-3" />
@@ -348,6 +500,16 @@ function CampaignDetail({
             Cancel
           </Button>
         </div>
+
+        <UnsubscribeWarningDialog
+          open={showEditUnsubWarning}
+          warnings={editUnsubWarnings}
+          onClose={() => setShowEditUnsubWarning(false)}
+          onProceed={() => {
+            setShowEditUnsubWarning(false);
+            saveEdits(true);
+          }}
+        />
       </div>
     );
   }
@@ -549,6 +711,10 @@ export function CampaignManager({
   const [sending, setSending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Unsubscribe warning dialog state (for create flow)
+  const [createUnsubWarnings, setCreateUnsubWarnings] = useState<string[]>([]);
+  const [showCreateUnsubWarning, setShowCreateUnsubWarning] = useState(false);
+
   // Create form state
   const [name, setName] = useState("");
   const [subject, setSubject] = useState("");
@@ -578,8 +744,21 @@ export function CampaignManager({
     setError(null);
   }
 
-  async function createCampaign() {
+  async function handleCreateCampaign(allowNoUnsubscribe = false) {
     if (!name.trim() || !subject.trim() || !body.trim()) return;
+
+    // Check for missing unsubscribe mechanism before creating
+    if (!allowNoUnsubscribe) {
+      setCreating(true);
+      const warnings = await checkUnsubscribeWarnings(categoryId || null, body);
+      if (warnings.length > 0) {
+        setCreateUnsubWarnings(warnings);
+        setShowCreateUnsubWarning(true);
+        setCreating(false);
+        return;
+      }
+    }
+
     setCreating(true);
     setError(null);
 
@@ -595,6 +774,7 @@ export function CampaignManager({
         segmentId: segmentId || null,
         categoryId: categoryId || null,
         scheduledAt: scheduledAt || null,
+        ...(allowNoUnsubscribe ? { allowNoUnsubscribe: true } : {}),
       }),
     });
 
@@ -804,7 +984,7 @@ export function CampaignManager({
 
           <div className="flex gap-2">
             <Button
-              onClick={createCampaign}
+              onClick={() => handleCreateCampaign()}
               disabled={
                 creating || !name.trim() || !subject.trim() || !body.trim()
               }
@@ -816,6 +996,16 @@ export function CampaignManager({
               Cancel
             </Button>
           </div>
+
+          <UnsubscribeWarningDialog
+            open={showCreateUnsubWarning}
+            warnings={createUnsubWarnings}
+            onClose={() => setShowCreateUnsubWarning(false)}
+            onProceed={() => {
+              setShowCreateUnsubWarning(false);
+              handleCreateCampaign(true);
+            }}
+          />
         </div>
       )}
 
@@ -904,6 +1094,7 @@ export function CampaignManager({
           ))}
         </div>
       )}
+
     </div>
   );
 }
