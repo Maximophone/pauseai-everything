@@ -111,7 +111,7 @@ Gmail integration uses a **separate OAuth flow** from the login OAuth. The login
 
 **Important:** This is NOT the same as the NextAuth Google provider. It's a separate OAuth client flow that stores tokens in our own table, not NextAuth's `account` table. This keeps concerns separate — login auth vs. Gmail data access.
 
-**Credential security:** Tokens must be encrypted at rest. Use AES-256-GCM with a server-side key (`EMAIL_ENCRYPTION_KEY` env var). The existing connections system stores credentials as plaintext JSON — we should not repeat that pattern for OAuth tokens that grant mailbox access.
+**Credential security:** All credentials are encrypted at rest using AES-256-GCM with a server-side key (`EMAIL_ENCRYPTION_KEY` env var). This applies to both Gmail OAuth tokens (in `email_connections`) and data sync credentials like Airtable/Notion API keys (in `connections`).
 
 ## API Endpoints
 

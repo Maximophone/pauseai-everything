@@ -67,7 +67,7 @@ AUTH_GOOGLE_SECRET=...
 DEV_BYPASS_AUTH=true   # skip Google login in development
 ADMIN_EMAILS=you@example.com   # auto-promote to admin
 UNSUBSCRIBE_SECRET=...         # openssl rand -hex 32
-EMAIL_ENCRYPTION_KEY=...       # openssl rand -hex 32 (for Gmail OAuth token encryption)
+EMAIL_ENCRYPTION_KEY=...       # openssl rand -hex 32 (encrypts OAuth tokens + connection credentials)
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 

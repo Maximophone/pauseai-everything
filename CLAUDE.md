@@ -13,7 +13,7 @@ CRM and operations platform for PauseAI Global. Built with Next.js 16 (App Route
 - **Sync engine:** `src/lib/sync-engine.ts`
 - **Email connections schema:** `src/db/schema/email-connections.ts` (email_connections + email_contact_settings tables)
 - **Gmail client:** `src/lib/gmail.ts` (OAuth, message fetching, address parsing)
-- **Encryption:** `src/lib/encryption.ts` (AES-256-GCM token encryption)
+- **Encryption:** `src/lib/encryption.ts` (AES-256-GCM), `src/lib/credentials-encryption.ts` (connection credential encrypt/decrypt)
 - **Background workers:** `src/worker/` (Graphile Worker)
 - **UI components:** `src/components/` (React + shadcn/ui)
 - **Workspace design:** See [docs/workspaces.md](docs/workspaces.md) for the multi-tenancy specification
@@ -63,3 +63,6 @@ The app supports multiple workspaces: one **global** workspace (PauseAI Global) 
 - Email connections are **user-scoped** (not workspace-scoped like Airtable/Notion connections). Imported contacts belong to the active workspace.
 - Email interaction visibility: a user's own synced emails are always visible to them; other users only see interactions where `visible_to_team = true`
 - OAuth tokens for email connections are encrypted at rest with AES-256-GCM (`EMAIL_ENCRYPTION_KEY` env var)
+- Connection credentials (Airtable API keys, Notion tokens) are also encrypted at rest using `src/lib/credentials-encryption.ts` (same `EMAIL_ENCRYPTION_KEY`)
+- Webhook endpoints (Mailersend, Tally) require HMAC signature verification — set `MAILERSEND_WEBHOOK_SIGNING_SECRET` and `TALLY_WEBHOOK_SIGNING_SECRET` env vars
+- Contact API endpoints (`GET/PUT /api/contacts/:id`) enforce workspace scoping — non-admin users can only access contacts linked to their active workspace

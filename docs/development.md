@@ -50,7 +50,9 @@ Edit `.env`:
 | `ADMIN_EMAILS` | Comma-separated emails auto-promoted to admin | e.g. `you@example.com` |
 | `UNSUBSCRIBE_SECRET` | HMAC secret for unsubscribe tokens | `openssl rand -hex 32` |
 | `NEXT_PUBLIC_APP_URL` | Public URL for unsubscribe links | `http://localhost:3000` |
-| `EMAIL_ENCRYPTION_KEY` | AES-256 key for encrypting Gmail OAuth tokens | `openssl rand -hex 32` (required for Gmail integration) |
+| `EMAIL_ENCRYPTION_KEY` | AES-256 key for encrypting OAuth tokens and connection credentials | `openssl rand -hex 32` |
+| `MAILERSEND_WEBHOOK_SIGNING_SECRET` | HMAC secret for verifying Mailersend webhook signatures | From Mailersend dashboard (optional in dev) |
+| `TALLY_WEBHOOK_SIGNING_SECRET` | HMAC secret for verifying Tally webhook signatures | From Tally form settings (optional in dev) |
 | `DEV_BYPASS_AUTH` | Set to `true` to skip Google login in dev | Dev only |
 
 **Two auth modes for development:**

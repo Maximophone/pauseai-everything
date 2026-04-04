@@ -115,7 +115,9 @@ railway up --detach --service worker
 | `ADMIN_EMAILS` | Comma-separated emails auto-promoted to admin on sign-in | Recommended |
 | `UNSUBSCRIBE_SECRET` | HMAC secret for unsubscribe tokens (`openssl rand -hex 32`) | Yes |
 | `NEXT_PUBLIC_APP_URL` | Public URL used in unsubscribe links | Yes |
-| `EMAIL_ENCRYPTION_KEY` | AES-256 key for encrypting Gmail OAuth tokens (`openssl rand -hex 32`) | Yes (if Gmail integration used) |
+| `EMAIL_ENCRYPTION_KEY` | AES-256 key for encrypting OAuth tokens and connection credentials (`openssl rand -hex 32`) | Yes |
+| `MAILERSEND_WEBHOOK_SIGNING_SECRET` | HMAC secret for verifying Mailersend webhook signatures (from Mailersend dashboard) | Yes (if using Mailersend) |
+| `TALLY_WEBHOOK_SIGNING_SECRET` | HMAC secret for verifying Tally webhook signatures (from Tally form settings) | Yes (if using Tally forms) |
 | `NODE_ENV` | Must be `production` | Yes |
 | `DEV_BYPASS_AUTH` | Must be `false` in production (bypass only works when NODE_ENV=development) | No |
 
@@ -128,7 +130,7 @@ railway up --detach --service worker
 | `MAILERSEND_FROM_EMAIL` | From address fallback (prefer setting via the UI) | No |
 | `UNSUBSCRIBE_SECRET` | Same value as web — needed for unsubscribe URL generation during campaign sends | Yes |
 | `NEXT_PUBLIC_APP_URL` | Same value as web — used in unsubscribe URLs | Yes |
-| `EMAIL_ENCRYPTION_KEY` | Same value as web — needed for Gmail token decryption during sync | Yes (if Gmail integration used) |
+| `EMAIL_ENCRYPTION_KEY` | Same value as web — needed for credential decryption during sync | Yes |
 | `NODE_ENV` | `production` | Yes |
 
 ### Setting variables

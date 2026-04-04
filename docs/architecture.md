@@ -118,7 +118,7 @@ Two processes from the same codebase, sharing the same Postgres database.
 | `automation_rules` | Simple if/then automation rules |
 | `communication_categories` | Email categories (newsletter, events, etc.) |
 | `app_settings` | Key-value store for app-level settings |
-| `connections` | External data source credentials and status |
+| `connections` | External data source credentials (encrypted at rest) and status |
 | `sync_configurations` | Per-resource sync settings, field mapping, schedule |
 | `sync_runs` | Sync execution history with statistics |
 | `email_connections` | User-scoped email provider connections (Gmail etc.), encrypted OAuth tokens, sync settings |

@@ -842,13 +842,13 @@ Get ticket counts by status (global, cross-workspace). **Auth: Session**
 
 ### `POST /api/webhooks/mailersend`
 
-Receive MailerSend delivery events (sent, delivered, bounced, opened, clicked). No auth required
+Receive MailerSend delivery events (sent, delivered, bounced, opened, clicked). **Auth: HMAC-SHA256 signature** via `signature` header (verified against `MAILERSEND_WEBHOOK_SIGNING_SECRET`).
 
 **Response:** { ok: true }
 
 ### `POST /api/webhooks/tally`
 
-Receive Tally form submissions, creates/updates contacts and logs interactions. No auth required
+Receive Tally form submissions, creates/updates contacts and logs interactions. **Auth: HMAC-SHA256 signature** via `tally-signature` header (verified against `TALLY_WEBHOOK_SIGNING_SECRET`). New contacts are linked to the global workspace.
 
 **Response:** { status: "created"|"updated", contactId }
 
