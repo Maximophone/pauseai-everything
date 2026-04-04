@@ -6,12 +6,13 @@
 
 Two auth methods are supported:
 - **Session cookie** (browser): Managed by NextAuth with Google OAuth
-- **API key** (machine-to-machine): `Authorization: Bearer pai_<key>`
+- **API key** (machine-to-machine): `Authorization: Bearer pai_<key>` — keys are workspace-scoped (tied to the workspace where they were created). The key inherits the creator's role; pass `X-Workspace-Id` header to specify workspace context per-request, same as session auth.
 
 Auth levels:
 - **No auth**: Public endpoint
 - **Session**: Any authenticated user
 - **Admin**: Requires admin role (returns 403 otherwise)
+- **Workspace Admin**: Requires admin effective role in the specified workspace
 
 ## Error Format
 
@@ -697,13 +698,13 @@ Update user role. **Auth: Admin**
 
 ### `GET /api/api-keys`
 
-List all API keys (hashes hidden). **Auth: Admin**
+List API keys for the current workspace, with creator info. **Auth: Workspace Admin** (requires `X-Workspace-Id` header)
 
-**Response:** { id, name, keyPrefix, userId, isActive, lastUsedAt, createdAt }[]
+**Response:** { id, name, keyPrefix, userId, workspaceId, isActive, lastUsedAt, createdAt, creatorName, creatorEmail }[]
 
 ### `POST /api/api-keys`
 
-Create an API key (raw key returned once). **Auth: Admin**
+Create an API key scoped to the current workspace (raw key returned once). **Auth: Workspace Admin** (requires `X-Workspace-Id` header)
 
 **Request body** (`CreateApiKeyInput`):
 ```
@@ -712,17 +713,17 @@ Create an API key (raw key returned once). **Auth: Admin**
 }
 ```
 
-**Response:** { id, name, keyPrefix, rawKey, createdAt } (201)
+**Response:** { id, name, keyPrefix, workspaceId, rawKey, createdAt } (201)
 
-**Errors:** `400 validation`
+**Errors:** `400 validation / missing workspace`
 
 ### `DELETE /api/api-keys/:id`
 
-Revoke an API key. **Auth: Admin**
+Revoke an API key. Must be a workspace admin in the key's workspace. **Auth: Workspace Admin**
 
 **Response:** { success: true }
 
-**Errors:** `404 not found`
+**Errors:** `403 forbidden`, `404 not found`
 
 ## Support-tickets
 

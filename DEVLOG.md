@@ -4,6 +4,29 @@ Reverse-chronological log of development sessions. Each entry is self-contained.
 
 ---
 
+## 2026-04-04 — Workspace-scoped API keys (bug #32)
+
+**What:** Redesigned API key system to be workspace-scoped with proper role resolution, fixing the last high-severity security bug.
+
+**Key changes:**
+- `src/lib/api-auth.ts` — `checkAuth()` now looks up the user's actual role from DB instead of hardcoding `"admin"` for API key auth
+- `src/db/schema/api-keys.ts` — new `workspace_id` FK column (NOT NULL, cascading delete)
+- `src/lib/users.ts` — `createApiKey()` takes workspaceId, new `listApiKeysForWorkspace()` with JOIN for creator info, new `getApiKey()` for permission checks
+- `src/app/api/api-keys/route.ts` — requires `X-Workspace-Id` header + workspace admin; lists keys for workspace only
+- `src/app/api/api-keys/[id]/route.ts` — revocation checks workspace admin in the key's workspace
+- `src/components/api-keys-manager.tsx` — uses `useWorkspaceFetch()`, shows creator name/email per key
+
+**Decisions:**
+- API key = user identity model (like GitHub PATs): key identifies who you are, workspace is per-request via `X-Workspace-Id` header, effective role checked same way as session auth. Rejected alternative of baking workspace into the key itself — stateless per-request model is simpler and consistent with the UI
+- No "superkey" concept needed — global admins already have access to all workspaces through the effective role system, same as in the UI
+- Workspace admins can see and revoke all keys in their workspace (not just their own) — needed for security auditing and key management when someone is unavailable
+- Migration backfills existing keys to the global workspace
+
+**Open items:**
+- Bugs #43-49 (medium/low): N+1 queries, FK constraints, dead flags, pagination — need user input or architectural planning
+
+---
+
 ## 2026-04-04 — Unsubscribe enforcement and medium bug fixes
 
 **What:** Fixed medium severity bugs (#37-40, #42) and implemented full unsubscribe enforcement for categorized campaigns (bug #41) with three-layer protection: UI warning modal, database flag, and server-side send rejection.

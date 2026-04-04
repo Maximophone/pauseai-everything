@@ -94,7 +94,7 @@ This design reflects the fact that a user's email inbox is personal, while the c
 
 ### Workspace Switcher
 
-Users who belong to multiple workspaces see a workspace switcher in the navigation. The active workspace determines what they see everywhere: contacts, segments, campaigns, custom fields, communication categories, scripts.
+Users who belong to multiple workspaces see a workspace switcher in the navigation. The active workspace determines what they see everywhere: contacts, segments, campaigns, custom fields, communication categories, API keys, scripts.
 
 Most users belong to one workspace and never see the switcher.
 
