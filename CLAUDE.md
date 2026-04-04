@@ -17,6 +17,8 @@ CRM and operations platform for PauseAI Global. Built with Next.js 16 (App Route
 - **Background workers:** `src/worker/` (Graphile Worker)
 - **UI components:** `src/components/` (React + shadcn/ui)
 - **Workspace design:** See [docs/workspaces.md](docs/workspaces.md) for the multi-tenancy specification
+- **Dev log:** `DEVLOG.md` — reverse-chronological session log (updated via `/wrapup`)
+- **Bug tracker:** `BUGS.md` — security audit findings and fix status
 
 ## Workspaces (Multi-Tenancy)
 
@@ -66,3 +68,7 @@ The app supports multiple workspaces: one **global** workspace (PauseAI Global) 
 - Connection credentials (Airtable API keys, Notion tokens) are also encrypted at rest using `src/lib/credentials-encryption.ts` (same `EMAIL_ENCRYPTION_KEY`)
 - Webhook endpoints (Mailersend, Tally) require HMAC signature verification — set `MAILERSEND_WEBHOOK_SIGNING_SECRET` and `TALLY_WEBHOOK_SIGNING_SECRET` env vars
 - Contact API endpoints (`GET/PUT /api/contacts/:id`) enforce workspace scoping — non-admin users can only access contacts linked to their active workspace
+
+## End-of-Session Ritual
+
+At the end of every coding session, run `/wrapup`. This updates the dev log (`DEVLOG.md`), syncs all documentation, and commits. If the user seems to be wrapping up (e.g., "let's commit and push", "I think that's it for today"), suggest running `/wrapup` before ending.
