@@ -154,9 +154,9 @@ Replaced select-then-insert with `ON CONFLICT DO NOTHING` + re-select pattern. I
 **File:** `src/lib/unsubscribe-tokens.ts:34`, `src/lib/ticket-unsubscribe-tokens.ts:31`
 Both verify functions now log `console.error` when `UNSUBSCRIBE_SECRET` is missing, making the misconfiguration visible in server logs. Still returns false (safe default) but no longer silent.
 
-#### 41. Campaign sends proceed without unsubscribe URL when secret is missing
+#### 41. ~~Campaign sends proceed without unsubscribe URL when secret is missing~~ — FIXED
 **File:** `src/lib/campaigns.ts:197-202`
-When `buildUnsubscribeUrl()` throws (secret not configured), the email is sent with an empty `unsubscribe` merge variable. Potential CAN-SPAM / GDPR compliance violation.
+When `buildUnsubscribeUrl()` throws (secret not configured), the email was sent silently with an empty `unsubscribe` merge variable. Now: pre-flight check tests both unsubscribe mechanisms (List-Unsubscribe header + `{{unsubscribe}}` body link). If a categorized campaign has neither working, emits a loud `console.warn` with specific reasons (missing secret, header disabled, no merge variable in body). Warning also returned in the `sendCampaign` result and logged by the worker task.
 
 #### 42. ~~`listFieldDefinitions` backward-compat path leaks all fields~~ — FIXED
 **File:** `src/lib/contacts.ts`

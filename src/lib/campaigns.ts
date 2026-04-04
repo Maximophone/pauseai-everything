@@ -141,6 +141,45 @@ export async function sendCampaign(campaignId: string) {
     SETTING_KEYS.MAILERSEND_LIST_UNSUBSCRIBE
   );
 
+  // Pre-flight check: can we generate unsubscribe URLs?
+  // This matters for CAN-SPAM / GDPR compliance. We check once before the loop.
+  let canGenerateUnsubscribeUrls = true;
+  if (categoryName && campaignWorkspaceId) {
+    try {
+      // Test that the secret is configured by attempting to generate a dummy token
+      buildUnsubscribeUrl("test", campaignWorkspaceId, categoryName);
+    } catch {
+      canGenerateUnsubscribeUrls = false;
+    }
+  }
+
+  // Determine if the email body references the {{unsubscribe}} merge variable
+  const bodyReferencesUnsubscribe = campaign.body.includes("{{unsubscribe}}");
+
+  // Warn if the campaign has a category but no unsubscribe mechanism is available
+  if (categoryName) {
+    const hasListUnsubscribeHeader = includeListUnsubscribeHeader && canGenerateUnsubscribeUrls;
+    const hasBodyUnsubscribeLink = bodyReferencesUnsubscribe && canGenerateUnsubscribeUrls;
+
+    if (!hasListUnsubscribeHeader && !hasBodyUnsubscribeLink) {
+      const reasons: string[] = [];
+      if (!canGenerateUnsubscribeUrls) {
+        reasons.push("UNSUBSCRIBE_SECRET is not configured");
+      }
+      if (!includeListUnsubscribeHeader) {
+        reasons.push("List-Unsubscribe header is disabled (requires MailerSend Professional+)");
+      }
+      if (!bodyReferencesUnsubscribe) {
+        reasons.push("email body does not contain {{unsubscribe}} merge variable");
+      }
+      console.warn(
+        `[campaigns] WARNING: Campaign "${campaign.name}" (${campaignId}) has category "${categoryName}" but NO working unsubscribe mechanism. ` +
+        `Reasons: ${reasons.join("; ")}. ` +
+        `This may violate CAN-SPAM/GDPR requirements. Sending will proceed but recipients will have no way to unsubscribe from this category.`
+      );
+    }
+  }
+
   let sentCount = 0;
   let bouncedCount = 0;
   let skippedCount = 0;
@@ -190,16 +229,12 @@ export async function sendCampaign(campaignId: string) {
       }
     }
 
-    // Build unsubscribe URL if campaign has a category
+    // Build unsubscribe URL if campaign has a category and secret is configured
     let listUnsubscribe: string | undefined;
     let unsubscribeUrl = "";
-    if (categoryName && campaignWorkspaceId) {
-      try {
-        unsubscribeUrl = buildUnsubscribeUrl(contact.id, campaignWorkspaceId, categoryName);
-        listUnsubscribe = unsubscribeUrl;
-      } catch {
-        // UNSUBSCRIBE_SECRET not configured — send without unsubscribe
-      }
+    if (categoryName && campaignWorkspaceId && canGenerateUnsubscribeUrls) {
+      unsubscribeUrl = buildUnsubscribeUrl(contact.id, campaignWorkspaceId, categoryName);
+      listUnsubscribe = unsubscribeUrl;
     }
 
     // Merge template fields
@@ -253,7 +288,17 @@ export async function sendCampaign(campaignId: string) {
     })
     .where(eq(campaigns.id, campaignId));
 
-  return { sentCount, bouncedCount, skippedCount, totalContacts: contactIds.length };
+  // Build warnings for the caller
+  const warnings: string[] = [];
+  if (categoryName) {
+    const hasListUnsubscribeHeader = includeListUnsubscribeHeader && canGenerateUnsubscribeUrls;
+    const hasBodyUnsubscribeLink = bodyReferencesUnsubscribe && canGenerateUnsubscribeUrls;
+    if (!hasListUnsubscribeHeader && !hasBodyUnsubscribeLink) {
+      warnings.push("Campaign sent without a working unsubscribe mechanism. This may violate CAN-SPAM/GDPR requirements.");
+    }
+  }
+
+  return { sentCount, bouncedCount, skippedCount, totalContacts: contactIds.length, warnings };
 }
 
 /**

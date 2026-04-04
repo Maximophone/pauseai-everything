@@ -14,6 +14,11 @@ export const sendCampaignTask: Task = async (payload, helpers) => {
     helpers.logger.info(
       `Campaign ${campaignId} sent: ${result.sentCount} sent, ${result.bouncedCount} bounced`
     );
+    if (result.warnings?.length) {
+      for (const warning of result.warnings) {
+        helpers.logger.warn(`Campaign ${campaignId}: ${warning}`);
+      }
+    }
   } catch (err) {
     helpers.logger.error(`Campaign ${campaignId} failed: ${err}`);
     throw err; // Let graphile-worker retry
