@@ -4,6 +4,32 @@ Reverse-chronological log of development sessions. Each entry is self-contained.
 
 ---
 
+## 2026-04-04 — Unsubscribe enforcement and medium bug fixes
+
+**What:** Fixed medium severity bugs (#37-40, #42) and implemented full unsubscribe enforcement for categorized campaigns (bug #41) with three-layer protection: UI warning modal, database flag, and server-side send rejection.
+
+**Key changes:**
+- `src/lib/sync-engine.ts` — atomic upserts with `ON CONFLICT` to fix race conditions (#37, #38), workspace-scoped tag creation (#39)
+- `src/lib/unsubscribe-tokens.ts`, `src/lib/ticket-unsubscribe-tokens.ts` — `console.error` when `UNSUBSCRIBE_SECRET` missing (#40)
+- `src/lib/contacts.ts` — `listFieldDefinitions()` returns only core fields when no workspace (#42)
+- `src/db/schema/campaigns.ts` — new `allow_no_unsubscribe` boolean column (default false)
+- `src/lib/campaigns.ts` — `sendCampaign()` now refuses to send categorized campaigns without a working unsubscribe mechanism unless `allowNoUnsubscribe` is set; resets status to `draft` on rejection
+- `src/components/campaign-manager.tsx` — warning modal on create/edit when category is set but no unsubscribe mechanism is available; user can "Go Back & Fix" or "Save Anyway" (sets the flag)
+- `src/app/api/campaigns/unsubscribe-status/route.ts` — new endpoint returning infrastructure status (secret configured, List-Unsubscribe setting)
+- `src/lib/schemas/campaigns.ts` — `allowNoUnsubscribe` added to create/update Zod schemas
+
+**Decisions:**
+- Unsubscribe warning at save-time (not send-time) so users can fix it in the editor and scheduled campaigns are covered
+- `allowNoUnsubscribe` flag lives on the campaign record itself — no per-request override needed
+- Flag is not reset when user adds `{{unsubscribe}}` later — harmless when mechanism is present, avoids complexity
+- Server-side enforcement is the hard stop; UI modal is the user-friendly layer
+
+**Open items:**
+- Bug #32: API keys always grant admin role — needs scoped API key design
+- Bugs #43-49 (medium/low): N+1 queries in sync engine, missing FK constraints, dead schema flags, pagination — need user input or architectural planning
+
+---
+
 ## 2026-04-04 — Security audit and bug fixes (critical + high)
 
 **What:** Conducted a full security audit of the codebase, documenting 26 new bugs (BUGS.md #24-49). Fixed all 5 critical and 6 of 7 high severity issues. #32 (API keys always grant admin) deferred for architectural planning.

@@ -68,6 +68,7 @@ The app supports multiple workspaces: one **global** workspace (PauseAI Global) 
 - Connection credentials (Airtable API keys, Notion tokens) are also encrypted at rest using `src/lib/credentials-encryption.ts` (same `EMAIL_ENCRYPTION_KEY`)
 - Webhook endpoints (Mailersend, Tally) require HMAC signature verification — set `MAILERSEND_WEBHOOK_SIGNING_SECRET` and `TALLY_WEBHOOK_SIGNING_SECRET` env vars
 - Contact API endpoints (`GET/PUT /api/contacts/:id`) enforce workspace scoping — non-admin users can only access contacts linked to their active workspace
+- Categorized campaigns enforce unsubscribe mechanism: `sendCampaign()` refuses to send unless `allowNoUnsubscribe` is `true` on the campaign record. The UI warns at save-time and sets the flag only with explicit user acknowledgment
 
 ## End-of-Session Ritual
 

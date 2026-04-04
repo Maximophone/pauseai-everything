@@ -405,7 +405,8 @@ Create a campaign. **Auth: Admin**
   "fromEmail": string (email) | null?,
   "segmentId": string (uuid) | null?,
   "categoryId": string (uuid) | null?,
-  "scheduledAt": string (datetime) | null?
+  "scheduledAt": string (datetime) | null?,
+  "allowNoUnsubscribe": boolean?
 }
 ```
 
@@ -435,7 +436,8 @@ Update a campaign. **Auth: Admin**
   "fromEmail": string (email) | null?,
   "segmentId": string (uuid) | null?,
   "categoryId": string (uuid) | null?,
-  "scheduledAt": string (datetime) | null?
+  "scheduledAt": string (datetime) | null?,
+  "allowNoUnsubscribe": boolean?
 }
 ```
 
@@ -479,6 +481,18 @@ Send a preview email for a campaign. **Auth: Admin**
 List email records for a campaign. **Auth: Session**
 
 **Response:** Email[]
+
+### `GET /api/campaigns/unsubscribe-status`
+
+Check whether the server-side unsubscribe infrastructure is configured. Used by the campaign editor to warn when no unsubscribe mechanism is available for categorized campaigns. **Auth: Admin**
+
+**Response:**
+```
+{
+  "secretConfigured": boolean,
+  "listUnsubscribeEnabled": boolean
+}
+```
 
 ## Scripts
 
