@@ -130,7 +130,7 @@ export async function handleUnsubscribe(campaignId: string, contactId: string) {
 
   await db
     .update(contacts)
-    .set({ communicationPreferences: prefs, updatedAt: new Date() })
+    .set({ communicationPreferences: prefs, updatedAt: sql`now()` })
     .where(eq(contacts.id, contactId));
 }
 
@@ -159,7 +159,7 @@ export async function recalculateCampaignCounts(campaignId: string) {
       openedCount: Number(counts.openedCount),
       clickedCount: Number(counts.clickedCount),
       bouncedCount: Number(counts.bouncedCount),
-      updatedAt: new Date(),
+      updatedAt: sql`now()`,
     })
     .where(eq(campaigns.id, campaignId));
 }

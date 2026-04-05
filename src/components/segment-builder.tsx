@@ -35,7 +35,7 @@ type Segment = {
 
 type PreviewResult = {
   count: number;
-  sample: Array<{
+  contacts: Array<{
     id: string;
     email: string;
     first_name: string;
@@ -513,9 +513,9 @@ export function SegmentBuilder({
             <h4 className="text-sm font-semibold mb-2">
               Preview: {preview.count} contact{preview.count !== 1 ? "s" : ""} match
             </h4>
-            {preview.sample.length > 0 ? (
+            {preview.contacts.length > 0 ? (
               <div className="text-sm space-y-1">
-                {preview.sample.map((c) => (
+                {preview.contacts.map((c) => (
                   <div key={c.id} className="flex gap-3 text-muted-foreground">
                     <span className="font-medium text-foreground">
                       {c.first_name} {c.last_name}

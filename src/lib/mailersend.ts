@@ -158,9 +158,19 @@ async function sendEmailLive(params: EmailParams): Promise<MailersendResponse> {
   return { ok: false, error: `Mailersend API error: ${res.status}` };
 }
 
+/** Escape HTML special characters to prevent injection in email templates. */
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 /**
  * Replaces merge fields like {{firstName}}, {{email}}, {{country}} in a template
- * with actual contact data.
+ * with actual contact data. Values are HTML-escaped to prevent injection.
  */
 export function renderTemplate(
   template: string,
@@ -169,7 +179,7 @@ export function renderTemplate(
   return template.replace(/\{\{(\w+)\}\}/g, (match, key) => {
     const val = data[key];
     if (val === null || val === undefined) return "";
-    if (Array.isArray(val)) return val.join(", ");
-    return String(val);
+    if (Array.isArray(val)) return escapeHtml(val.join(", "));
+    return escapeHtml(String(val));
   });
 }

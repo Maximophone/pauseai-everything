@@ -1,7 +1,7 @@
 import { db } from "@/db";
 import { users } from "@/db/schema/users";
 import { apiKeys } from "@/db/schema/api-keys";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { createHash, randomBytes } from "crypto";
 import { sendEmail, resolveFromEmail } from "@/lib/mailersend";
 import type { UserRole } from "@/db/schema/users";
@@ -183,8 +183,21 @@ export async function validateApiKey(key: string) {
   // Update last used timestamp
   await db
     .update(apiKeys)
-    .set({ lastUsedAt: new Date() })
+    .set({ lastUsedAt: sql`now()` })
     .where(eq(apiKeys.id, apiKey.id));
 
   return apiKey;
+}
+
+/**
+ * Get the workspace ID associated with an API key (lightweight lookup, no side effects).
+ * Used by getActiveWorkspaceId() to default to the key's workspace.
+ */
+export async function getApiKeyWorkspaceId(key: string): Promise<string | null> {
+  const hash = hashKey(key);
+  const [row] = await db
+    .select({ workspaceId: apiKeys.workspaceId })
+    .from(apiKeys)
+    .where(eq(apiKeys.keyHash, hash));
+  return row?.workspaceId ?? null;
 }

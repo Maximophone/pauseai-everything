@@ -182,7 +182,7 @@ export async function updateContact(
     .update(contacts)
     .set({
       ...data,
-      updatedAt: new Date(),
+      updatedAt: sql`now()`,
     })
     .where(eq(contacts.id, id))
     .returning();

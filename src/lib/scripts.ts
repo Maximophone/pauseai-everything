@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { scripts, scriptRuns, type Script } from "@/db/schema/scripts";
-import { eq, and, asc, desc } from "drizzle-orm";
+import { eq, and, asc, desc, sql } from "drizzle-orm";
 
 // ─── Scripts CRUD ──────────────────────────────────────────
 
@@ -55,7 +55,7 @@ export async function updateScript(
     : eq(scripts.id, id);
   const [updated] = await db
     .update(scripts)
-    .set({ ...data, updatedAt: new Date() })
+    .set({ ...data, updatedAt: sql`now()` })
     .where(condition)
     .returning();
   return updated ?? null;

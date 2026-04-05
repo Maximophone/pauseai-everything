@@ -6,7 +6,7 @@ import {
   type Workspace,
 } from "@/db/schema/workspaces";
 import { users, type UserRole } from "@/db/schema/users";
-import { eq, and, asc } from "drizzle-orm";
+import { eq, and, asc, sql } from "drizzle-orm";
 
 // ── Cache for Global workspace ID ───────────────────────────
 
@@ -57,7 +57,7 @@ export async function updateWorkspace(
 ): Promise<Workspace | null> {
   const [ws] = await db
     .update(workspaces)
-    .set({ ...data, updatedAt: new Date() })
+    .set({ ...data, updatedAt: sql`now()` })
     .where(eq(workspaces.id, id))
     .returning();
   return ws ?? null;
