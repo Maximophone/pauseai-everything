@@ -162,24 +162,31 @@ npm run docs:api      # Regenerate docs/api-reference.md from Zod schemas
 
 ## Documentation
 
-See [docs/README.md](docs/README.md) for the full documentation structure and how to navigate it.
+All project documentation lives in this repo. Some docs are **served on the frontend** at `/dashboard/docs` (accessible to all logged-in users, configured in `src/lib/docs-manifest.ts`). Others are developer-only.
 
-Some docs are **served on the frontend** at `/dashboard/docs` (accessible to all logged-in users). Others are developer-only and only available in the repo. The docs README explains which is which.
+**If you're new to the project**, start with:
+1. This README (project overview, tech stack, setup)
+2. [docs/architecture.md](docs/architecture.md) (system design, data model, key patterns)
+3. [docs/development.md](docs/development.md) (local dev setup, env vars, workflow)
 
-**Actively maintained docs (reflect current system):**
+### Actively maintained docs
 
-| Doc | What's in it | Served on frontend? |
-|-----|-------------|---------------------|
+These reflect the current state of the system and are kept up to date as features change.
+
+| Doc | What's in it | On frontend? |
+|-----|-------------|:------------:|
 | [docs/architecture.md](docs/architecture.md) | System design, data model, key patterns | Yes |
-| [docs/api-reference.md](docs/api-reference.md) | Full REST API reference (auto-generated) | Yes |
+| [docs/api-reference.md](docs/api-reference.md) | Full REST API reference (auto-generated via `npm run docs:api`) | Yes |
 | [docs/development.md](docs/development.md) | Full local setup, env vars, database, tips | Yes |
 | [docs/deployment.md](docs/deployment.md) | Railway deployment, env vars | Yes |
-| [docs/features.md](docs/features.md) | Feature specs and backlog | Yes |
-| [docs/build-plan.md](docs/build-plan.md) | Build phases with completion status | Yes |
-| [docs/future-features.md](docs/future-features.md) | Out-of-scope ideas captured for later | Yes |
-| [docs/user-guide/](docs/user-guide/) | End-user guides (contacts, email, etc.) | Yes |
+| [docs/features.md](docs/features.md) | Feature descriptions — what's built, what's planned | Yes |
+| [docs/build-plan.md](docs/build-plan.md) | 12-phase build progression with completion status | Yes |
+| [docs/future-features.md](docs/future-features.md) | Ideas and backlog items not yet planned | Yes |
+| [docs/user-guide/](docs/user-guide/) | End-user guides (contacts, email, settings, etc.) | Yes |
 
-**Historical design specs** (`docs/specs/`) — written before or during feature implementation. May not reflect current state. Kept for context on why things were built a certain way:
+### `docs/specs/` — Historical design specifications
+
+Design documents written **before or during** feature implementation. These capture the original intent and design thinking, but **may not reflect the current state** of the software — the implementation may have departed from the spec. Valuable for understanding *why* things were built a certain way; for *how* things work now, refer to the actively maintained docs above.
 
 | Doc | What's in it |
 |-----|-------------|
@@ -187,19 +194,23 @@ Some docs are **served on the frontend** at `/dashboard/docs` (accessible to all
 | [docs/specs/gmail-integration.md](docs/specs/gmail-integration.md) | Gmail / personal email integration design |
 | [docs/specs/crm-research-brief.md](docs/specs/crm-research-brief.md) | Initial CRM research and requirements |
 
-**Audits & reports** (`docs/audits/`) — one-off findings and assessments:
+**New feature specs should always be placed in `docs/specs/`.** When a spec leads to implementation, the actively maintained docs should be updated to reflect what was actually built.
+
+### `docs/audits/` — Audits and reports
+
+One-off assessments, security audits, and investigative reports. These are point-in-time snapshots and are not updated after the fact (though findings may be tracked in `BUGS.md`).
 
 | Doc | What's in it |
 |-----|-------------|
 | [docs/audits/api-blackbox-audit-2026-04-04.md](docs/audits/api-blackbox-audit-2026-04-04.md) | API security audit (86 test scenarios, 28 findings) |
 
-**Root-level docs:**
+### Root-level docs
 
 | Doc | What's in it |
 |-----|-------------|
+| [CLAUDE.md](CLAUDE.md) | Project instructions for AI assistants (Claude Code) |
 | [DEVLOG.md](DEVLOG.md) | Reverse-chronological development session log |
 | [BUGS.md](BUGS.md) | Bug tracker — security audit findings and fix status |
-| [CLAUDE.md](CLAUDE.md) | Project instructions for AI assistants |
 
 ## Auth & Permissions
 
@@ -257,3 +268,14 @@ railway up --detach --service worker
 ## Contributing
 
 See [docs/development.md](docs/development.md) for the full development guide including how to add new features, database schema changes, and testing conventions.
+
+### End-of-session ritual
+
+At the end of every development session, run the **`/wrapup`** slash command (defined in `.claude/commands/wrapup.md`). This:
+
+1. Reviews all commits since the last devlog entry
+2. Writes a new entry in `DEVLOG.md`
+3. Scans **every** documentation file, triages which ones need updates based on what changed, and updates them
+4. Commits and pushes all documentation changes
+
+This ensures docs never go stale. If you're wrapping up a session (e.g., "let's commit and push", "I think that's done"), always run `/wrapup` before ending.
