@@ -32,7 +32,6 @@ type FieldDefinition = {
   label: string;
   fieldType: string;
   options: string[] | null;
-  required: boolean;
   sortOrder: number;
   scope?: string;
   workspaceId?: string | null;
@@ -43,7 +42,6 @@ type EditingField = {
   label: string;
   fieldType: string;
   options: string[];
-  required: boolean;
 };
 
 type NewField = {
@@ -51,7 +49,6 @@ type NewField = {
   label: string;
   fieldType: string;
   options: string[];
-  required: boolean;
   scope?: string;
 };
 
@@ -60,7 +57,6 @@ const emptyNewField: NewField = {
   label: "",
   fieldType: "text",
   options: [],
-  required: false,
   scope: undefined,
 };
 
@@ -180,7 +176,6 @@ export function FieldsManager({
         label: newField.label.trim(),
         fieldType: newField.fieldType,
         options: hasOptions(newField.fieldType) ? newField.options : null,
-        required: newField.required,
         sortOrder: maxSort + 1,
         ...(isGlobalWorkspace && newField.scope ? { scope: newField.scope } : {}),
       }),
@@ -204,7 +199,6 @@ export function FieldsManager({
       label: field.label,
       fieldType: field.fieldType,
       options: field.options || [],
-      required: field.required,
     });
   }
 
@@ -220,7 +214,6 @@ export function FieldsManager({
         label: editData.label.trim(),
         fieldType: editData.fieldType,
         options: hasOptions(editData.fieldType) ? editData.options : null,
-        required: editData.required,
       }),
     });
 
@@ -338,42 +331,27 @@ export function FieldsManager({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-medium text-muted-foreground">
-                Type
-              </label>
-              <select
-                value={newField.fieldType}
-                onChange={(e) =>
-                  setNewField({
-                    ...newField,
-                    fieldType: e.target.value,
-                    options: [],
-                  })
-                }
-                className="mt-1 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              >
-                {FIELD_TYPES.map((t) => (
-                  <option key={t.value} value={t.value}>
-                    {t.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex items-end">
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={newField.required}
-                  onChange={(e) =>
-                    setNewField({ ...newField, required: e.target.checked })
-                  }
-                  className="rounded border-input"
-                />
-                Required
-              </label>
-            </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground">
+              Type
+            </label>
+            <select
+              value={newField.fieldType}
+              onChange={(e) =>
+                setNewField({
+                  ...newField,
+                  fieldType: e.target.value,
+                  options: [],
+                })
+              }
+              className="mt-1 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              {FIELD_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
           </div>
 
           {isGlobalWorkspace && (
@@ -480,18 +458,6 @@ export function FieldsManager({
                   </div>
                 </div>
 
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={editData.required}
-                    onChange={(e) =>
-                      setEditData({ ...editData, required: e.target.checked })
-                    }
-                    className="rounded border-input"
-                  />
-                  Required
-                </label>
-
                 {hasOptions(editData.fieldType) && (
                   <OptionsEditor
                     options={editData.options}
@@ -549,9 +515,6 @@ export function FieldsManager({
                   <div>
                     <div className="text-sm font-medium">
                       {field.label}
-                      {field.required && (
-                        <span className="ml-1 text-destructive">*</span>
-                      )}
                     </div>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <code className="bg-muted px-1 rounded">

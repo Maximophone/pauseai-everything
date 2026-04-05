@@ -17,7 +17,6 @@ export type SerializedFieldDefinition = {
   label: string;
   fieldType: string;
   options: string[] | null;
-  required: boolean | null;
   sortOrder: number | null;
   createdAt: string;
 };

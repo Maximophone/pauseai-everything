@@ -27,7 +27,6 @@ export async function PUT(
       ...(parsed.data.label !== undefined && { label: parsed.data.label }),
       ...(parsed.data.fieldType !== undefined && { fieldType: parsed.data.fieldType }),
       ...(parsed.data.options !== undefined && { options: parsed.data.options }),
-      ...(parsed.data.required !== undefined && { required: parsed.data.required }),
       ...(parsed.data.sortOrder !== undefined && { sortOrder: parsed.data.sortOrder }),
     })
     .where(eq(fieldDefinitions.id, id))

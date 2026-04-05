@@ -282,12 +282,6 @@ export async function validateCustomFields(
   for (const def of definitions) {
     const value = fields[def.name];
 
-    // Check required
-    if (def.required && (value === undefined || value === null || value === "")) {
-      errors.push(`Field "${def.label}" is required.`);
-      continue;
-    }
-
     if (value === undefined || value === null || value === "") continue;
 
     // Type validation

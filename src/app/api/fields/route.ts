@@ -58,7 +58,6 @@ export async function POST(request: NextRequest) {
         label: parsed.data.label,
         fieldType: parsed.data.fieldType,
         options: parsed.data.options || null,
-        required: parsed.data.required,
         sortOrder: parsed.data.sortOrder,
         scope,
         workspaceId: fieldWorkspaceId,

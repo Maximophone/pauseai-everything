@@ -4,6 +4,30 @@ Reverse-chronological log of development sessions. Each entry is self-contained.
 
 ---
 
+## 2026-04-05 — Remove required fields functionality
+
+**What:** Removed the `required` boolean from field definitions entirely. Required fields were inconsistently enforced (only on direct API create/update, not on CSV import, Tally webhooks, or sync engine), which caused a bug chain: contacts entered without required fields couldn't be edited later because the PUT validation would reject unrelated edits.
+
+**Key changes:**
+- `src/db/schema/field-definitions.ts` — dropped `required` column
+- `src/lib/contacts.ts` — removed required-field check from `validateCustomFields()`
+- `src/lib/schemas/fields.ts` — removed `required` from Create/Update Zod schemas
+- `src/components/fields-manager.tsx` — removed required checkbox from create/edit forms, removed `*` indicators
+- `src/components/contact-detail-form.tsx`, `contacts-table.tsx` — removed `required` from types and UI
+- `src/db/seed.ts` — removed all `required` properties from default field definitions
+- `src/lib/__tests__/contacts.test.ts` — removed required-field test, updated assertions
+- `docs/future-features.md` — added "Field Descriptions & Importance" as future replacement
+
+**Decisions:**
+- Chose full removal over soft-required (visual warnings) for simplicity. A future "importance" flag + field descriptions can bring back the nudge without blocking edits
+- Historical audit docs left unchanged (they document what existed at audit time)
+
+**Open items:**
+- Run `npx drizzle-kit push` to drop the `required` column from the database
+- Future: field descriptions (tooltips) + importance flag to replace the guidance that required fields provided
+
+---
+
 ## 2026-04-05 — API black-box audit and security fixes
 
 **What:** Conducted a comprehensive black-box API audit (86 test scenarios, 28 bugs found), then fixed all critical and high-severity issues. The audit uncovered a systemic workspace isolation failure — non-member users could access any workspace's data by setting the `X-Workspace-Id` header.

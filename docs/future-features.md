@@ -23,6 +23,12 @@ Captured during workspace model review (2026-03-25). These are out of scope for 
 - **Tag selector in connection field mapper**: Same issue as segments.
 - ~~**Connections navigation**: Connections should have their own top-level tab in the sidebar, not be nested under Settings.~~ ✅ Done (Phase 10)
 
+## Field Descriptions & Importance
+
+- **Description per field**: Each field definition could have an optional `description` text field. The description would appear as a tooltip (info icon) next to the field label everywhere the field is shown: contacts table column headers, new contact form, contact detail page, and field mapping UI when configuring sync connections.
+- **Importance flag**: A boolean "important" flag (or similar visual indicator) to signal that a field is particularly valuable for data quality, without blocking saves. Important fields could be highlighted in the UI (e.g., subtle background or icon) to nudge users to fill them in. This replaces the old "required" field concept which was removed because it blocked edits on records that entered the system with incomplete data (via imports, webhooks, syncs).
+- Together, descriptions + importance give admins a way to guide data entry without creating hard gates that break multi-path data ingestion.
+
 ## API Keys Workspace Scoping
 
 - API keys should be scoped to a specific workspace by default.

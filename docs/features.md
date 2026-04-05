@@ -183,7 +183,6 @@ GET    /api/auth/...              — NextAuth.js routes
 - Field types: text, number, date, email, url, select, multi_select, boolean
 - For select/multi_select: manage allowed options
 - Set which contact types a field applies to
-- Set required/optional
 - Set whether field appears in the table list view
 - Deleting a field: soft delete (data preserved in JSONB, just hidden)
 

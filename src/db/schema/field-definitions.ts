@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, boolean, integer, jsonb, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, integer, jsonb, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
 export const fieldDefinitions = pgTable(
   "field_definitions",
@@ -8,7 +8,6 @@ export const fieldDefinitions = pgTable(
     label: text("label").notNull(),
     fieldType: text("field_type").notNull(), // text, number, date, select, multiselect, boolean, url
     options: jsonb("options").$type<string[]>(), // for select/multiselect
-    required: boolean("required").default(false),
     sortOrder: integer("sort_order").default(0),
     // Workspace scoping
     scope: text("scope").notNull().default("core"), // "core" | "global_internal" | "workspace"

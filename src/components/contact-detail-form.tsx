@@ -15,7 +15,6 @@ type FieldDefinition = {
   label: string;
   fieldType: string;
   options: string[] | null;
-  required: boolean;
   sortOrder: number;
 };
 
@@ -228,9 +227,6 @@ export function ContactDetailForm({
             <div key={field.id} className="space-y-2">
               <Label htmlFor={field.name} className="flex items-center gap-1.5">
                 {field.label}
-                {field.required && (
-                  <span className="text-red-500 ml-1">*</span>
-                )}
                 {isSynced(field.name) && <SyncedBadge />}
               </Label>
               {renderField(field, customFields[field.name], (v) =>

@@ -30,7 +30,6 @@ const mockFieldDefinitions = [
     label: "Lifecycle Stage",
     fieldType: "select",
     options: ["joined", "onboarding", "active", "dormant"],
-    required: true,
     sortOrder: 1,
     createdAt: new Date(),
   },
@@ -40,7 +39,6 @@ const mockFieldDefinitions = [
     label: "Country",
     fieldType: "text",
     options: null,
-    required: false,
     sortOrder: 2,
     createdAt: new Date(),
   },
@@ -50,7 +48,6 @@ const mockFieldDefinitions = [
     label: "Hours Committed",
     fieldType: "number",
     options: null,
-    required: false,
     sortOrder: 3,
     createdAt: new Date(),
   },
@@ -60,7 +57,6 @@ const mockFieldDefinitions = [
     label: "Skills",
     fieldType: "multiselect",
     options: ["policy", "communications", "design"],
-    required: false,
     sortOrder: 4,
     createdAt: new Date(),
   },
@@ -70,7 +66,6 @@ const mockFieldDefinitions = [
     label: "Is Active",
     fieldType: "boolean",
     options: null,
-    required: false,
     sortOrder: 5,
     createdAt: new Date(),
   },
@@ -106,14 +101,6 @@ describe("validateCustomFields", () => {
     });
     expect(result.valid).toBe(true);
     expect(result.errors).toHaveLength(0);
-  });
-
-  it("should fail when a required field is missing", async () => {
-    const result = await validateCustomFields({
-      country: "Germany",
-    });
-    expect(result.valid).toBe(false);
-    expect(result.errors).toContain('Field "Lifecycle Stage" is required.');
   });
 
   it("should fail when a select field has an invalid value", async () => {
@@ -160,16 +147,13 @@ describe("validateCustomFields", () => {
     expect(result.errors).toContain('Field "Is Active" must be a boolean.');
   });
 
-  it("should pass when optional fields are omitted", async () => {
-    const result = await validateCustomFields({
-      lifecycle_stage: "joined",
-    });
+  it("should pass when fields are omitted", async () => {
+    const result = await validateCustomFields({});
     expect(result.valid).toBe(true);
   });
 
-  it("should pass when optional fields are null", async () => {
+  it("should pass when fields are null", async () => {
     const result = await validateCustomFields({
-      lifecycle_stage: "active",
       country: null as unknown as string,
       hours_committed: null as unknown as number,
     });
@@ -178,11 +162,10 @@ describe("validateCustomFields", () => {
 
   it("should collect multiple errors", async () => {
     const result = await validateCustomFields({
-      // missing required lifecycle_stage
       hours_committed: "not a number" as unknown as number,
       skills: "not an array" as unknown as string[],
     });
     expect(result.valid).toBe(false);
-    expect(result.errors.length).toBeGreaterThanOrEqual(3);
+    expect(result.errors.length).toBeGreaterThanOrEqual(2);
   });
 });

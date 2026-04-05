@@ -250,7 +250,6 @@ Create a custom field definition. No auth required
   "label": string,
   "fieldType": "text" | "number" | "date" | "select" | "multiselect" | "boolean" | "url" | "email",
   "options": string[] | null?,
-  "required": boolean,
   "sortOrder": number,
   "scope": "core" | "global_internal" | "workspace"?,
   "workspaceId": string (uuid) | null?
@@ -271,7 +270,6 @@ Update a field definition. No auth required
   "label": string?,
   "fieldType": "text" | "number" | "date" | "select" | "multiselect" | "boolean" | "url" | "email"?,
   "options": string[] | null?,
-  "required": boolean?,
   "sortOrder": number?
 }
 ```

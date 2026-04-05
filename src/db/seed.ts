@@ -15,7 +15,6 @@ const defaultFields = [
     label: "Lifecycle Stage",
     fieldType: "select",
     options: ["joined", "onboarding", "active", "highly_active", "dormant", "churned"],
-    required: true,
     sortOrder: 1,
   },
   {
@@ -23,21 +22,18 @@ const defaultFields = [
     label: "Contact Types",
     fieldType: "multiselect",
     options: ["member", "politician", "journalist", "coalition_partner", "donor"],
-    required: false,
     sortOrder: 2,
   },
   {
     name: "country",
     label: "Country",
     fieldType: "text",
-    required: false,
     sortOrder: 3,
   },
   {
     name: "chapter",
     label: "Chapter",
     fieldType: "text",
-    required: false,
     sortOrder: 4,
   },
   {
@@ -45,14 +41,12 @@ const defaultFields = [
     label: "Skills",
     fieldType: "multiselect",
     options: ["policy", "communications", "design", "development", "research", "organizing", "lobbying", "social_media", "writing", "translation"],
-    required: false,
     sortOrder: 5,
   },
   {
     name: "hours_committed",
     label: "Hours Committed / Week",
     fieldType: "number",
-    required: false,
     sortOrder: 6,
   },
   {
@@ -60,7 +54,6 @@ const defaultFields = [
     label: "Motivation Level",
     fieldType: "select",
     options: ["low", "medium", "high"],
-    required: false,
     sortOrder: 7,
   },
   {
@@ -68,28 +61,24 @@ const defaultFields = [
     label: "Source",
     fieldType: "select",
     options: ["website_join_form", "event", "referral", "social_media", "protest", "manual_entry", "other"],
-    required: false,
     sortOrder: 8,
   },
   {
     name: "notes",
     label: "Notes",
     fieldType: "text",
-    required: false,
     sortOrder: 9,
   },
   {
     name: "phone",
     label: "Phone",
     fieldType: "text",
-    required: false,
     sortOrder: 10,
   },
   {
     name: "discord_handle",
     label: "Discord Handle",
     fieldType: "text",
-    required: false,
     sortOrder: 11,
   },
   // Politician-specific fields
@@ -98,14 +87,12 @@ const defaultFields = [
     label: "Level of Government",
     fieldType: "select",
     options: ["local", "regional", "national", "eu", "international"],
-    required: false,
     sortOrder: 20,
   },
   {
     name: "party",
     label: "Political Party",
     fieldType: "text",
-    required: false,
     sortOrder: 21,
   },
   {
@@ -113,7 +100,6 @@ const defaultFields = [
     label: "AI Policy Position",
     fieldType: "select",
     options: ["unknown", "skeptical", "neutral", "cautious", "supportive", "publicly_endorsed"],
-    required: false,
     sortOrder: 22,
   },
   {
@@ -121,7 +107,6 @@ const defaultFields = [
     label: "Relationship Stage",
     fieldType: "select",
     options: ["cold", "contacted", "met", "warm", "supportive", "publicly_endorsed"],
-    required: false,
     sortOrder: 23,
   },
   // Journalist-specific fields
@@ -129,14 +114,12 @@ const defaultFields = [
     name: "outlet",
     label: "Media Outlet",
     fieldType: "text",
-    required: false,
     sortOrder: 30,
   },
   {
     name: "beat",
     label: "Beat / Focus Area",
     fieldType: "text",
-    required: false,
     sortOrder: 31,
   },
   // Donor-specific fields
@@ -144,7 +127,6 @@ const defaultFields = [
     name: "total_donated",
     label: "Total Donated",
     fieldType: "number",
-    required: false,
     sortOrder: 40,
   },
 ];

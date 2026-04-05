@@ -155,7 +155,6 @@ field_definitions
 ├── label (display name, e.g. "Country")
 ├── field_type (text | number | date | email | url | select | multiselect | boolean | jsonb)
 ├── options (jsonb — allowed values for select/multiselect)
-├── required (boolean)
 ├── sort_order (integer)
 ├── created_at, updated_at
 

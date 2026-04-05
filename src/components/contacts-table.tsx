@@ -95,7 +95,6 @@ type FieldDefinition = {
   label: string;
   fieldType: string;
   options: string[] | null;
-  required: boolean;
   sortOrder: number;
 };
 
