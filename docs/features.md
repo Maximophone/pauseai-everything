@@ -236,7 +236,7 @@ GET    /api/auth/...              — NextAuth.js routes
 ### 2.2 Broadcast email
 - Select a segment or saved filter as audience
 - Compose email (subject + rich text body) or pick a template
-- Merge fields (e.g. {{name}}, {{country}}, any custom field)
+- Merge fields (e.g. {{firstName}}, {{email}}, any custom field) — values are HTML-escaped automatically
 - Preview with sample contact
 - Schedule for later or send now
 - Sends via Mailersend API

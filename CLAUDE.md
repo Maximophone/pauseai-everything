@@ -60,7 +60,8 @@ The app supports multiple workspaces: one **global** workspace (PauseAI Global) 
 - Tests required for all backend features (`src/lib/__tests__/`)
 - Client-side API calls MUST use `useWorkspaceFetch()` to include workspace context header
 - Communication preference keys are namespaced: `workspaceId:categoryName`
-- Segment tag conditions use operator `has`/`not_has` (not `eq`)
+- Segment tag conditions use operator `has`/`not_has` (not `eq`). Emptiness checks: `is_set`/`is_not_set` (canonical) or `is_not_empty`/`is_empty` (aliases)
+- Email template merge variables (`{{firstName}}`, etc.) are HTML-escaped by `renderTemplate()` in `src/lib/mailersend.ts` — never render user data as raw HTML
 - Workspace switching triggers `window.location.reload()` — don't use refs to detect changes; check entity workspace ownership after fetch instead
 - Connections UI lives at `/dashboard/connections` (top-level sidebar, admin-only), not under Settings
 - When using `stripNulls()` in API routes, extract nullable fields that carry meaning (like `segmentId`, `categoryId`) before stripping

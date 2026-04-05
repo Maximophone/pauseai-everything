@@ -4,6 +4,30 @@ Reverse-chronological log of development sessions. Each entry is self-contained.
 
 ---
 
+## 2026-04-05 — API black-box audit and security fixes
+
+**What:** Conducted a comprehensive black-box API audit (86 test scenarios, 28 bugs found), then fixed all critical and high-severity issues. The audit uncovered a systemic workspace isolation failure — non-member users could access any workspace's data by setting the `X-Workspace-Id` header.
+
+**Key changes:**
+- `src/lib/workspace-context.ts` — Added `hasWorkspaceMembership()` check to `requireWorkspaceMember()` and `requireWorkspaceAdmin()`. Previously, `getEffectiveRole()` returned "member" for anyone with a global member role, bypassing workspace boundaries
+- 18 API route files — Upgraded from `requireAuth()`/`requireMember()` to `requireWorkspaceMember()` for workspace-scoped endpoints
+- `src/lib/workspace-context.ts` — `getActiveWorkspaceId()` now defaults to API key's workspace when no header is specified
+- `src/lib/mailersend.ts` — Added `escapeHtml()` to `renderTemplate()` to prevent HTML injection via contact names/custom fields in email templates
+- `src/lib/segments.ts` — Added `is_empty`/`is_not_empty` operator aliases, renamed preview response field from `sample` to `contacts`
+- 11 files across `src/lib/` — Replaced all `updatedAt: new Date()` with `sql`now()`` for consistent UTC timestamps
+- `src/lib/schemas/campaigns.ts` — Added max length validation for campaign name, subject, body
+
+**Decisions:**
+- API keys inherit the creator's per-workspace permissions (not locked to one workspace). The key's `workspaceId` serves as default when no header is sent, but the holder can specify any workspace they have membership in
+- `DEV_BYPASS_AUTH=true` makes all unauthenticated requests auto-authenticate as admin — the "unauthenticated access" bugs (B1-B9) are dev-only, not production vulnerabilities
+- B24 (campaign send pre-validation) deprioritized — worker correctly rejects and resets to draft, low user impact
+
+**Open items:**
+- B24: Campaign send could validate unsubscribe upfront instead of letting worker reject (minor UX improvement)
+- The audit report is at `docs/api-blackbox-audit-2026-04-04.md` with full repro steps for all 28 findings
+
+---
+
 ## 2026-04-04 — Sandbox mode (email testing)
 
 **What:** Implemented sandbox mode that intercepts all outbound email at the application level, writing to a `sandbox_emails` table instead of calling Mailersend. Enables safe end-to-end testing of the entire campaign pipeline — including event simulation — without any real email leaving the system.

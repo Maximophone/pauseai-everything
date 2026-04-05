@@ -10,9 +10,9 @@ Go to **Email → Campaigns** to see all campaigns in your workspace.
 
 Click **New Campaign** and fill in:
 
-- **Name** — internal label (not shown to recipients)
-- **Subject** — the email subject line
-- **Body** — the email content (supports HTML). Use merge variables like `{{firstName}}`, `{{lastName}}`, `{{email}}`
+- **Name** — internal label, not shown to recipients (max 200 characters)
+- **Subject** — the email subject line (max 998 characters)
+- **Body** — the email content (supports HTML, max 500,000 characters). Use merge variables like `{{firstName}}`, `{{lastName}}`, `{{email}}` — values are automatically HTML-escaped for safety
 - **Segment** — which contacts to send to
 - **Category** — which communication category (newsletter, events, action-alerts). Contacts who have unsubscribed from this category will be excluded
 - **Schedule** — send now or schedule for a specific date/time

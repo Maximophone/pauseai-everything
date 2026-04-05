@@ -261,10 +261,12 @@ Three auth paths:
 5. Connection is user-scoped (not workspace-scoped) — the user owns it across workspaces
 
 **API keys (machine-to-machine)**
-1. Admin creates a key in Settings > API Keys
+1. Admin creates a key in Settings > API Keys (scoped to the active workspace)
 2. Key is shown once, then stored as a SHA-256 hash in the DB
 3. Requests include `Authorization: Bearer pai_<key>`
 4. `checkAuth()` in `src/lib/api-auth.ts` validates by hashing the provided key and comparing
+5. When no `X-Workspace-Id` header is sent, requests default to the key's creation workspace
+6. Keys inherit the creator's per-workspace permissions (effective role is checked the same way as session auth)
 
 **Admin auto-promotion:**
 The `ADMIN_EMAILS` env var contains a comma-separated list of emails. Any user with a matching email is automatically promoted to global admin on every sign-in.
@@ -283,8 +285,11 @@ Two-layer role system:
 |------------|-------------|
 | `/dashboard/**` (pages) | Middleware cookie check → redirect to `/login` |
 | `/api/**` (API routes) | `checkAuth()` → session or API key |
+| Workspace-scoped routes | `requireWorkspaceMember()` → 403 if not a member of the workspace |
 | Workspace admin routes | `requireWorkspaceAdmin()` → 403 if effective role < admin |
 | Global admin routes | `requireAdmin()` → 403 if global role ≠ admin |
+
+**Workspace membership enforcement:** All workspace-scoped API routes call `requireWorkspaceMember()` which checks `hasWorkspaceMembership()` before computing effective role. Non-admin users can only access workspaces they explicitly belong to. Global admins bypass this check.
 
 ## API design
 
