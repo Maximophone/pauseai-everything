@@ -495,7 +495,7 @@ The contacts table uses AG Grid's **Infinite Row Model** to handle 10k–100k co
 
 ## Multi-Tenancy (Workspaces)
 
-The app is multi-tenant via workspaces. Full design spec in [workspaces.md](workspaces.md).
+The app is multi-tenant via workspaces. Full design spec in [specs/workspaces.md](specs/workspaces.md).
 
 **Workspace context flow:**
 1. Client: `WorkspaceProvider` (React context) reads workspace list from `/api/workspaces`, sets active workspace, writes cookie

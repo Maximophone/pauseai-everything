@@ -45,8 +45,10 @@ Use `Glob` to find ALL `.md` files in the repository (excluding `node_modules/`)
 - `docs/development.md` — dev setup and workflow
 - `docs/deployment.md` — production deployment
 - `docs/api-reference.md` — API endpoint docs
-- `docs/workspaces.md` — multi-tenancy spec
-- `docs/gmail-integration.md` — email integration design
+- `docs/specs/workspaces.md` — multi-tenancy spec (historical design spec)
+- `docs/specs/gmail-integration.md` — email integration design (historical design spec)
+- `docs/specs/crm-research-brief.md` — initial CRM research (historical)
+- `docs/audits/` — security audits and reports
 - `docs/build-plan.md` — project phases
 - Any other docs that may have been added
 
@@ -65,8 +67,8 @@ Doc triage:
 - docs/development.md — NEEDS UPDATE (new env var for dev workflow)
 - docs/deployment.md — NEEDS UPDATE (new production env var)
 - docs/api-reference.md — NEEDS UPDATE (new API endpoints)
-- docs/workspaces.md — no update needed
-- docs/gmail-integration.md — no update needed
+- docs/specs/workspaces.md — no update needed (historical spec)
+- docs/specs/gmail-integration.md — no update needed (historical spec)
 - docs/build-plan.md — no update needed
 - BUGS.md — no update needed
 ```

@@ -162,17 +162,44 @@ npm run docs:api      # Regenerate docs/api-reference.md from Zod schemas
 
 ## Documentation
 
+See [docs/README.md](docs/README.md) for the full documentation structure and how to navigate it.
+
+Some docs are **served on the frontend** at `/dashboard/docs` (accessible to all logged-in users). Others are developer-only and only available in the repo. The docs README explains which is which.
+
+**Actively maintained docs (reflect current system):**
+
+| Doc | What's in it | Served on frontend? |
+|-----|-------------|---------------------|
+| [docs/architecture.md](docs/architecture.md) | System design, data model, key patterns | Yes |
+| [docs/api-reference.md](docs/api-reference.md) | Full REST API reference (auto-generated) | Yes |
+| [docs/development.md](docs/development.md) | Full local setup, env vars, database, tips | Yes |
+| [docs/deployment.md](docs/deployment.md) | Railway deployment, env vars | Yes |
+| [docs/features.md](docs/features.md) | Feature specs and backlog | Yes |
+| [docs/build-plan.md](docs/build-plan.md) | Build phases with completion status | Yes |
+| [docs/future-features.md](docs/future-features.md) | Out-of-scope ideas captured for later | Yes |
+| [docs/user-guide/](docs/user-guide/) | End-user guides (contacts, email, etc.) | Yes |
+
+**Historical design specs** (`docs/specs/`) — written before or during feature implementation. May not reflect current state. Kept for context on why things were built a certain way:
+
 | Doc | What's in it |
 |-----|-------------|
-| [docs/api-reference.md](docs/api-reference.md) | Full REST API reference — all endpoints, request/response shapes, auth levels (auto-generated) |
-| [docs/development.md](docs/development.md) | Full local setup, env vars, database, tips |
-| [docs/architecture.md](docs/architecture.md) | System design, data model, key patterns |
-| [docs/deployment.md](docs/deployment.md) | Railway deployment, env vars, how to deploy each service |
-| [docs/build-plan.md](docs/build-plan.md) | Build phases with completion status |
-| [docs/features.md](docs/features.md) | Feature specs, backlog, and future ideas |
-| [docs/workspaces.md](docs/workspaces.md) | Multi-tenancy (workspaces) design specification |
-| [docs/gmail-integration.md](docs/gmail-integration.md) | Gmail / personal email integration design doc |
-| [docs/future-features.md](docs/future-features.md) | Out-of-scope ideas captured for later |
+| [docs/specs/workspaces.md](docs/specs/workspaces.md) | Original multi-tenancy design specification |
+| [docs/specs/gmail-integration.md](docs/specs/gmail-integration.md) | Gmail / personal email integration design |
+| [docs/specs/crm-research-brief.md](docs/specs/crm-research-brief.md) | Initial CRM research and requirements |
+
+**Audits & reports** (`docs/audits/`) — one-off findings and assessments:
+
+| Doc | What's in it |
+|-----|-------------|
+| [docs/audits/api-blackbox-audit-2026-04-04.md](docs/audits/api-blackbox-audit-2026-04-04.md) | API security audit (86 test scenarios, 28 findings) |
+
+**Root-level docs:**
+
+| Doc | What's in it |
+|-----|-------------|
+| [DEVLOG.md](DEVLOG.md) | Reverse-chronological development session log |
+| [BUGS.md](BUGS.md) | Bug tracker — security audit findings and fix status |
+| [CLAUDE.md](CLAUDE.md) | Project instructions for AI assistants |
 
 ## Auth & Permissions
 

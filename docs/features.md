@@ -287,7 +287,7 @@ GET    /api/auth/...              — NextAuth.js routes
 
 ## Milestone 1c: Workspaces (Multi-Tenancy) ✅
 
-Multi-tenant architecture so PauseAI Global and national chapters can operate independently. See [workspaces.md](workspaces.md) for the full design spec.
+Multi-tenant architecture so PauseAI Global and national chapters can operate independently. See [specs/workspaces.md](specs/workspaces.md) for the full design spec.
 
 **Workspace model:**
 - Two workspace types: `global` (exactly one — PauseAI Global) and `chapter` (one per national chapter)

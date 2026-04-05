@@ -797,7 +797,7 @@ CRM and operations platform for PauseAI Global. Built with Next.js 16 (App Route
 - **Sync engine:** \`src/lib/sync-engine.ts\`
 - **Background workers:** \`src/worker/\` (Graphile Worker)
 - **UI components:** \`src/components/\` (React + shadcn/ui)
-- **Workspace design:** See [docs/workspaces.md](docs/workspaces.md) for the multi-tenancy specification
+- **Workspace design:** See [docs/specs/workspaces.md](docs/specs/workspaces.md) for the multi-tenancy specification
 
 ## Workspaces (Multi-Tenancy)
 

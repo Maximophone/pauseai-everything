@@ -29,7 +29,7 @@ export const docsManifest: DocSection[] = [
       { slug: "development", title: "Development Setup", file: "development.md" },
       { slug: "deployment", title: "Deployment", file: "deployment.md" },
       { slug: "architecture", title: "Architecture Overview", file: "architecture.md" },
-      { slug: "workspaces", title: "Workspaces (Multi-Tenancy)", file: "workspaces.md" },
+      { slug: "workspaces", title: "Workspaces (Multi-Tenancy)", file: "specs/workspaces.md" },
       { slug: "features", title: "Features", file: "features.md" },
     ],
   },

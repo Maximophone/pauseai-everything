@@ -199,7 +199,7 @@ Carried forward from bug #19 — still not addressed.
 
 ## API Black-Box Audit — 2026-04-04 (86 test scenarios, 28 findings)
 
-Full audit report: `docs/api-blackbox-audit-2026-04-04.md`
+Full audit report: `docs/audits/api-blackbox-audit-2026-04-04.md`
 
 ### Critical — Workspace Isolation
 
