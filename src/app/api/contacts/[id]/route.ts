@@ -9,7 +9,7 @@ import {
 } from "@/lib/contacts";
 import { validateBody } from "@/lib/api-validate";
 import { UpdateContactInput } from "@/lib/schemas";
-import { checkAuth, requireAuth, requireMember } from "@/lib/api-auth";
+import { checkAuth } from "@/lib/api-auth";
 import { getActiveWorkspaceId, requireWorkspaceAdmin, requireWorkspaceMember } from "@/lib/workspace-context";
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -20,10 +20,10 @@ export async function GET(
   context: RouteContext
 ) {
   const authResult = await checkAuth(request);
-  const authError = requireAuth(authResult);
+  const workspaceId = await getActiveWorkspaceId(request);
+  const authError = await requireWorkspaceMember(authResult, workspaceId);
   if (authError) return authError;
 
-  const workspaceId = await getActiveWorkspaceId(request);
   const { id } = await context.params;
 
   // Global admins can see any contact; others only see contacts in their workspace

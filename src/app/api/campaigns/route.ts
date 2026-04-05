@@ -3,13 +3,14 @@ import { checkAuth, requireAdmin } from "@/lib/api-auth";
 import { listCampaigns, createCampaign } from "@/lib/campaigns";
 import { validateBody } from "@/lib/api-validate";
 import { CreateCampaignInput } from "@/lib/schemas";
-import { getActiveWorkspaceId } from "@/lib/workspace-context";
+import { getActiveWorkspaceId, requireWorkspaceMember } from "@/lib/workspace-context";
+import { getSegment } from "@/lib/segments";
 
 export async function GET(request: NextRequest) {
   const authResult = await checkAuth(request);
-  if (!authResult.authenticated) return authResult.error!;
-
   const workspaceId = await getActiveWorkspaceId(request);
+  const authError = await requireWorkspaceMember(authResult, workspaceId);
+  if (authError) return authError;
   const campaigns = await listCampaigns(workspaceId);
   return NextResponse.json(campaigns);
 }
@@ -23,6 +24,20 @@ export async function POST(request: NextRequest) {
   const body = await request.json();
   const parsed = validateBody(CreateCampaignInput, body);
   if (!parsed.success) return parsed.error;
+
+  // Validate segmentId belongs to the campaign's workspace
+  if (parsed.data.segmentId) {
+    const segment = await getSegment(parsed.data.segmentId);
+    if (!segment) {
+      return NextResponse.json({ error: "Segment not found." }, { status: 400 });
+    }
+    if (segment.workspaceId !== workspaceId) {
+      return NextResponse.json(
+        { error: "Segment does not belong to this workspace." },
+        { status: 400 }
+      );
+    }
+  }
 
   const campaign = await createCampaign({
     name: parsed.data.name,

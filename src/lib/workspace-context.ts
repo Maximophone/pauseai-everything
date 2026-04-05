@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getGlobalWorkspaceId, getEffectiveRole } from "./workspaces";
+import { getGlobalWorkspaceId, getEffectiveRole, hasWorkspaceMembership } from "./workspaces";
 import type { AuthResult } from "./api-auth";
 import type { UserRole } from "@/db/schema/users";
 
@@ -41,6 +41,15 @@ export async function requireWorkspaceMember(
   // Global admin from AuthResult is already sufficient
   if (authResult.role === "admin") return null;
 
+  // Non-admin users must have an explicit workspace membership
+  const isMember = await hasWorkspaceMembership(authResult.userId, workspaceId);
+  if (!isMember) {
+    return NextResponse.json(
+      { error: "You are not a member of this workspace." },
+      { status: 403 }
+    );
+  }
+
   const effective = await getEffectiveRole(authResult.userId, workspaceId);
   if (effective === "viewer") {
     return NextResponse.json(
@@ -64,6 +73,15 @@ export async function requireWorkspaceAdmin(
   if (!authResult.userId) return null;
 
   if (authResult.role === "admin") return null;
+
+  // Non-admin users must have an explicit workspace membership
+  const isMember = await hasWorkspaceMembership(authResult.userId, workspaceId);
+  if (!isMember) {
+    return NextResponse.json(
+      { error: "You are not a member of this workspace." },
+      { status: 403 }
+    );
+  }
 
   const effective = await getEffectiveRole(authResult.userId, workspaceId);
   if (effective !== "admin") {

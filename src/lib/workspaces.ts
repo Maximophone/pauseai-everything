@@ -198,6 +198,25 @@ export async function getEffectiveRole(
   return LEVEL_TO_ROLE[Math.max(globalLevel, wsLevel)];
 }
 
+/**
+ * Check if a user has an explicit membership row in a workspace.
+ */
+export async function hasWorkspaceMembership(
+  userId: string,
+  workspaceId: string
+): Promise<boolean> {
+  const [row] = await db
+    .select({ id: userWorkspaces.userId })
+    .from(userWorkspaces)
+    .where(
+      and(
+        eq(userWorkspaces.userId, userId),
+        eq(userWorkspaces.workspaceId, workspaceId)
+      )
+    );
+  return !!row;
+}
+
 // ── Contact-Workspace membership ────────────────────────────
 
 export async function addContactToWorkspace(

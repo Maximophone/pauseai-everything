@@ -16,6 +16,11 @@ export async function listTags(workspaceId?: string) {
   return db.select().from(tags).orderBy(asc(tags.name));
 }
 
+export async function getTag(id: string) {
+  const [tag] = await db.select().from(tags).where(eq(tags.id, id));
+  return tag ?? null;
+}
+
 export async function createTag(
   name: string,
   color?: string,
