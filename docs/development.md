@@ -1,6 +1,6 @@
 # Development Guide
 
-> Last updated: 2026-03-23.
+> Last updated: 2026-04-05.
 
 ## Prerequisites
 
@@ -53,6 +53,7 @@ Edit `.env`:
 | `EMAIL_ENCRYPTION_KEY` | AES-256 key for encrypting OAuth tokens and connection credentials | `openssl rand -hex 32` |
 | `MAILERSEND_WEBHOOK_SIGNING_SECRET` | HMAC secret for verifying Mailersend webhook signatures | From Mailersend dashboard (optional in dev) |
 | `TALLY_WEBHOOK_SIGNING_SECRET` | HMAC secret for verifying Tally webhook signatures | From Tally form settings (optional in dev) |
+| `EMAIL_MODE` | `sandbox` (default if unset) — captures all outbound email in the database instead of sending via Mailersend. Set to `live` only when you want to send real emails. **Leave unset or set to `sandbox` for all development and testing.** | No (defaults to `sandbox`) |
 | `DEV_BYPASS_AUTH` | Set to `true` to skip Google login in dev | Dev only |
 
 **Two auth modes for development:**
@@ -94,6 +95,56 @@ npm run worker
 ```
 
 Open http://localhost:3000. With `DEV_BYPASS_AUTH=true` you'll land directly on the dashboard. With it unset, you'll see the dev login page where you can choose a user to test with.
+
+---
+
+## Sandbox mode (email testing)
+
+**By default, no real emails are sent.** The app starts in sandbox mode (`EMAIL_MODE=sandbox` or unset), which intercepts all outbound email — campaigns, previews, script-triggered sends, invitations, ticket notifications — and writes them to the `sandbox_emails` database table instead of calling the Mailersend API. Zero HTTP requests are made to Mailersend when in sandbox mode.
+
+This means you can safely:
+- Send campaigns to thousands of contacts during testing
+- Run end-to-end tests (UI tests, API tests, AI-driven tests) that exercise the full email pipeline
+- Inspect exactly what the system would send: rendered HTML, headers, recipient, merge variables
+- Simulate delivery events (delivered, opened, clicked, bounced, unsubscribed) to test the full email lifecycle
+
+### How to use sandbox mode
+
+1. **Leave `EMAIL_MODE` unset** (or set it to `sandbox`) — this is the default
+2. You'll see an **amber banner** at the top of the dashboard: "SANDBOX MODE — No emails are being sent"
+3. A **Sandbox** item appears in the sidebar (admin-only, flask icon) linking to `/dashboard/sandbox`
+4. The sandbox viewer shows all captured emails with filters, detail view, and event simulation buttons
+
+### Sandbox API
+
+The sandbox is fully drivable via API (all endpoints require admin role):
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/sandbox/status` | GET | Check current mode (`sandbox` or `live`) |
+| `/api/sandbox/emails` | GET | List captured emails (filters: `campaignId`, `to`, `workspaceId`, `status`, `since`) |
+| `/api/sandbox/emails/:id` | GET | Get full email detail (rendered HTML, headers, etc.) |
+| `/api/sandbox/emails/:id/simulate` | POST | Simulate an event on one email (`delivered`, `opened`, `clicked`, `bounced`, `unsubscribed`) |
+| `/api/sandbox/emails/simulate-bulk` | POST | Simulate an event on all matching emails |
+| `/api/sandbox/emails` | DELETE | Clear sandbox data (optionally scoped to a campaign) |
+
+Event simulation calls the **same internal logic** as the Mailersend webhook handler — it updates the `emails` table, recalculates campaign stats, and processes unsubscribes. This tests the real code path, not a fake one.
+
+### Switching to live mode
+
+To actually send emails (e.g., for production or manual testing against real Mailersend):
+
+```bash
+EMAIL_MODE=live
+```
+
+Set this in your `.env` file and restart the dev server and worker. **For production, `EMAIL_MODE=live` is required** — see [deployment.md](deployment.md).
+
+### All development testing should use sandbox mode
+
+- **Frontend tests**: The sandbox banner confirms you're in the right mode. Use the sandbox viewer to inspect sent emails.
+- **API tests**: Use `DELETE /api/sandbox/emails` to clear state, then run your test flow, then `GET /api/sandbox/emails` to verify what was sent.
+- **End-to-end tests**: The sandbox API enables fully automated test flows — create contacts, send campaigns, simulate delivery events, verify stats — all without sending real email.
 
 ---
 
@@ -268,6 +319,7 @@ All table definitions are in `src/db/schema/`:
 | `app-settings.ts` | `app_settings` (key-value store) |
 | `connections.ts` | `connections`, `sync_configurations`, `sync_runs` |
 | `email-connections.ts` | `email_connections`, `email_contact_settings` |
+| `sandbox-emails.ts` | `sandbox_emails` (captured emails in sandbox mode) |
 | `users.ts` | `user`, `account`, `session`, `verificationToken` (NextAuth tables) |
 | `index.ts` | Re-exports all schemas |
 

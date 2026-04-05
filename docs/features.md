@@ -1,6 +1,6 @@
 # PauseAI Everything App — Features
 
-> Living document. Last updated: 2026-03-26.
+> Living document. Last updated: 2026-04-05.
 
 ## Milestone 1: Core CRM (launch target)
 
@@ -326,6 +326,58 @@ Multi-tenant architecture so PauseAI Global and national chapters can operate in
 - Preset users with different roles and workspace memberships
 - Custom email form with workspace selector dropdown
 - Auto-creates workspace memberships on first login
+
+---
+
+## Sandbox Mode (Email Testing) ✅
+
+Safe email testing infrastructure that intercepts all outbound email at the application level.
+
+### Email interception
+
+- **Environment-based switching:** `EMAIL_MODE=sandbox` (default) captures all email in the database; `EMAIL_MODE=live` sends via Mailersend
+- **Single interception point:** All email paths (campaigns, previews, scripts, invitations, notifications) go through `sendEmail()` in `src/lib/mailersend.ts`
+- **Full capture:** Sandbox stores the rendered HTML body, all headers (including List-Unsubscribe), recipient, sender, campaign/workspace context
+- **Transparent to the rest of the system:** The `emails` table is still written to, campaign stats still update, everything behaves identically except no HTTP request leaves the server
+
+### Event simulation
+
+- **Simulate delivery events** on sandbox emails: delivered, opened, clicked, bounced, unsubscribed
+- **Uses real webhook logic:** Simulation calls the same `processEmailEvent()` function as the Mailersend webhook handler
+- **Full lifecycle testing:** Simulating "unsubscribed" updates contact communication preferences; simulating "delivered" updates campaign delivery counts; etc.
+
+### Sandbox API (admin-only, returns 404 in live mode)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/sandbox/status` | GET | Check current mode |
+| `/api/sandbox/emails` | GET | List captured emails (filters: campaignId, to, workspaceId, status, since) |
+| `/api/sandbox/emails/:id` | GET | Full email detail (rendered body, headers) |
+| `/api/sandbox/emails/:id/simulate` | POST | Simulate delivery event |
+| `/api/sandbox/emails/simulate-bulk` | POST | Bulk event simulation |
+| `/api/sandbox/emails` | DELETE | Clear sandbox data |
+
+### Sandbox UI
+
+- **Amber banner** across the top of the dashboard when in sandbox mode (not dismissable)
+- **Sandbox viewer** at `/dashboard/sandbox` (admin-only, sidebar entry with flask icon):
+  - Table of all captured emails with recipient, subject, status, timestamp
+  - Click to expand: full rendered HTML in iframe, headers, status history
+  - Event simulation buttons per email and in bulk
+  - Filters by recipient and campaign
+  - Clear all button
+
+### AI-driven end-to-end testing
+
+The sandbox API enables fully automated test flows:
+1. `DELETE /api/sandbox/emails` — clean slate
+2. Create contacts, segments, campaigns via API
+3. `POST /api/campaigns/:id/send` — trigger send
+4. `GET /api/sandbox/emails?campaignId=:id` — verify emails captured
+5. `POST /api/sandbox/emails/:id/simulate { "event": "delivered" }` — simulate delivery
+6. `GET /api/campaigns/:id/emails` — verify stats updated
+7. `POST /api/sandbox/emails/:id/simulate { "event": "unsubscribed" }` — simulate unsubscribe
+8. Verify contact preferences updated, re-send excludes unsubscribed contact, etc.
 
 ---
 

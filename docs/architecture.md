@@ -1,6 +1,6 @@
 # PauseAI Everything App — Architecture
 
-> Living document. Last updated: 2026-03-25.
+> Living document. Last updated: 2026-04-05.
 
 ## Vision
 
@@ -38,7 +38,7 @@ A custom-built platform for PauseAI Global that starts as a CRM and grows into t
 - Personal email integration — users connect Gmail to browse email contacts, import to CRM, and auto-log interactions
 
 **External services:**
-- **Mailersend** — sends the actual emails
+- **Mailersend** — sends the actual emails (only when `EMAIL_MODE=live`; in sandbox mode, emails are captured locally — see [Sandbox mode](#sandbox-mode-email-testing) below)
 - **Tally** — collects form submissions via webhooks
 - **Airtable** — data sync source (one-way import of contacts)
 - **Notion** — data sync source + docs/wiki
@@ -123,6 +123,7 @@ Two processes from the same codebase, sharing the same Postgres database.
 | `sync_runs` | Sync execution history with statistics |
 | `email_connections` | User-scoped email provider connections (Gmail etc.), encrypted OAuth tokens, sync settings |
 | `email_contact_settings` | Per-contact sync and visibility settings for email connections |
+| `sandbox_emails` | Captured outbound emails when `EMAIL_MODE=sandbox` (rendered body, headers, status, event history) |
 
 ### Multi-tenancy tables
 
@@ -515,6 +516,79 @@ The app is multi-tenant via workspaces. Full design spec in [workspaces.md](work
 effectiveRole = max(ROLE_LEVELS[globalRole], ROLE_LEVELS[workspaceRole])
 ```
 Used everywhere: sidebar nav visibility, settings access, API authorization.
+
+## Sandbox mode (email testing)
+
+The app has a sandbox mode that intercepts all outbound email at the application level, storing emails in the `sandbox_emails` database table instead of sending them via Mailersend.
+
+### Switching mechanism
+
+```
+EMAIL_MODE=sandbox   # all emails go to the sandbox_emails table (default)
+EMAIL_MODE=live      # all emails go to real Mailersend
+```
+
+Default (if unset): `sandbox` — fail safe, never accidentally send real emails.
+
+### Interception architecture
+
+All email-sending paths go through a single function: `sendEmail()` in `src/lib/mailersend.ts`. This is the sole interception point. The function checks `EMAIL_MODE` and either:
+- **Sandbox**: writes a row to `sandbox_emails` with the fully rendered email (body, headers, recipient, campaign/workspace context) and returns a fake message ID (`sandbox_<uuid>`)
+- **Live**: makes the actual HTTP call to the Mailersend API
+
+Call sites (all routed through `sendEmail()`):
+1. Campaign sending (`src/lib/campaigns.ts` → `send_campaign` worker task)
+2. Campaign preview (`src/lib/campaigns.ts` → preview endpoint)
+3. Script engine email (`src/lib/script-engine.ts` → `ctx.email.send()`)
+4. User invitations (`src/lib/users.ts` → invite email)
+5. Support ticket notifications (`src/worker/tasks/send-ticket-notification.ts`)
+
+### Email event processing
+
+Delivery event processing (delivered, opened, clicked, bounced, unsubscribed) is handled by shared logic in `src/lib/email-events.ts`:
+
+- `processEmailEvent(messageId, eventType)` — updates the `emails` table status, handles unsubscribes, recalculates campaign aggregate counts
+- Used by both the Mailersend webhook handler (`/api/webhooks/mailersend`) and the sandbox simulate endpoint (`/api/sandbox/emails/:id/simulate`)
+- This means simulating events in sandbox mode tests the exact same code path as real webhooks
+
+### Sandbox API
+
+Six endpoints under `/api/sandbox/` (all admin-only, return 404 in live mode):
+- `GET /api/sandbox/status` — current mode
+- `GET /api/sandbox/emails` — list with filters (campaignId, to, workspaceId, status, since)
+- `GET /api/sandbox/emails/:id` — full email detail
+- `POST /api/sandbox/emails/:id/simulate` — simulate a delivery event
+- `POST /api/sandbox/emails/simulate-bulk` — bulk event simulation
+- `DELETE /api/sandbox/emails` — clear sandbox data
+
+### Sandbox UI
+
+When `EMAIL_MODE=sandbox`:
+- An amber banner is shown across the top of the dashboard: "SANDBOX MODE — No emails are being sent"
+- A "Sandbox" nav item (flask icon, admin-only) appears in the sidebar linking to `/dashboard/sandbox`
+- The sandbox viewer page shows captured emails with filters, HTML preview in an iframe, and event simulation buttons
+
+### sandbox_emails table
+
+```
+sandbox_emails
+├── id                (uuid, PK)
+├── message_id        (text, unique — "sandbox_" + uuid, correlates with emails.mailersend_id)
+├── to_email          (text)
+├── to_name           (text | null)
+├── from_email        (text)
+├── from_name         (text | null)
+├── subject           (text)
+├── body_html         (text — fully rendered HTML)
+├── headers           (jsonb — e.g. List-Unsubscribe, X-Tags)
+├── template_params   (jsonb | null)
+├── campaign_id       (uuid | null, FK → campaigns)
+├── workspace_id      (uuid | null, FK → workspaces)
+├── status            (text — "sent", "delivered", "opened", "clicked", "bounced", "complained")
+├── status_history    (jsonb array — [{event, timestamp, url?}])
+├── created_at        (timestamp)
+├── updated_at        (timestamp)
+```
 
 ## What's not in v1
 

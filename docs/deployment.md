@@ -132,6 +132,7 @@ railway up --detach --service worker
 | `UNSUBSCRIBE_SECRET` | Same value as web — needed for unsubscribe URL generation during campaign sends | Yes |
 | `NEXT_PUBLIC_APP_URL` | Same value as web — used in unsubscribe URLs | Yes |
 | `EMAIL_ENCRYPTION_KEY` | Same value as web — needed for credential decryption during sync | Yes |
+| `EMAIL_MODE` | `live` — same value as web. Worker sends campaign emails, so it must also be in live mode | Yes |
 | `NODE_ENV` | `production` | Yes |
 
 ### Setting variables

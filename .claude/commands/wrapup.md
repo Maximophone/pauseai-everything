@@ -30,24 +30,70 @@ All sections except **What** are optional — skip them if there's nothing meani
 
 If multiple days have passed since the last entry, use git history to reconstruct what happened and write separate entries for each day if the work clearly clusters by date. If it's ambiguous, one combined entry is fine.
 
-## Step 3: Update documentation
+## Step 3: Update documentation — THOROUGH SCAN REQUIRED
 
-Scan ALL markdown files in the repository (outside node_modules) for anything that's now stale or incomplete given the changes in this session. Think about it from two angles:
+This step is critical. Stale docs are worse than no docs.
 
-**Developer-facing docs** — Would a new developer reading these docs get an accurate picture of how the system works? Check things like:
-- Architecture descriptions
-- API endpoint documentation
-- Environment variable references
-- Setup instructions
-- Code conventions and patterns
-- The CLAUDE.md project instructions
+### 3a. Enumerate all documentation files
 
-**User-facing docs** — Would a user reading these docs understand how to use the features that were changed? Check things like:
-- Feature descriptions
-- User guides
-- API reference (request/response schemas, auth requirements)
+Use `Glob` to find ALL `.md` files in the repository (excluding `node_modules/`). This typically includes:
+- `CLAUDE.md` — project instructions for AI assistants
+- `DEVLOG.md` — dev log (handled in Step 2)
+- `BUGS.md` — bug tracker
+- `docs/architecture.md` — system architecture
+- `docs/features.md` — feature descriptions
+- `docs/development.md` — dev setup and workflow
+- `docs/deployment.md` — production deployment
+- `docs/api-reference.md` — API endpoint docs
+- `docs/workspaces.md` — multi-tenancy spec
+- `docs/gmail-integration.md` — email integration design
+- `docs/build-plan.md` — project phases
+- Any other docs that may have been added
 
-Don't mechanically check every file — use your judgment about which docs are likely affected by the session's changes. Read them and fix what's wrong. If nothing needs updating, say so and move on.
+### 3b. Triage each file
+
+For every doc file found, quickly read it and decide:
+- **Needs update** — the session's changes introduced new concepts, env vars, tables, endpoints, or features that should be reflected here
+- **No update needed** — the session's changes don't affect this document
+
+Output a triage list showing your assessment for each file BEFORE making edits, e.g.:
+```
+Doc triage:
+- CLAUDE.md — NEEDS UPDATE (new env var, new module references)
+- docs/architecture.md — NEEDS UPDATE (new table, new interception layer)
+- docs/features.md — NEEDS UPDATE (new feature section needed)
+- docs/development.md — NEEDS UPDATE (new env var for dev workflow)
+- docs/deployment.md — NEEDS UPDATE (new production env var)
+- docs/api-reference.md — NEEDS UPDATE (new API endpoints)
+- docs/workspaces.md — no update needed
+- docs/gmail-integration.md — no update needed
+- docs/build-plan.md — no update needed
+- BUGS.md — no update needed
+```
+
+### 3c. Update each flagged file
+
+For each file that needs updates, read it fully and make the necessary changes. Think about it from two angles:
+
+**Developer-facing docs** — Would a new developer reading these docs get an accurate picture of how the system works? Check:
+- Architecture descriptions (new tables, modules, data flows)
+- API endpoint documentation (new routes, request/response schemas)
+- Environment variable references (new env vars, changed defaults)
+- Setup instructions (new steps needed for dev workflow)
+- Code conventions and patterns (new patterns introduced)
+- The CLAUDE.md project instructions (new module references, conventions)
+
+**User-facing docs** — Would a user reading these docs understand how to use the features that were changed? Check:
+- Feature descriptions and how-to guides
+- UI changes (new pages, banners, navigation items)
+- Configuration options
+
+### Common mistakes to avoid
+- Adding a new env var but only documenting it in one place (it should be in development.md, deployment.md, CLAUDE.md, and architecture.md as appropriate)
+- Adding a new feature but not updating features.md
+- Adding new DB tables but not updating architecture.md
+- Adding new API endpoints but not updating api-reference.md
+- Changing a default behavior (like email mode defaulting to sandbox) without making it prominent in development docs
 
 ## Step 4: Update BUGS.md if relevant
 
