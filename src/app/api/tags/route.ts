@@ -2,15 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { listTags, createTag } from "@/lib/tags";
 import { validateBody } from "@/lib/api-validate";
 import { CreateTagInput } from "@/lib/schemas";
-import { checkAuth, requireAuth, requireMember } from "@/lib/api-auth";
-import { getActiveWorkspaceId } from "@/lib/workspace-context";
+import { checkAuth } from "@/lib/api-auth";
+import { getActiveWorkspaceId, requireWorkspaceMember } from "@/lib/workspace-context";
 
 // GET /api/tags
 export async function GET(request: NextRequest) {
   const authResult = await checkAuth(request);
-  const authError = requireAuth(authResult);
-  if (authError) return authError;
   const workspaceId = await getActiveWorkspaceId(request);
+  const authError = await requireWorkspaceMember(authResult, workspaceId);
+  if (authError) return authError;
   const allTags = await listTags(workspaceId);
   return NextResponse.json(allTags);
 }
@@ -18,9 +18,9 @@ export async function GET(request: NextRequest) {
 // POST /api/tags
 export async function POST(request: NextRequest) {
   const authResult = await checkAuth(request);
-  const authError = requireMember(authResult);
-  if (authError) return authError;
   const workspaceId = await getActiveWorkspaceId(request);
+  const authError = await requireWorkspaceMember(authResult, workspaceId);
+  if (authError) return authError;
   const body = await request.json();
   const parsed = validateBody(CreateTagInput, body);
   if (!parsed.success) return parsed.error;

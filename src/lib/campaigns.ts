@@ -59,7 +59,7 @@ export async function updateCampaign(
   }>
 ) {
   // Convert scheduledAt string to Date for Drizzle
-  const setData: Record<string, unknown> = { ...data, updatedAt: new Date() };
+  const setData: Record<string, unknown> = { ...data, updatedAt: sql`now()` };
   if (typeof setData.scheduledAt === "string") {
     setData.scheduledAt = new Date(setData.scheduledAt as string);
   }
@@ -93,7 +93,7 @@ export async function sendCampaign(campaignId: string) {
   // Mark as sending
   await db
     .update(campaigns)
-    .set({ status: "sending", updatedAt: new Date() })
+    .set({ status: "sending", updatedAt: sql`now()` })
     .where(eq(campaigns.id, campaignId));
 
   const campaignWorkspaceId = campaign.workspaceId;
@@ -179,7 +179,7 @@ export async function sendCampaign(campaignId: string) {
         // Reset status back to draft since we're refusing to send
         await db
           .update(campaigns)
-          .set({ status: "draft", updatedAt: new Date() })
+          .set({ status: "draft", updatedAt: sql`now()` })
           .where(eq(campaigns.id, campaignId));
         throw new Error(
           `Campaign has category "${categoryName}" but no working unsubscribe mechanism (${reasons.join("; ")}). ` +
@@ -299,8 +299,8 @@ export async function sendCampaign(campaignId: string) {
       status: "sent",
       sentCount,
       bouncedCount,
-      sentAt: new Date(),
-      updatedAt: new Date(),
+      sentAt: sql`now()`,
+      updatedAt: sql`now()`,
     })
     .where(eq(campaigns.id, campaignId));
 

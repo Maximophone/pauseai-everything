@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { appSettings } from "@/db/schema/app-settings";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 /**
  * Get a setting value by key. Returns null if not set.
@@ -31,10 +31,10 @@ export async function getBooleanSetting(
 export async function setSetting(key: string, value: string): Promise<void> {
   await db
     .insert(appSettings)
-    .values({ key, value, updatedAt: new Date() })
+    .values({ key, value, updatedAt: sql`now()` })
     .onConflictDoUpdate({
       target: appSettings.key,
-      set: { value, updatedAt: new Date() },
+      set: { value, updatedAt: sql`now()` },
     });
 }
 

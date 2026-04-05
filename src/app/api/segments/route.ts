@@ -3,14 +3,14 @@ import { checkAuth, requireAdmin } from "@/lib/api-auth";
 import { listSegments, createSegment } from "@/lib/segments";
 import { validateBody } from "@/lib/api-validate";
 import { CreateSegmentInput } from "@/lib/schemas";
-import { getActiveWorkspaceId } from "@/lib/workspace-context";
+import { getActiveWorkspaceId, requireWorkspaceMember } from "@/lib/workspace-context";
 import { isWorkspaceGlobal } from "@/lib/workspaces";
 
 export async function GET(request: NextRequest) {
   const authResult = await checkAuth(request);
-  if (!authResult.authenticated) return authResult.error!;
-
   const workspaceId = await getActiveWorkspaceId(request);
+  const authError = await requireWorkspaceMember(authResult, workspaceId);
+  if (authError) return authError;
   const segments = await listSegments(workspaceId);
   return NextResponse.json(segments);
 }

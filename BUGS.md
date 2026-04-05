@@ -194,3 +194,52 @@ Both fields control activation. Can become contradictory.
 
 #### 49. No pagination on `GET /api/email-connections/:id/contacts`
 Carried forward from bug #19 — still not addressed.
+
+---
+
+## API Black-Box Audit — 2026-04-04 (86 test scenarios, 28 findings)
+
+Full audit report: `docs/api-blackbox-audit-2026-04-04.md`
+
+### Critical — Workspace Isolation
+
+#### 50. ~~Workspace membership not enforced on API endpoints~~ — FIXED
+**Systemic bug.** `requireWorkspaceMember()` used `getEffectiveRole()` which returned member for any user with a global member role, even without workspace membership. Added explicit `hasWorkspaceMembership()` check. Applied workspace membership enforcement to all 18+ API route files.
+
+#### 51. ~~Cross-workspace campaign segment targeting~~ — FIXED
+Campaigns could reference segments from other workspaces, sending emails to contacts the workspace shouldn't access. Added segmentId cross-workspace validation on campaign create and update.
+
+#### 52. ~~Cross-workspace tag assignment~~ — FIXED
+Tags from one workspace could be assigned to contacts in another workspace. Added tag workspace validation on POST/DELETE contact tag endpoints.
+
+### High
+
+#### 53. ~~API key workspace scoping not enforced~~ — FIXED
+API keys have a `workspaceId` but it was not enforced. `getActiveWorkspaceId()` now defaults to the API key's workspace when no header is specified. Workspace membership enforcement (bug #50) prevents cross-workspace access.
+
+#### 54. ~~HTML injection in email merge variables~~ — FIXED
+**File:** `src/lib/mailersend.ts`
+`renderTemplate()` performed naive string substitution without HTML escaping. Contact names or custom fields containing HTML would be injected directly into email bodies. Added `escapeHtml()` function to escape all merge variable values.
+
+### Medium
+
+#### 55. ~~`updatedAt` timestamps use JS local time instead of SQL UTC~~ — FIXED
+All `updatedAt: new Date()` calls (20+ instances across 11 files) replaced with `sql\`now()\`` for consistent UTC timestamps.
+
+#### 56. ~~Segment `is_not_empty` operator not recognized~~ — FIXED
+**File:** `src/lib/segments.ts`
+The `buildColumnCondition` switch statement only had `is_set`/`is_not_set`. Added `is_empty`/`is_not_empty` as aliases.
+
+#### 57. ~~Segment preview response field mismatch~~ — FIXED
+API docs said `contacts`, implementation returned `sample`. Renamed to `contacts` in both backend and frontend.
+
+### Low
+
+#### 58. ~~No max length validation on campaign fields~~ — FIXED
+Added `.max(200)` for name, `.max(998)` for subject (RFC 2822), `.max(500_000)` for body in Zod schemas.
+
+#### 59. Campaign send returns success for campaigns that will be rejected — DEPRIORITIZED
+`POST /api/campaigns/:id/send` returns `{ queued: true }` for a categorized campaign that will be rejected by the worker. Low impact — status resets to draft correctly.
+
+#### 60. `dispatch_email_syncs` worker task SQL error — NOT A CODE BUG
+Schema and queries are correctly aligned. Likely a runtime/environment issue.

@@ -46,7 +46,7 @@ export async function updateSegment(
 ) {
   const [updated] = await db
     .update(segments)
-    .set({ ...data, updatedAt: new Date() })
+    .set({ ...data, updatedAt: sql`now()` })
     .where(eq(segments.id, id))
     .returning();
   return updated ?? null;
@@ -80,6 +80,8 @@ const OPERATORS = {
   // Special
   is_set: "IS NOT NULL",
   is_not_set: "IS NULL",
+  is_not_empty: "IS NOT NULL",  // alias for is_set
+  is_empty: "IS NULL",          // alias for is_not_set
   in: "IN",
   has: "HAS_TAG",
   not_has: "NOT_HAS_TAG",
@@ -149,8 +151,10 @@ function buildColumnCondition(
     case "lte":
       return sql`${col} <= ${String(value)}`;
     case "is_set":
+    case "is_not_empty":
       return sql`${col} IS NOT NULL AND ${col} != ''`;
     case "is_not_set":
+    case "is_empty":
       return sql`${col} IS NULL OR ${col} = ''`;
     case "in":
       if (Array.isArray(value) && value.length > 0) {
@@ -221,7 +225,7 @@ export async function previewSegment(
 
   return {
     count,
-    sample: sample as unknown as Array<{
+    contacts: sample as unknown as Array<{
       id: string;
       email: string;
       first_name: string;

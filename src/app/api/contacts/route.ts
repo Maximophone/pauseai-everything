@@ -7,7 +7,7 @@ import {
 } from "@/lib/contacts";
 import { validateBody } from "@/lib/api-validate";
 import { CreateContactInput } from "@/lib/schemas";
-import { checkAuth, requireAuth } from "@/lib/api-auth";
+import { checkAuth } from "@/lib/api-auth";
 import { getActiveWorkspaceId, requireWorkspaceMember, requireWorkspaceAdmin } from "@/lib/workspace-context";
 import { addContactToWorkspace } from "@/lib/workspaces";
 import { db } from "@/db";
@@ -20,10 +20,9 @@ import { getTagsForContacts } from "@/lib/tags";
 // GET /api/contacts — list contacts with search, pagination, sorting
 export async function GET(request: NextRequest) {
   const authResult = await checkAuth(request);
-  const authError = requireAuth(authResult);
-  if (authError) return authError;
-
   const workspaceId = await getActiveWorkspaceId(request);
+  const authError = await requireWorkspaceMember(authResult, workspaceId);
+  if (authError) return authError;
   const searchParams = request.nextUrl.searchParams;
 
   const result = await listContacts({

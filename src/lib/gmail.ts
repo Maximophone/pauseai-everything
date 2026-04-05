@@ -2,7 +2,7 @@ import { randomUUID } from "crypto";
 import { decrypt, encrypt } from "./encryption";
 import { db } from "@/db";
 import { emailConnections } from "@/db/schema/email-connections";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 // ---------- OAuth helpers ----------
 
@@ -133,7 +133,7 @@ export async function refreshAccessToken(
       .set({
         status: "error",
         statusMessage: `Token refresh failed: ${err}`,
-        updatedAt: new Date(),
+        updatedAt: sql`now()`,
       })
       .where(eq(emailConnections.id, connectionId));
     throw new Error(`Token refresh failed: ${err}`);
@@ -147,7 +147,7 @@ export async function refreshAccessToken(
     .set({
       accessToken: encrypt(data.access_token),
       tokenExpiresAt: newExpiresAt,
-      updatedAt: new Date(),
+      updatedAt: sql`now()`,
     })
     .where(eq(emailConnections.id, connectionId));
 

@@ -174,7 +174,7 @@ export async function updateTicket(
 
   const [updated] = await db
     .update(supportTickets)
-    .set({ ...data, updatedAt: new Date() } as Partial<SupportTicket>)
+    .set({ ...data, updatedAt: sql`now()` } as unknown as Partial<SupportTicket>)
     .where(eq(supportTickets.id, id))
     .returning();
 

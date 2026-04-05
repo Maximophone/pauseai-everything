@@ -1,9 +1,9 @@
 import { z } from "zod";
 
 export const CreateCampaignInput = z.object({
-  name: z.string().min(1, "name is required."),
-  subject: z.string().min(1, "subject is required."),
-  body: z.string().min(1, "body is required."),
+  name: z.string().min(1, "name is required.").max(200),
+  subject: z.string().min(1, "subject is required.").max(998),
+  body: z.string().min(1, "body is required.").max(500_000),
   fromName: z.string().nullable().optional(),
   fromEmail: z.string().email().nullable().optional(),
   segmentId: z.string().uuid().nullable().optional(),
@@ -14,9 +14,9 @@ export const CreateCampaignInput = z.object({
 export type CreateCampaignInput = z.infer<typeof CreateCampaignInput>;
 
 export const UpdateCampaignInput = z.object({
-  name: z.string().min(1).optional(),
-  subject: z.string().min(1).optional(),
-  body: z.string().min(1).optional(),
+  name: z.string().min(1).max(200).optional(),
+  subject: z.string().min(1).max(998).optional(),
+  body: z.string().min(1).max(500_000).optional(),
   fromName: z.string().nullable().optional(),
   fromEmail: z.string().email().nullable().optional(),
   segmentId: z.string().uuid().nullable().optional(),

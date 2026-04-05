@@ -55,7 +55,7 @@ export async function updateAutomationRule(
     : eq(automationRules.id, id);
   const [updated] = await db
     .update(automationRules)
-    .set({ ...data, updatedAt: new Date() })
+    .set({ ...data, updatedAt: sql`now()` })
     .where(condition)
     .returning();
   return updated ?? null;
@@ -110,7 +110,7 @@ export async function executeRule(rule: AutomationRule): Promise<number> {
   // Update last run timestamp
   await db
     .update(automationRules)
-    .set({ lastRunAt: new Date(), updatedAt: new Date() })
+    .set({ lastRunAt: sql`now()`, updatedAt: sql`now()` })
     .where(eq(automationRules.id, rule.id));
 
   return affected;

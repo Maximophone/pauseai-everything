@@ -2,14 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { updateTag, deleteTag } from "@/lib/tags";
 import { validateBody, stripNulls } from "@/lib/api-validate";
 import { UpdateTagInput } from "@/lib/schemas";
-import { checkAuth, requireMember, requireAdmin } from "@/lib/api-auth";
+import { checkAuth, requireAdmin } from "@/lib/api-auth";
+import { getActiveWorkspaceId, requireWorkspaceMember } from "@/lib/workspace-context";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
 // PUT /api/tags/:id
 export async function PUT(request: NextRequest, context: RouteContext) {
   const authResult = await checkAuth(request);
-  const authError = requireMember(authResult);
+  const workspaceId = await getActiveWorkspaceId(request);
+  const authError = await requireWorkspaceMember(authResult, workspaceId);
   if (authError) return authError;
   const { id } = await context.params;
   const body = await request.json();

@@ -94,7 +94,7 @@ export async function executeSyncRun(
     } catch (err) {
       await db
         .update(connections)
-        .set({ status: "error", statusMessage: errorMessage(err), updatedAt: new Date() })
+        .set({ status: "error", statusMessage: errorMessage(err), updatedAt: sql`now()` })
         .where(eq(connections.id, connection.id));
       throw new Error(`Connection test failed: ${errorMessage(err)}`);
     }
@@ -133,7 +133,7 @@ export async function executeSyncRun(
 
     await db
       .update(connections)
-      .set({ status: "connected", statusMessage: "OK", lastTestedAt: new Date(), updatedAt: new Date() })
+      .set({ status: "connected", statusMessage: "OK", lastTestedAt: sql`now()`, updatedAt: sql`now()` })
       .where(eq(connections.id, connection.id));
 
     return { runId: run.id, status: finalStatus };
@@ -315,7 +315,7 @@ async function processRecords(
               customFields: sql`${contacts.customFields} || excluded.custom_fields`,
               syncConfigurationId: config.id,
               syncedFields: syncedFieldsList,
-              updatedAt: new Date(),
+              updatedAt: sql`now()`,
             },
           })
           .returning({ id: contacts.id });
@@ -494,14 +494,14 @@ async function finalizeRun(ctx: SyncRunContext, status: string, error?: string) 
 async function updateSyncConfigAfterRun(configId: string, status: string) {
   await db
     .update(syncConfigurations)
-    .set({ lastSyncAt: new Date(), lastSyncStatus: status, updatedAt: new Date() })
+    .set({ lastSyncAt: sql`now()`, lastSyncStatus: status, updatedAt: sql`now()` })
     .where(eq(syncConfigurations.id, configId));
 }
 
 async function markNeedsRepair(configId: string, message: string) {
   await db
     .update(syncConfigurations)
-    .set({ status: "needs_repair", statusMessage: message, updatedAt: new Date() })
+    .set({ status: "needs_repair", statusMessage: message, updatedAt: sql`now()` })
     .where(eq(syncConfigurations.id, configId));
 }
 

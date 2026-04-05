@@ -4,18 +4,17 @@ import { fieldDefinitions } from "@/db/schema/field-definitions";
 import { asc } from "drizzle-orm";
 import { validateBody } from "@/lib/api-validate";
 import { CreateFieldInput } from "@/lib/schemas";
-import { checkAuth, requireAuth, requireAdmin } from "@/lib/api-auth";
-import { getActiveWorkspaceId } from "@/lib/workspace-context";
+import { checkAuth, requireAdmin } from "@/lib/api-auth";
+import { getActiveWorkspaceId, requireWorkspaceMember } from "@/lib/workspace-context";
 import { listFieldDefinitions } from "@/lib/contacts";
 import { isWorkspaceGlobal } from "@/lib/workspaces";
 
 // GET /api/fields — list field definitions visible to active workspace
 export async function GET(request: NextRequest) {
   const authResult = await checkAuth(request);
-  const authError = requireAuth(authResult);
-  if (authError) return authError;
-
   const workspaceId = await getActiveWorkspaceId(request);
+  const authError = await requireWorkspaceMember(authResult, workspaceId);
+  if (authError) return authError;
   const isGlobal = await isWorkspaceGlobal(workspaceId);
   const fields = await listFieldDefinitions(workspaceId, isGlobal);
 

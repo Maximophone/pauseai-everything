@@ -380,7 +380,7 @@ Preview contacts matching a segment filter. **Auth: Session**
 }
 ```
 
-**Response:** { contacts: Contact[], total: number }
+**Response:** `{ count: number, contacts: { id, email, first_name, last_name }[] }`
 
 **Errors:** `400 validation`
 
@@ -399,9 +399,9 @@ Create a campaign. **Auth: Admin**
 **Request body** (`CreateCampaignInput`):
 ```
 {
-  "name": string,
-  "subject": string,
-  "body": string,
+  "name": string,          // max 200 chars
+  "subject": string,       // max 998 chars (RFC 2822)
+  "body": string,          // max 500,000 chars
   "fromName": string | null?,
   "fromEmail": string (email) | null?,
   "segmentId": string (uuid) | null?,
@@ -716,6 +716,8 @@ Create an API key scoped to the current workspace (raw key returned once). **Aut
 **Response:** { id, name, keyPrefix, workspaceId, rawKey, createdAt } (201)
 
 **Errors:** `400 validation / missing workspace`
+
+**Workspace scoping:** API keys are scoped to the workspace in which they are created. When a request uses an API key without an explicit `X-Workspace-Id` header, it defaults to the key's creation workspace. Keys inherit the creator's effective role in each workspace.
 
 ### `DELETE /api/api-keys/:id`
 
@@ -1053,4 +1055,4 @@ Used in segment creation and preview endpoints:
 }
 ```
 
-Supported operators: `eq`, `neq`, `contains`, `not_contains`, `gt`, `lt`, `gte`, `lte`, `in`, `not_in`, `has_tag`, `not_has_tag`, `is_empty`, `is_not_empty`, `after`, `before`
+Supported operators: `eq`, `neq`, `contains`, `not_contains`, `starts_with`, `gt`, `lt`, `gte`, `lte`, `in`, `has`, `not_has`, `is_set`, `is_not_set`, `is_empty` (alias for `is_not_set`), `is_not_empty` (alias for `is_set`), `after`, `before`

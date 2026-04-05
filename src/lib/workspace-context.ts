@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getGlobalWorkspaceId, getEffectiveRole } from "./workspaces";
+import { getGlobalWorkspaceId, getEffectiveRole, hasWorkspaceMembership } from "./workspaces";
+import { getApiKeyWorkspaceId } from "./users";
 import type { AuthResult } from "./api-auth";
 import type { UserRole } from "@/db/schema/users";
 
 /**
  * Extract the active workspace ID from a request.
- * Checks (in order): X-Workspace-Id header, ?workspaceId query param, fallback to Global.
+ * Checks (in order): X-Workspace-Id header, ?workspaceId query param,
+ * cookie, API key's workspace, fallback to Global.
  */
 export async function getActiveWorkspaceId(
   request: NextRequest
@@ -22,7 +24,14 @@ export async function getActiveWorkspaceId(
   const cookieWs = request.cookies.get("pauseai_workspace")?.value;
   if (cookieWs) return cookieWs;
 
-  // 4. Fallback to Global workspace
+  // 4. API key's workspace (when no explicit workspace is specified)
+  const authHeader = request.headers.get("authorization");
+  if (authHeader?.startsWith("Bearer pai_")) {
+    const wsId = await getApiKeyWorkspaceId(authHeader.slice(7));
+    if (wsId) return wsId;
+  }
+
+  // 5. Fallback to Global workspace
   return getGlobalWorkspaceId();
 }
 
@@ -40,6 +49,15 @@ export async function requireWorkspaceMember(
 
   // Global admin from AuthResult is already sufficient
   if (authResult.role === "admin") return null;
+
+  // Non-admin users must have an explicit workspace membership
+  const isMember = await hasWorkspaceMembership(authResult.userId, workspaceId);
+  if (!isMember) {
+    return NextResponse.json(
+      { error: "You are not a member of this workspace." },
+      { status: 403 }
+    );
+  }
 
   const effective = await getEffectiveRole(authResult.userId, workspaceId);
   if (effective === "viewer") {
@@ -64,6 +82,15 @@ export async function requireWorkspaceAdmin(
   if (!authResult.userId) return null;
 
   if (authResult.role === "admin") return null;
+
+  // Non-admin users must have an explicit workspace membership
+  const isMember = await hasWorkspaceMembership(authResult.userId, workspaceId);
+  if (!isMember) {
+    return NextResponse.json(
+      { error: "You are not a member of this workspace." },
+      { status: 403 }
+    );
+  }
 
   const effective = await getEffectiveRole(authResult.userId, workspaceId);
   if (effective !== "admin") {

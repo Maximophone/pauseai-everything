@@ -6,7 +6,7 @@ import {
   type Workspace,
 } from "@/db/schema/workspaces";
 import { users, type UserRole } from "@/db/schema/users";
-import { eq, and, asc } from "drizzle-orm";
+import { eq, and, asc, sql } from "drizzle-orm";
 
 // ── Cache for Global workspace ID ───────────────────────────
 
@@ -57,7 +57,7 @@ export async function updateWorkspace(
 ): Promise<Workspace | null> {
   const [ws] = await db
     .update(workspaces)
-    .set({ ...data, updatedAt: new Date() })
+    .set({ ...data, updatedAt: sql`now()` })
     .where(eq(workspaces.id, id))
     .returning();
   return ws ?? null;
@@ -196,6 +196,25 @@ export async function getEffectiveRole(
 
   const wsLevel = membership ? ROLE_LEVELS[membership.role] : 0;
   return LEVEL_TO_ROLE[Math.max(globalLevel, wsLevel)];
+}
+
+/**
+ * Check if a user has an explicit membership row in a workspace.
+ */
+export async function hasWorkspaceMembership(
+  userId: string,
+  workspaceId: string
+): Promise<boolean> {
+  const [row] = await db
+    .select({ id: userWorkspaces.userId })
+    .from(userWorkspaces)
+    .where(
+      and(
+        eq(userWorkspaces.userId, userId),
+        eq(userWorkspaces.workspaceId, workspaceId)
+      )
+    );
+  return !!row;
 }
 
 // ── Contact-Workspace membership ────────────────────────────
