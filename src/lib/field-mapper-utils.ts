@@ -35,7 +35,7 @@ export const CORE_CRM_FIELDS: CrmFieldDef[] = [
 ];
 
 export const TAGS_CRM_FIELD: CrmFieldDef = {
-  value: "_tags", label: "Tags", group: "Special", fieldType: "text", options: null,
+  value: "_tags", label: "Tags", group: "Special", fieldType: "tags", options: null,
 };
 
 export function mkId(): string {

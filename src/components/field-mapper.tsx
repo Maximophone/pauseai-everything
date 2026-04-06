@@ -187,7 +187,7 @@ export function FieldMapper({
                     </option>
                   ))}
                 </select>
-              ) : crmDef && (crmDef.fieldType === "select" || crmDef.fieldType === "multiselect" || crmDef.fieldType === "boolean" || crmDef.fieldType === "number" || crmDef.fieldType === "date") ? (
+              ) : crmDef && (crmDef.fieldType === "select" || crmDef.fieldType === "multiselect" || crmDef.fieldType === "boolean" || crmDef.fieldType === "number" || crmDef.fieldType === "date" || crmDef.fieldType === "tags") ? (
                 <FieldValueEditor
                   fieldType={crmDef.fieldType}
                   options={crmDef.options}

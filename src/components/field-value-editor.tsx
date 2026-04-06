@@ -1,11 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import { Input } from "@/components/ui/input";
+import { XIcon } from "lucide-react";
 
 /**
  * Type-aware value editor for CRM fields.
  * Renders the appropriate input control based on fieldType.
- * Used in: field-mapper (constant value column), contact-detail-form.
+ * Used in: field-mapper (constant value column), contact-detail-form, cell editors.
  */
 export function FieldValueEditor({
   fieldType,
@@ -47,38 +49,59 @@ export function FieldValueEditor({
 
     case "multiselect": {
       const selected = Array.isArray(value) ? (value as string[]) : [];
+      const available = (options || []).filter((o) => !selected.includes(o));
       return (
-        <div className={`flex flex-wrap gap-1 ${disabled ? "pointer-events-none opacity-60" : ""}`}>
-          {options?.map((opt) => (
-            <label
-              key={opt}
-              className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs transition-colors ${
-                selected.includes(opt)
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : disabled ? "bg-muted" : "cursor-pointer hover:bg-muted"
-              }`}
+        <div className={`space-y-1 ${disabled ? "pointer-events-none opacity-50" : ""}`}>
+          {selected.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {selected.map((val) => (
+                <span
+                  key={val}
+                  className="inline-flex items-center gap-1 rounded-full bg-primary text-primary-foreground px-2 py-0.5 text-xs font-medium"
+                >
+                  {val}
+                  <button
+                    type="button"
+                    onClick={() => onChange(selected.filter((s) => s !== val))}
+                    className="hover:text-red-200 transition-colors"
+                  >
+                    <XIcon className="h-3 w-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+          {available.length > 0 && (
+            <select
+              value=""
+              onChange={(e) => {
+                if (e.target.value) {
+                  onChange([...selected, e.target.value]);
+                  e.target.value = "";
+                }
+              }}
+              disabled={disabled}
+              className={selectClass}
             >
-              <input
-                type="checkbox"
-                className="sr-only"
-                checked={selected.includes(opt)}
-                disabled={disabled}
-                onChange={(e) => {
-                  if (e.target.checked) {
-                    onChange([...selected, opt]);
-                  } else {
-                    onChange(selected.filter((s) => s !== opt));
-                  }
-                }}
-              />
-              {opt}
-            </label>
-          ))}
+              <option value="">{selected.length === 0 ? "Select\u2026" : "+ Add\u2026"}</option>
+              {available.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
+            </select>
+          )}
           {(!options || options.length === 0) && (
             <span className="text-xs text-muted-foreground">No options defined</span>
           )}
         </div>
       );
+    }
+
+    case "tags": {
+      // Freeform tag pill editor — type a tag name and press Enter to add
+      const tags = Array.isArray(value) ? (value as string[]) : [];
+      return <TagPillInput tags={tags} onChange={onChange} disabled={disabled} placeholder={placeholder} />;
     }
 
     case "boolean":
@@ -140,4 +163,81 @@ export function FieldValueEditor({
         />
       );
   }
+}
+
+/**
+ * Freeform tag pill input — type a tag name and press Enter to add it as a pill.
+ * Used for the Tags "Fixed" value in the field mapper.
+ */
+function TagPillInput({
+  tags,
+  onChange,
+  disabled = false,
+  placeholder,
+}: {
+  tags: string[];
+  onChange: (v: string[]) => void;
+  disabled?: boolean;
+  placeholder?: string;
+}) {
+  const [input, setInput] = useState("");
+
+  function addTag(name: string) {
+    const trimmed = name.trim();
+    if (!trimmed || tags.includes(trimmed)) return;
+    onChange([...tags, trimmed]);
+    setInput("");
+  }
+
+  function removeTag(name: string) {
+    onChange(tags.filter((t) => t !== name));
+  }
+
+  return (
+    <div className={`space-y-1 ${disabled ? "pointer-events-none opacity-50" : ""}`}>
+      {tags.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {tags.map((tag) => (
+            <span
+              key={tag}
+              className="inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary px-2 py-0.5 text-xs font-medium"
+            >
+              {tag}
+              <button
+                type="button"
+                onClick={() => removeTag(tag)}
+                className="hover:text-red-500 transition-colors"
+              >
+                <XIcon className="h-3 w-3" />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+      <div className="flex gap-1">
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              addTag(input);
+            }
+          }}
+          disabled={disabled}
+          placeholder={placeholder || "Type a tag and press Enter\u2026"}
+          className="flex-1 h-8 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm"
+        />
+        <button
+          type="button"
+          onClick={() => addTag(input)}
+          disabled={disabled || !input.trim()}
+          className="rounded-lg bg-primary text-primary-foreground px-2.5 py-1 text-xs font-medium disabled:opacity-50"
+        >
+          Add
+        </button>
+      </div>
+    </div>
+  );
 }
