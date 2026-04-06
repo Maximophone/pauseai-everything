@@ -19,6 +19,8 @@ import { useRouter } from "next/navigation";
 import { Download, Trash2 } from "lucide-react";
 import { TagCellEditor } from "./tag-cell-editor";
 import { SubscriptionCellEditor } from "./subscription-cell-editor";
+import { MultiselectCellEditor } from "./multiselect-cell-editor";
+import { DateCellEditor } from "./date-cell-editor";
 import { useWorkspaceId } from "@/components/workspace-provider";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -234,6 +236,8 @@ export function ContactsTable({
   const [deleting, setDeleting] = useState(false);
   const [editingTagsFor, setEditingTagsFor] = useState<{ contactId: string; rect: DOMRect } | null>(null);
   const [editingSubsFor, setEditingSubsFor] = useState<{ contactId: string; rect: DOMRect } | null>(null);
+  const [editingMultiselect, setEditingMultiselect] = useState<{ contactId: string; fieldName: string; options: string[]; rect: DOMRect } | null>(null);
+  const [editingDate, setEditingDate] = useState<{ contactId: string; fieldName: string; rect: DOMRect } | null>(null);
 
   // Stable datasource — reads search from ref, refreshed explicitly when search changes
   const datasource: IDatasource = useMemo(() => ({
@@ -433,27 +437,99 @@ export function ContactsTable({
       },
     ];
 
-    const customCols: ColDef[] = fieldDefinitions.map((field) => ({
-      field: field.name,
-      headerName: field.label,
-      sortable: false,
-      editable: field.fieldType === "multiselect"
-        ? false
-        : canEdit
+    const customCols: ColDef[] = fieldDefinitions.map((field) => {
+      // Multiselect and date use popup editors (like tags), not inline AG Grid editors
+      if (field.fieldType === "multiselect") {
+        return {
+          field: field.name,
+          headerName: field.label,
+          sortable: false,
+          editable: false,
+          width: 150,
+          valueFormatter: (params: { value: unknown }) =>
+            Array.isArray(params.value) ? params.value.join(", ") : "",
+          cellRenderer: (params: { value: unknown; data: FlatContact; eGridCell: HTMLElement }) => {
+            const values = Array.isArray(params.value) ? (params.value as string[]) : [];
+            const synced = isSyncedField(params.data, field.name);
+            const handleClick = () => {
+              if (!canEdit || synced || !params.eGridCell) return;
+              const rect = params.eGridCell.getBoundingClientRect();
+              setEditingMultiselect({ contactId: params.data.id, fieldName: field.name, options: field.options || [], rect });
+            };
+            return (
+              <div
+                className={`flex gap-1 flex-wrap items-center h-full ${canEdit && !synced ? "cursor-pointer" : ""}`}
+                onClick={handleClick}
+                style={synced ? { color: "var(--muted-foreground)", fontStyle: "italic" } : undefined}
+              >
+                {values.length === 0
+                  ? canEdit && !synced ? <span className="text-xs text-muted-foreground">Click to set</span> : null
+                  : values.map((v: string) => (
+                    <span key={v} className="inline-flex items-center rounded-full bg-primary text-primary-foreground px-2 py-0.5 text-xs font-medium">
+                      {v}
+                    </span>
+                  ))}
+              </div>
+            );
+          },
+          cellStyle: (params: { data: FlatContact | undefined }) =>
+            isSyncedField(params.data, field.name)
+              ? { color: "var(--muted-foreground)", fontStyle: "italic" }
+              : null,
+        };
+      }
+
+      if (field.fieldType === "date") {
+        return {
+          field: field.name,
+          headerName: field.label,
+          sortable: false,
+          editable: false,
+          type: "dateColumn",
+          width: 150,
+          cellRenderer: (params: { value: unknown; data: FlatContact; eGridCell: HTMLElement }) => {
+            const synced = isSyncedField(params.data, field.name);
+            const handleClick = () => {
+              if (!canEdit || synced || !params.eGridCell) return;
+              const rect = params.eGridCell.getBoundingClientRect();
+              setEditingDate({ contactId: params.data.id, fieldName: field.name, rect });
+            };
+            const val = params.value as string | null;
+            return (
+              <div
+                className={`flex items-center h-full ${canEdit && !synced ? "cursor-pointer" : ""}`}
+                onClick={handleClick}
+                style={synced ? { color: "var(--muted-foreground)", fontStyle: "italic" } : undefined}
+              >
+                {val
+                  ? new Date(val).toLocaleDateString()
+                  : canEdit && !synced ? <span className="text-xs text-muted-foreground">Click to set</span> : null}
+              </div>
+            );
+          },
+          cellStyle: (params: { data: FlatContact | undefined }) =>
+            isSyncedField(params.data, field.name)
+              ? { color: "var(--muted-foreground)", fontStyle: "italic" }
+              : null,
+        };
+      }
+
+      return {
+        field: field.name,
+        headerName: field.label,
+        sortable: false,
+        editable: canEdit
           ? (params: { data: FlatContact | undefined }) => !isSyncedField(params.data, field.name)
           : false,
-      type: getColumnType(field.fieldType),
-      width: 150,
-      ...getCellEditor(field),
-      cellStyle: (params: { data: FlatContact | undefined }) =>
-        isSyncedField(params.data, field.name)
-          ? { color: "var(--muted-foreground)", fontStyle: "italic" }
-          : null,
-      ...(field.fieldType === "multiselect" && {
-        valueFormatter: (params: { value: unknown }) =>
-          Array.isArray(params.value) ? params.value.join(", ") : "",
-      }),
-    }));
+        type: getColumnType(field.fieldType),
+        width: 150,
+        ...getCellEditor(field),
+        cellStyle: (params: { data: FlatContact | undefined }) =>
+          isSyncedField(params.data, field.name)
+            ? { color: "var(--muted-foreground)", fontStyle: "italic" }
+            : null,
+      };
+    });
 
     const metaCols: ColDef[] = [{
       field: "createdAt",
@@ -546,6 +622,39 @@ export function ContactsTable({
             onSave={(newTags) => {
               const node = gridRef.current?.getRowNode(editingTagsFor.contactId);
               if (node) node.setData({ ...node.data, _tags: newTags });
+            }}
+          />
+        </div>
+      )}
+
+      {/* Multiselect editor popup */}
+      {editingMultiselect && (
+        <div style={{ position: "fixed", top: editingMultiselect.rect.bottom + 4, left: editingMultiselect.rect.left, zIndex: 100 }}>
+          <MultiselectCellEditor
+            contactId={editingMultiselect.contactId}
+            fieldName={editingMultiselect.fieldName}
+            options={editingMultiselect.options}
+            currentValue={(gridRef.current?.getRowNode(editingMultiselect.contactId)?.data?.[editingMultiselect.fieldName] ?? []) as string[]}
+            onClose={() => setEditingMultiselect(null)}
+            onSave={(newValue) => {
+              const node = gridRef.current?.getRowNode(editingMultiselect.contactId);
+              if (node) node.setData({ ...node.data, [editingMultiselect.fieldName]: newValue });
+            }}
+          />
+        </div>
+      )}
+
+      {/* Date editor popup */}
+      {editingDate && (
+        <div style={{ position: "fixed", top: editingDate.rect.bottom + 4, left: editingDate.rect.left, zIndex: 100 }}>
+          <DateCellEditor
+            contactId={editingDate.contactId}
+            fieldName={editingDate.fieldName}
+            currentValue={(gridRef.current?.getRowNode(editingDate.contactId)?.data?.[editingDate.fieldName] ?? null) as string | null}
+            onClose={() => setEditingDate(null)}
+            onSave={(newValue) => {
+              const node = gridRef.current?.getRowNode(editingDate.contactId);
+              if (node) node.setData({ ...node.data, [editingDate.fieldName]: newValue });
             }}
           />
         </div>

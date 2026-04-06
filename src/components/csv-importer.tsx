@@ -5,35 +5,27 @@ import { useRouter } from "next/navigation";
 import Papa from "papaparse";
 import { Button } from "@/components/ui/button";
 import { UploadIcon, CheckCircleIcon } from "lucide-react";
+import { FieldMapper } from "@/components/field-mapper";
+import { useCrmFields } from "@/lib/hooks/use-crm-fields";
+import {
+  autoSuggestMappings,
+  csvColumnsToSourceFields,
+  toApiEntry,
+  type SourceField,
+  type UIMapping,
+} from "@/lib/field-mapper-utils";
 
-type FieldDefinition = {
-  id: string;
-  name: string;
-  label: string;
-  fieldType: string;
-};
+type Step = "upload" | "mapping" | "importing" | "done";
 
-type Step = "upload" | "mapping" | "preview" | "importing" | "done";
-
-// Target fields for mapping
-const CORE_TARGETS = [
-  { value: "_email", label: "Email" },
-  { value: "_firstName", label: "First Name" },
-  { value: "_lastName", label: "Last Name" },
-];
-
-export function CsvImporter({
-  fieldDefinitions,
-}: {
-  fieldDefinitions: FieldDefinition[];
-}) {
+export function CsvImporter() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { crmFields } = useCrmFields();
 
   const [step, setStep] = useState<Step>("upload");
-  const [csvColumns, setCsvColumns] = useState<string[]>([]);
+  const [sourceFields, setSourceFields] = useState<SourceField[]>([]);
   const [csvRows, setCsvRows] = useState<Record<string, string>[]>([]);
-  const [mapping, setMapping] = useState<Record<string, string | null>>({});
+  const [mappings, setMappings] = useState<UIMapping[]>([]);
   const [skipDuplicates, setSkipDuplicates] = useState(true);
   const [result, setResult] = useState<{
     total: number;
@@ -42,11 +34,6 @@ export function CsvImporter({
     skipped: number;
     errors: Array<{ row: number; error: string }>;
   } | null>(null);
-
-  const allTargets = [
-    ...CORE_TARGETS,
-    ...fieldDefinitions.map((f) => ({ value: f.name, label: f.label })),
-  ];
 
   function onFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -59,22 +46,12 @@ export function CsvImporter({
         const columns = results.meta.fields || [];
         const rows = results.data as Record<string, string>[];
 
-        setCsvColumns(columns);
         setCsvRows(rows);
+        const fields = csvColumnsToSourceFields(columns);
+        setSourceFields(fields);
 
-        // Auto-map columns by fuzzy matching labels
-        const autoMapping: Record<string, string | null> = {};
-        for (const col of columns) {
-          const lower = col.toLowerCase().trim();
-          const match = allTargets.find(
-            (t) =>
-              t.label.toLowerCase() === lower ||
-              t.value.toLowerCase() === lower ||
-              t.value === `_${lower.replace(/\s+/g, "")}`
-          );
-          autoMapping[col] = match?.value || null;
-        }
-        setMapping(autoMapping);
+        // Auto-suggest mappings using shared logic
+        setMappings(autoSuggestMappings(fields, crmFields));
         setStep("mapping");
       },
     });
@@ -83,12 +60,31 @@ export function CsvImporter({
   async function doImport() {
     setStep("importing");
 
+    // Convert UIMapping[] to the flat Record<string, string> that the API expects,
+    // plus collect constant values to inject into each row.
+    const fieldMappingRecord: Record<string, string> = {};
+    const constantValues: Record<string, unknown> = {};
+
+    for (const m of mappings) {
+      if (!m.crmTarget) continue;
+      const entry = toApiEntry(m);
+      if (!entry) continue;
+
+      if (m.sourceType === "field" && m.externalFieldId) {
+        // CSV column name → CRM target
+        fieldMappingRecord[m.externalFieldId] = m.crmTarget;
+      } else if (m.sourceType === "constant") {
+        constantValues[m.crmTarget] = (entry.source as { value: unknown }).value;
+      }
+    }
+
     const res = await fetch("/api/contacts/import", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         rows: csvRows,
-        mapping,
+        mapping: fieldMappingRecord,
+        constantValues,
         skipDuplicates,
       }),
     });
@@ -132,43 +128,19 @@ export function CsvImporter({
             Map columns ({csvRows.length} rows found)
           </h3>
           <p className="text-sm text-muted-foreground mt-1">
-            Map each CSV column to a contact field. Unmapped columns will be
-            skipped.
+            For each CRM field, choose a CSV column to import from, or set a fixed value
+            applied to every imported record (e.g. tags).
           </p>
         </div>
 
-        <div className="divide-y rounded-lg border">
-          {csvColumns.map((col) => (
-            <div
-              key={col}
-              className="flex items-center justify-between px-4 py-3 gap-4"
-            >
-              <div className="min-w-0">
-                <span className="text-sm font-medium">{col}</span>
-                <span className="text-xs text-muted-foreground ml-2">
-                  e.g. &quot;{csvRows[0]?.[col] || "—"}&quot;
-                </span>
-              </div>
-              <select
-                value={mapping[col] || ""}
-                onChange={(e) =>
-                  setMapping((prev) => ({
-                    ...prev,
-                    [col]: e.target.value || null,
-                  }))
-                }
-                className="h-9 rounded-md border bg-transparent px-3 py-1 text-sm w-48"
-              >
-                <option value="">— Skip —</option>
-                {allTargets.map((t) => (
-                  <option key={t.value} value={t.value}>
-                    {t.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          ))}
-        </div>
+        <FieldMapper
+          mappings={mappings}
+          onChange={setMappings}
+          crmFields={crmFields}
+          sourceFields={sourceFields}
+          sourceFieldLabel="CSV column"
+          previewRows={csvRows}
+        />
 
         <div className="flex items-center gap-2">
           <input
@@ -180,42 +152,6 @@ export function CsvImporter({
           <label htmlFor="skipDuplicates" className="text-sm">
             Skip rows where email already exists in the system
           </label>
-        </div>
-
-        {/* Preview */}
-        <div>
-          <h4 className="text-sm font-medium mb-2">
-            Preview (first 5 rows)
-          </h4>
-          <div className="overflow-x-auto border rounded-lg">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/50">
-                <tr>
-                  {Object.entries(mapping)
-                    .filter(([, v]) => v)
-                    .map(([col, target]) => (
-                      <th key={col} className="px-3 py-2 text-left font-medium">
-                        {allTargets.find((t) => t.value === target)?.label ||
-                          target}
-                      </th>
-                    ))}
-                </tr>
-              </thead>
-              <tbody>
-                {csvRows.slice(0, 5).map((row, i) => (
-                  <tr key={i} className="border-t">
-                    {Object.entries(mapping)
-                      .filter(([, v]) => v)
-                      .map(([col]) => (
-                        <td key={col} className="px-3 py-2">
-                          {row[col] || "—"}
-                        </td>
-                      ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
         </div>
 
         <div className="flex gap-2">
@@ -301,8 +237,8 @@ export function CsvImporter({
               setStep("upload");
               setResult(null);
               setCsvRows([]);
-              setCsvColumns([]);
-              setMapping({});
+              setSourceFields([]);
+              setMappings([]);
             }}
           >
             Import Another File

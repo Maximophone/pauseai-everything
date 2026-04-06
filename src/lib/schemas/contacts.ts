@@ -35,6 +35,7 @@ export type ContactListParams = z.infer<typeof ContactListParams>;
 export const ImportContactsInput = z.object({
   rows: z.array(z.record(z.string(), z.string())).min(1, "No rows to import."),
   mapping: z.record(z.string(), z.string()),
+  constantValues: z.record(z.string(), z.unknown()).optional(),
   skipDuplicates: z.boolean().default(true),
 });
 export type ImportContactsInput = z.infer<typeof ImportContactsInput>;

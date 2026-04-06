@@ -7,6 +7,7 @@ import { useWorkspaceFetch } from "@/components/workspace-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { FieldValueEditor } from "@/components/field-value-editor";
 import { SaveIcon, Trash2Icon, LinkIcon } from "lucide-react";
 
 type FieldDefinition = {
@@ -229,10 +230,13 @@ export function ContactDetailForm({
                 {field.label}
                 {isSynced(field.name) && <SyncedBadge />}
               </Label>
-              {renderField(field, customFields[field.name], (v) =>
-                setField(field.name, v),
-                isSynced(field.name)
-              )}
+              <FieldValueEditor
+                fieldType={field.fieldType}
+                options={field.options}
+                value={customFields[field.name]}
+                onChange={(v) => setField(field.name, v)}
+                disabled={isSynced(field.name)}
+              />
             </div>
           ))}
         </div>
@@ -281,123 +285,3 @@ function SyncedBadge() {
   );
 }
 
-function renderField(
-  field: FieldDefinition,
-  value: unknown,
-  onChange: (v: unknown) => void,
-  disabled = false
-) {
-  const disabledClass = disabled ? "opacity-60 cursor-not-allowed" : "";
-
-  switch (field.fieldType) {
-    case "select":
-      return (
-        <select
-          id={field.name}
-          value={(value as string) ?? ""}
-          onChange={(e) => onChange(e.target.value || null)}
-          disabled={disabled}
-          className={`flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${disabledClass}`}
-        >
-          <option value="">—</option>
-          {field.options?.map((opt) => (
-            <option key={opt} value={opt}>
-              {opt}
-            </option>
-          ))}
-        </select>
-      );
-
-    case "multiselect":
-      const selected = Array.isArray(value) ? (value as string[]) : [];
-      return (
-        <div className={`flex flex-wrap gap-1 ${disabled ? "pointer-events-none opacity-60" : ""}`}>
-          {field.options?.map((opt) => (
-            <label
-              key={opt}
-              className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs transition-colors ${
-                selected.includes(opt)
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : disabled ? "bg-muted" : "cursor-pointer hover:bg-muted"
-              }`}
-            >
-              <input
-                type="checkbox"
-                className="sr-only"
-                checked={selected.includes(opt)}
-                disabled={disabled}
-                onChange={(e) => {
-                  if (e.target.checked) {
-                    onChange([...selected, opt]);
-                  } else {
-                    onChange(selected.filter((s) => s !== opt));
-                  }
-                }}
-              />
-              {opt}
-            </label>
-          ))}
-        </div>
-      );
-
-    case "boolean":
-      return (
-        <select
-          id={field.name}
-          value={value === true ? "true" : value === false ? "false" : ""}
-          onChange={(e) =>
-            onChange(
-              e.target.value === "true"
-                ? true
-                : e.target.value === "false"
-                  ? false
-                  : null
-            )
-          }
-          disabled={disabled}
-          className={`flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${disabledClass}`}
-        >
-          <option value="">—</option>
-          <option value="true">Yes</option>
-          <option value="false">No</option>
-        </select>
-      );
-
-    case "number":
-      return (
-        <Input
-          id={field.name}
-          type="number"
-          value={value !== null && value !== undefined ? String(value) : ""}
-          onChange={(e) =>
-            onChange(e.target.value ? Number(e.target.value) : null)
-          }
-          disabled={disabled}
-          className={disabledClass}
-        />
-      );
-
-    case "date":
-      return (
-        <Input
-          id={field.name}
-          type="date"
-          value={(value as string) ?? ""}
-          onChange={(e) => onChange(e.target.value || null)}
-          disabled={disabled}
-          className={disabledClass}
-        />
-      );
-
-    default:
-      return (
-        <Input
-          id={field.name}
-          value={(value as string) ?? ""}
-          onChange={(e) => onChange(e.target.value || null)}
-          disabled={disabled}
-          className={disabledClass}
-        />
-      );
-  }
-}

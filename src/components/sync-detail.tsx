@@ -14,9 +14,15 @@ import {
   ChevronRightIcon,
   PencilIcon,
   SaveIcon,
-  XIcon,
-  PlusIcon,
 } from "lucide-react";
+import { FieldMapper } from "@/components/field-mapper";
+import { useCrmFields } from "@/lib/hooks/use-crm-fields";
+import {
+  entryToUIMapping,
+  toApiEntry,
+  type SourceField,
+  type UIMapping,
+} from "@/lib/field-mapper-utils";
 
 // ── Types ──────────────────────────────────────────────────
 
@@ -73,25 +79,6 @@ type SyncRun = {
   completedAt: string | null;
 };
 
-type ExternalField = { id: string; name: string; type: string };
-type CrmField = { value: string; label: string };
-
-// ── Local flat state type for editing ─────────────────────
-type UIMapping = {
-  id: string;
-  crmTarget: string;
-  sourceType: "field" | "constant";
-  externalFieldId: string;
-  externalFieldName: string;
-  constantValue: string;
-};
-
-const CORE_CRM_FIELDS: CrmField[] = [
-  { value: "_email", label: "Email" },
-  { value: "_firstName", label: "First Name" },
-  { value: "_lastName", label: "Last Name" },
-];
-
 const CRM_TARGET_LABELS: Record<string, string> = {
   _email: "Email",
   _firstName: "First Name",
@@ -99,59 +86,12 @@ const CRM_TARGET_LABELS: Record<string, string> = {
   _tags: "Tags",
 };
 
-function mkId() {
-  return Math.random().toString(36).slice(2, 9);
-}
-
-function entryToUIMapping(entry: FieldMappingEntry): UIMapping {
-  if (entry.source.type === "field") {
-    return {
-      id: mkId(),
-      crmTarget: entry.crmTarget,
-      sourceType: "field",
-      externalFieldId: entry.source.externalFieldId,
-      externalFieldName: entry.source.externalFieldName,
-      constantValue: "",
-    };
-  }
-  let constantValue = "";
-  if (Array.isArray(entry.source.value)) {
-    constantValue = (entry.source.value as string[]).join(", ");
-  } else if (entry.source.value !== null && entry.source.value !== undefined) {
-    constantValue = String(entry.source.value);
-  }
-  return {
-    id: mkId(),
-    crmTarget: entry.crmTarget,
-    sourceType: "constant",
-    externalFieldId: "",
-    externalFieldName: "",
-    constantValue,
-  };
-}
-
-function toApiEntry(m: UIMapping): { crmTarget: string; source: unknown } | null {
-  if (!m.crmTarget) return null;
-  if (m.sourceType === "field") {
-    if (!m.externalFieldId) return null;
-    return {
-      crmTarget: m.crmTarget,
-      source: { type: "field", externalFieldId: m.externalFieldId, externalFieldName: m.externalFieldName },
-    };
-  }
-  let value: unknown = m.constantValue;
-  if (m.crmTarget === "_tags") {
-    value = m.constantValue.split(",").map((s) => s.trim()).filter(Boolean);
-  }
-  return { crmTarget: m.crmTarget, source: { type: "constant", value } };
-}
-
 function sourceLabel(entry: FieldMappingEntry): string {
   if (entry.source.type === "field") return entry.source.externalFieldName;
-  if (Array.isArray(entry.source.value)) return (entry.source.value as string[]).join(", ") || "—";
+  if (Array.isArray(entry.source.value)) return (entry.source.value as string[]).join(", ") || "\u2014";
   return entry.source.value !== null && entry.source.value !== undefined
     ? String(entry.source.value)
-    : "—";
+    : "\u2014";
 }
 
 function sourceKindBadge(entry: FieldMappingEntry) {
@@ -185,8 +125,8 @@ export function SyncDetail({ connectionId, syncId }: { connectionId: string; syn
   // Edit state
   const [editing, setEditing] = useState(false);
   const [editMappings, setEditMappings] = useState<UIMapping[]>([]);
-  const [externalFields, setExternalFields] = useState<ExternalField[]>([]);
-  const [allCrmFields, setAllCrmFields] = useState<CrmField[]>([]);
+  const [externalFields, setExternalFields] = useState<SourceField[]>([]);
+  const { crmFields } = useCrmFields();
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -225,30 +165,20 @@ export function SyncDetail({ connectionId, syncId }: { connectionId: string; syn
   async function startEditing() {
     if (!config) return;
 
-    // Convert stored entries to flat UI state
+    // Convert stored entries to flat UI state (via shared entryToUIMapping)
     const normalized = config.fieldMapping.mappings.map(normalizeEntry);
-    setEditMappings(normalized.map(entryToUIMapping));
+    setEditMappings(normalized.map((e) => entryToUIMapping(e)));
 
     // Load external fields for the dropdown
     try {
       const resource = config.externalResource;
       const params = new URLSearchParams(resource as Record<string, string>);
       const schemaRes = await fetch(`/api/connections/${connectionId}/resources/schema?${params}`);
-      if (schemaRes.ok) setExternalFields(await schemaRes.json());
+      if (schemaRes.ok) {
+        const fields = (await schemaRes.json()) as { id: string; name: string; type: string }[];
+        setExternalFields(fields.map((f) => ({ id: f.id, name: f.name, type: f.type })));
+      }
     } catch { /* proceed without external fields */ }
-
-    // Load CRM field definitions
-    const res = await fetch("/api/fields");
-    if (res.ok) {
-      const fields = (await res.json()) as { name: string; label: string }[];
-      setAllCrmFields([
-        ...CORE_CRM_FIELDS,
-        { value: "_tags", label: "Tags" },
-        ...fields.map((f) => ({ value: f.name, label: f.label })),
-      ]);
-    } else {
-      setAllCrmFields([...CORE_CRM_FIELDS, { value: "_tags", label: "Tags" }]);
-    }
 
     setSaveError(null);
     setEditing(true);
@@ -260,21 +190,6 @@ export function SyncDetail({ connectionId, syncId }: { connectionId: string; syn
     setSaveError(null);
   }
 
-  function addEditMapping() {
-    setEditMappings((prev) => [
-      ...prev,
-      { id: mkId(), crmTarget: "", sourceType: "field", externalFieldId: "", externalFieldName: "", constantValue: "" },
-    ]);
-  }
-
-  function updateEditMapping(id: string, patch: Partial<UIMapping>) {
-    setEditMappings((prev) => prev.map((m) => (m.id === id ? { ...m, ...patch } : m)));
-  }
-
-  function removeEditMapping(id: string) {
-    setEditMappings((prev) => prev.filter((m) => m.id !== id));
-  }
-
   async function saveMapping() {
     setSaving(true);
     setSaveError(null);
@@ -282,7 +197,7 @@ export function SyncDetail({ connectionId, syncId }: { connectionId: string; syn
     const entries = editMappings.map(toApiEntry).filter(Boolean);
 
     if (!entries.some((e) => e!.crmTarget === "_email" && (e!.source as { type: string }).type === "field")) {
-      setSaveError("Email must be mapped from an external field — it's used for deduplication.");
+      setSaveError("Email must be mapped from an external field \u2014 it\u2019s used for deduplication.");
       setSaving(false);
       return;
     }
@@ -327,7 +242,6 @@ export function SyncDetail({ connectionId, syncId }: { connectionId: string; syn
   if (!config) return <p className="text-sm text-red-600">Sync configuration not found.</p>;
 
   const normalizedMappings = config.fieldMapping.mappings.map(normalizeEntry);
-  const usedCrmTargets = new Set(editMappings.map((m) => m.crmTarget).filter(Boolean));
 
   return (
     <div className="max-w-3xl space-y-6">
@@ -344,7 +258,7 @@ export function SyncDetail({ connectionId, syncId }: { connectionId: string; syn
           <h2 className="text-2xl font-bold tracking-tight">{config.name}</h2>
           <p className="text-sm text-muted-foreground">
             {config.syncFrequency === "manual" ? "Manual sync" : `Syncs ${config.syncFrequency}`}
-            {" · "}
+            {" \u00B7 "}
             {config.duplicateStrategy === "update" ? "Updates duplicates" : "Skips duplicates"}
           </p>
         </div>
@@ -383,140 +297,14 @@ export function SyncDetail({ connectionId, syncId }: { connectionId: string; syn
         {editing ? (
           /* ── Edit mode ── */
           <div className="space-y-3">
-            <div className="rounded-lg border divide-y">
-              <div className="grid grid-cols-[1fr_auto_1fr_32px] gap-3 px-4 py-2 bg-muted/50 text-xs font-medium text-muted-foreground">
-                <div>CRM Field</div>
-                <div />
-                <div>Source</div>
-                <div />
-              </div>
-
-              {editMappings.length === 0 && (
-                <div className="px-4 py-6 text-sm text-center text-muted-foreground">
-                  No mappings — add one below.
-                </div>
-              )}
-
-              {editMappings.map((m) => (
-                <div key={m.id} className="grid grid-cols-[1fr_auto_1fr_32px] gap-3 px-4 py-2 items-center">
-
-                  {/* CRM target */}
-                  <select
-                    value={m.crmTarget}
-                    onChange={(e) => updateEditMapping(m.id, { crmTarget: e.target.value })}
-                    className="flex h-8 w-full rounded-md border border-input bg-transparent px-2 py-1 text-sm shadow-xs"
-                  >
-                    <option value="">— CRM field —</option>
-                    <optgroup label="Core">
-                      {CORE_CRM_FIELDS.map((f) => (
-                        <option
-                          key={f.value}
-                          value={f.value}
-                          disabled={usedCrmTargets.has(f.value) && m.crmTarget !== f.value}
-                        >
-                          {f.label}
-                        </option>
-                      ))}
-                    </optgroup>
-                    <optgroup label="Special">
-                      <option value="_tags" disabled={usedCrmTargets.has("_tags") && m.crmTarget !== "_tags"}>
-                        Tags
-                      </option>
-                    </optgroup>
-                    {allCrmFields.filter((f) => !f.value.startsWith("_")).length > 0 && (
-                      <optgroup label="Custom Fields">
-                        {allCrmFields
-                          .filter((f) => !f.value.startsWith("_"))
-                          .map((f) => (
-                            <option
-                              key={f.value}
-                              value={f.value}
-                              disabled={usedCrmTargets.has(f.value) && m.crmTarget !== f.value}
-                            >
-                              {f.label}
-                            </option>
-                          ))}
-                      </optgroup>
-                    )}
-                  </select>
-
-                  {/* Source type toggle */}
-                  <div className="flex rounded-md border border-input overflow-hidden text-xs shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => updateEditMapping(m.id, { sourceType: "field", constantValue: "" })}
-                      className={`px-2 py-1.5 transition-colors ${
-                        m.sourceType === "field"
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-transparent text-muted-foreground hover:bg-muted"
-                      }`}
-                    >
-                      Field
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => updateEditMapping(m.id, { sourceType: "constant", externalFieldId: "", externalFieldName: "" })}
-                      className={`px-2 py-1.5 transition-colors ${
-                        m.sourceType === "constant"
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-transparent text-muted-foreground hover:bg-muted"
-                      }`}
-                    >
-                      Fixed
-                    </button>
-                  </div>
-
-                  {/* Source value */}
-                  {m.sourceType === "field" ? (
-                    <select
-                      value={m.externalFieldId}
-                      onChange={(e) => {
-                        const ext = externalFields.find((f) => f.id === e.target.value);
-                        updateEditMapping(m.id, {
-                          externalFieldId: ext?.id || "",
-                          externalFieldName: ext?.name || "",
-                        });
-                      }}
-                      className="flex h-8 w-full rounded-md border border-input bg-transparent px-2 py-1 text-sm shadow-xs"
-                    >
-                      <option value="">— External field —</option>
-                      {externalFields.length > 0
-                        ? externalFields.map((f) => (
-                            <option key={f.id} value={f.id}>{f.name} ({f.type})</option>
-                          ))
-                        : m.externalFieldName
-                          ? <option value={m.externalFieldId}>{m.externalFieldName}</option>
-                          : null
-                      }
-                    </select>
-                  ) : (
-                    <input
-                      value={m.constantValue}
-                      onChange={(e) => updateEditMapping(m.id, { constantValue: e.target.value })}
-                      placeholder={m.crmTarget === "_tags" ? "e.g. volunteer, airtable-import" : "Fixed value…"}
-                      className="flex h-8 w-full rounded-md border border-input bg-transparent px-2 py-1 text-sm shadow-xs"
-                    />
-                  )}
-
-                  {/* Remove */}
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-8 w-8 p-0 shrink-0"
-                    onClick={() => removeEditMapping(m.id)}
-                  >
-                    <XIcon className="h-3 w-3" />
-                  </Button>
-                </div>
-              ))}
-            </div>
-
-            <Button variant="outline" size="sm" onClick={addEditMapping}>
-              <PlusIcon className="mr-1 h-3 w-3" />
-              Add mapping
-            </Button>
-
-            {saveError && <p className="text-sm text-red-600">{saveError}</p>}
+            <FieldMapper
+              mappings={editMappings}
+              onChange={setEditMappings}
+              crmFields={crmFields}
+              sourceFields={externalFields}
+              sourceFieldLabel="External field"
+              error={saveError}
+            />
 
             <div className="flex gap-2">
               <Button onClick={saveMapping} disabled={saving}>
@@ -536,7 +324,7 @@ export function SyncDetail({ connectionId, syncId }: { connectionId: string; syn
             {normalizedMappings.map((entry, i) => (
               <div key={i} className="grid grid-cols-[1fr_1fr] gap-4 px-4 py-2 text-sm items-center">
                 <div className="font-medium">
-                  {CRM_TARGET_LABELS[entry.crmTarget] || entry.crmTarget}
+                  {CRM_TARGET_LABELS[entry.crmTarget] || crmFields.find((f) => f.value === entry.crmTarget)?.label || entry.crmTarget}
                 </div>
                 <div className="text-muted-foreground flex items-center gap-1">
                   {sourceLabel(entry)}
