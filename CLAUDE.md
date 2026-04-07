@@ -18,6 +18,8 @@ CRM and operations platform for PauseAI Global. Built with Next.js 16 (App Route
 - **Sandbox schema:** `src/db/schema/sandbox-emails.ts` (sandbox_emails table)
 - **Background workers:** `src/worker/` (Graphile Worker)
 - **UI components:** `src/components/` (React + shadcn/ui)
+- **Shared field mapper:** `src/lib/field-mapper-utils.ts` (types + conversion), `src/components/field-mapper.tsx` (UI), `src/lib/hooks/use-crm-fields.ts` (hook)
+- **Type-aware field editor:** `src/components/field-value-editor.tsx` — renders appropriate input control based on field type (select, multiselect, tags, boolean, number, date, text)
 - **Workspace design:** See [docs/specs/workspaces.md](docs/specs/workspaces.md) for the multi-tenancy specification
 - **Dev log:** `DEVLOG.md` — reverse-chronological session log (updated via `/wrapup`)
 - **Bug tracker:** `BUGS.md` — security audit findings and fix status

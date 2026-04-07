@@ -8,7 +8,7 @@
 
 **Table view (primary interface)**
 - Spreadsheet-like table powered by AG Grid (open source Community Edition)
-- Inline cell editing — click a cell, type, save
+- Inline cell editing — click a cell, type, save. Type-aware popup editors for tags, multiselect, and date fields
 - Columns generated dynamically from field definitions
 - Sort, filter, group by any field
 - Column show/hide, reorder, resize
@@ -39,7 +39,7 @@ The system must support multiple ways for data to enter:
 | **Contact detail form** | Structured form on the contact profile page. Good for careful data entry. | v1 |
 | **Tally webhook** | Form submission → webhook → API → new contact created and routed. Existing flow, needs to work day one. | v1 |
 | **REST API** | Full CRUD API for contacts, interactions, tags. Used by n8n, scripts, other systems. | v1 |
-| **CSV import** | Upload a CSV, map columns to fields, preview, import. Essential for Airtable migration. | v1 |
+| **CSV import** | Upload a CSV, map columns to fields (or set fixed constant values), preview, import. Essential for Airtable migration. | v1 |
 | **Manual "quick add"** | Minimal modal/form — just name + email + key fields — for logging someone you just met. | v1 |
 | **Bulk paste** | Paste tabular data (from a spreadsheet) into the table view. AG Grid supports this natively. | v1 (free with AG Grid) |
 | **Email forwarding/parsing** | Forward an email to the system, it extracts contact info and logs the interaction. | Future (AI feature) |

@@ -137,22 +137,25 @@ export function TagCellEditor({
       </div>
 
       {availableTags.length > 0 && (
-        <>
+        <div className="mb-3">
           <div className="text-xs font-medium text-muted-foreground mb-1">
             Add tag
           </div>
-          <div className="flex flex-wrap gap-1 mb-3">
+          <select
+            value=""
+            onChange={(e) => {
+              if (e.target.value) addTag(e.target.value);
+            }}
+            className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-xs outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+          >
+            <option value="">Select a tag…</option>
             {availableTags.map((tag) => (
-              <button
-                key={tag.id}
-                onClick={() => addTag(tag.id)}
-                className="inline-flex items-center rounded-full border border-dashed border-primary/30 text-primary/60 px-2 py-0.5 text-xs font-medium hover:bg-primary/10 hover:text-primary transition-colors"
-              >
-                + {tag.name}
-              </button>
+              <option key={tag.id} value={tag.id}>
+                {tag.name}
+              </option>
             ))}
-          </div>
-        </>
+          </select>
+        </div>
       )}
 
       <div className="flex gap-1">

@@ -120,18 +120,20 @@ export function ContactTags({ contactId }: { contactId: string }) {
       {showPicker && (
         <div className="border rounded-lg p-3 space-y-2 bg-muted/30">
           {availableTags.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
+            <select
+              value=""
+              onChange={(e) => {
+                if (e.target.value) addTag(e.target.value);
+              }}
+              className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-base outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm"
+            >
+              <option value="">+ Add tag…</option>
               {availableTags.map((tag) => (
-                <button
-                  key={tag.id}
-                  onClick={() => addTag(tag.id)}
-                  className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs hover:bg-primary/10 hover:text-primary transition-colors cursor-pointer"
-                >
-                  <PlusIcon className="h-3 w-3 mr-1" />
+                <option key={tag.id} value={tag.id}>
                   {tag.name}
-                </button>
+                </option>
               ))}
-            </div>
+            </select>
           )}
           <div className="flex gap-2">
             <Input

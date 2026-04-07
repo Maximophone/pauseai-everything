@@ -94,6 +94,7 @@ Bulk import contacts from CSV data. No auth required
 {
   "rows": Record<string, string>[],
   "mapping": Record<string, string>,
+  "constantValues": Record<string, unknown>,  // optional — fixed values applied to all rows (e.g. {"_tags": ["csv-import"]})
   "skipDuplicates": boolean
 }
 ```

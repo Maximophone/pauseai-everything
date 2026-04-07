@@ -48,8 +48,8 @@ Some interactions are logged automatically (e.g., when an email campaign is sent
 Go to **Contacts → Import** to bulk-import contacts from a CSV file.
 
 1. Upload your CSV file
-2. Map CSV columns to contact fields (name, email, country, etc.)
-3. Preview the import — see how many contacts will be created vs. updated
+2. Map CSV columns to contact fields (name, email, country, etc.). You can also set **fixed values** — for example, always apply a "csv-import" tag or set a specific lifecycle stage for all imported contacts
+3. Preview the import — see how your CSV columns map to CRM fields
 4. Confirm the import
 
 Duplicate detection is based on email address. If a contact with the same email already exists, their fields will be updated rather than creating a duplicate.

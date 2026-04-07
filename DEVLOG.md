@@ -4,6 +4,31 @@ Reverse-chronological log of development sessions. Each entry is self-contained.
 
 ---
 
+## 2026-04-07 — Shared field mapper, type-aware editors, and UI consistency
+
+**What:** Extracted duplicated field mapper code (~300 lines) into shared components reused by sync config, sync detail, and CSV import. Added type-aware constant value editors and new cell editors for multiselect/date fields in the contacts table. Unified tags and multiselect UI to use the same dropdown-to-add pattern everywhere.
+
+**Key changes:**
+- `src/lib/field-mapper-utils.ts` — shared types (CrmFieldDef, UIMapping, SourceField) and conversion utilities (toApiEntry, entryToUIMapping, autoSuggestMappings)
+- `src/lib/hooks/use-crm-fields.ts` — shared hook to fetch CRM field definitions with type metadata
+- `src/components/field-mapper.tsx` — shared field mapper UI (CRM field | Field/Fixed toggle | source value | remove)
+- `src/components/field-value-editor.tsx` — type-aware value editor (select, multiselect, tags, boolean, number, date, text) used in field mapper, contact detail form, and cell editors
+- `src/components/multiselect-cell-editor.tsx`, `date-cell-editor.tsx` — popup editors for contacts table
+- `src/components/contact-tags.tsx`, `tag-cell-editor.tsx` — unified from clickable pill buttons to dropdown pattern (matching multiselect)
+- `src/app/api/contacts/import/route.ts` — added `constantValues` support for fixed values during CSV import (including tag creation)
+- Refactored `sync-config-wizard.tsx`, `sync-detail.tsx`, `csv-importer.tsx`, `contact-detail-form.tsx` to use shared components
+
+**Decisions:**
+- Tags "Fixed" mode in field mapper uses freeform type-to-add (TagPillInput) rather than fetching existing workspace tags — keeps the mapper stateless and avoids tag management in a mapping context
+- `constantValue` in UIMapping is `unknown` (not string) to support typed values natively (arrays for tags/multiselect, booleans, numbers)
+- Unified tags and multiselect to both use "selected pills + dropdown to add" pattern for consistency and scalability (previous tag UI showed all available tags as clickable pills, which doesn't scale)
+
+**Open items:**
+- Run `npx drizzle-kit push` to drop the `required` column from the database (from previous session)
+- Pre-existing build error in `my-email-contacts.tsx:345` (`fetchConnections` not found) — unrelated to this work
+
+---
+
 ## 2026-04-05 — Remove required fields functionality
 
 **What:** Removed the `required` boolean from field definitions entirely. Required fields were inconsistently enforced (only on direct API create/update, not on CSV import, Tally webhooks, or sync engine), which caused a bug chain: contacts entered without required fields couldn't be edited later because the PUT validation would reject unrelated edits.

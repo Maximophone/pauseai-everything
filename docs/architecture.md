@@ -475,6 +475,8 @@ type FieldMappingEntry = {
 
 This allows: one external field → multiple CRM fields, hardcoded constant values (e.g., always apply certain tags), and future support for expression-based sources combining multiple fields.
 
+The field mapping UI is a **shared component** (`src/components/field-mapper.tsx`) used by sync configuration, sync detail (edit mode), and CSV import. Type metadata from field definitions drives a **type-aware value editor** (`src/components/field-value-editor.tsx`) that renders appropriate input controls for constant values (dropdowns for select, pill+dropdown for multiselect, date picker for date, etc.).
+
 ### Sync provenance
 
 Contacts carry two columns for sync attribution:
@@ -491,6 +493,7 @@ The contacts table uses AG Grid's **Infinite Row Model** to handle 10k–100k co
 - Row updates (tags, subscriptions) via `getRowNode(id).setData()` — no full grid refresh needed
 - CSV export fetches all contacts server-side; AG Grid's built-in export only covers cached rows
 - Custom `headerComponent` for select-all checkbox (AG Grid's native `headerCheckbox` is not supported with Infinite Row Model)
+- Type-aware popup cell editors for tags, multiselect, and date fields (positioned via `getBoundingClientRect()`, closed on click-outside)
 
 ## Multi-Tenancy (Workspaces)
 

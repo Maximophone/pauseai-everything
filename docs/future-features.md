@@ -20,7 +20,7 @@ Captured during workspace model review (2026-03-25). These are out of scope for 
 
 - ~~**Contact table auto-refresh**: After creating a new contact, the table should update instantly without requiring a page refresh.~~ ✅ Done (Phase 10)
 - **Tag selector in segments**: The segment filter UI uses a plain text field for tags. Should use the same tag picker component as the contacts table.
-- **Tag selector in connection field mapper**: Same issue as segments.
+- ~~**Tag selector in connection field mapper**: Same issue as segments.~~ ✅ Done — field mapper now uses type-aware editors; tags use freeform pill input, multiselect/select use dropdowns.
 - ~~**Connections navigation**: Connections should have their own top-level tab in the sidebar, not be nested under Settings.~~ ✅ Done (Phase 10)
 
 ## Field Descriptions & Importance
