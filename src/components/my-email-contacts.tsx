@@ -342,7 +342,7 @@ function ConnectedView({
       {showSettings && (
         <ConnectionSettings
           connection={connection}
-          onUpdate={fetchConnections}
+          onUpdate={fetchContacts}
         />
       )}
 
