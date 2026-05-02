@@ -83,9 +83,9 @@ Changed to static import alongside other drizzle-orm imports.
 
 ### Critical
 
-#### 24. ~~`allowDangerousEmailAccountLinking` enables account takeover~~ — FIXED
-**File:** `src/lib/auth.ts:21`
-The Google OAuth provider was configured with `allowDangerousEmailAccountLinking: true`, allowing automatic account linking when a new Google sign-in matches an existing user's email. An attacker who controls a Google account with a victim's email could log in as the victim. Removed the flag.
+#### 24. `allowDangerousEmailAccountLinking` enables account takeover — REOPENED & MITIGATED (2026-05-01)
+**File:** `src/lib/auth.ts`
+Originally removed the flag, which broke the invite flow: Auth.js throws `OAuthAccountNotLinked` before the `signIn` callback runs whenever a user row exists by email but has no linked OAuth `account` row — exactly the state every invited user is in. Re-enabled `allowDangerousEmailAccountLinking: true` on the Google provider and added two compensating controls in the `signIn` callback: (a) reject unless `profile.email_verified === true` (Google's verified-ownership signal), (b) keep the invite-only check (email must already exist in `users`). Residual risks for invitees on custom domains: expired-domain takeover (attacker registers the domain after expiry, creates a Google Workspace, recreates the email) and Workspace mailbox reassignment (org admin transfers an email to a different person). Gmail addresses aren't vulnerable (Google doesn't recycle them); other public providers depend on that provider's account-reuse policy. Issue #3 tracks the structural fix (move invite state to `pending_invites` so the dangerous flag isn't needed).
 
 #### 25. ~~Unauthenticated Mailersend webhook — campaign metric poisoning~~ — FIXED
 **File:** `src/app/api/webhooks/mailersend/route.ts`
