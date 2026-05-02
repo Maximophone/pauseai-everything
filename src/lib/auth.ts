@@ -13,11 +13,20 @@ import { eq } from "drizzle-orm";
 import type { UserRole } from "@/db/schema/users";
 import type { Provider } from "next-auth/providers";
 import { userWorkspaces, workspaces } from "@/db/schema/workspaces";
+import { addUserToWorkspace } from "@/lib/workspaces";
 
 const isDev = process.env.NODE_ENV === "development";
 
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? "")
+  .split(",")
+  .map((e) => e.trim().toLowerCase())
+  .filter(Boolean);
+
 const providers: Provider[] = [
-  Google({}),
+  // Required so invited users (no `account` row yet) can link via Google
+  // on first sign-in; the email_verified guard + invite-only check below
+  // are the compensating controls. See BUGS.md #24.
+  Google({ allowDangerousEmailAccountLinking: true }),
 ];
 
 // Dev-only Credentials provider — lets you sign in as any email
@@ -162,18 +171,59 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         return true;
       }
 
-      // Invite-only: only allow sign-in if the user's email already exists in the DB
+      // Pairs with allowDangerousEmailAccountLinking on the Google provider
+      // — Google's email_verified flag is what makes the auto-link safe.
+      if (account?.provider === "google" && profile?.email_verified !== true) {
+        return "/login?error=email_not_verified";
+      }
+
       const email = user.email || profile?.email;
       if (!email) return false;
 
-      const [existingUser] = await db
+      const normalizedEmail = email.toLowerCase();
+      let [existingUser] = await db
         .select({ id: users.id, name: users.name })
         .from(users)
-        .where(eq(users.email, email.toLowerCase()));
+        .where(eq(users.email, normalizedEmail));
 
       if (!existingUser) {
-        // Redirect to login with error message
-        return "/login?error=not_invited";
+        if (!ADMIN_EMAILS.includes(normalizedEmail)) {
+          return "/login?error=not_invited";
+        }
+        // Fail closed if Global is missing — otherwise we'd create a user row
+        // with no workspace membership that subsequent sign-ins won't repair
+        // (existingUser would be truthy, skipping this block entirely).
+        const [globalWs] = await db
+          .select({ id: workspaces.id })
+          .from(workspaces)
+          .where(eq(workspaces.type, "global"))
+          .limit(1);
+        if (!globalWs) {
+          console.error(
+            `[auth] Cannot bootstrap admin ${normalizedEmail}: no Global workspace exists. Run \`npm run db:seed\`.`
+          );
+          return "/login?error=server_misconfigured";
+        }
+        // onConflictDoNothing covers concurrent first sign-ins for the same
+        // email (e.g. double-click). RETURNING gives us the row directly when
+        // we won the race; the SELECT fallback picks it up otherwise.
+        const [created] = await db
+          .insert(users)
+          .values({ email: normalizedEmail, role: "admin" })
+          .onConflictDoNothing({ target: users.email })
+          .returning({ id: users.id, name: users.name });
+        if (created) {
+          existingUser = created;
+        } else {
+          [existingUser] = await db
+            .select({ id: users.id, name: users.name })
+            .from(users)
+            .where(eq(users.email, normalizedEmail));
+        }
+
+        if (existingUser) {
+          await addUserToWorkspace(existingUser.id, globalWs.id, "admin");
+        }
       }
 
       // Update name and image from Google profile on first sign-in
@@ -197,13 +247,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.id = user.id;
       }
 
-      // Always refresh role from DB + ADMIN_EMAILS env var
       if (token.id) {
-        const adminEmails = (process.env.ADMIN_EMAILS ?? "")
-          .split(",")
-          .map((e) => e.trim().toLowerCase())
-          .filter(Boolean);
-
         const [dbUser] = await db
           .select({ role: users.role, email: users.email })
           .from(users)
@@ -211,7 +255,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         if (dbUser) {
           const isEnvAdmin = dbUser.email
-            ? adminEmails.includes(dbUser.email.toLowerCase())
+            ? ADMIN_EMAILS.includes(dbUser.email.toLowerCase())
             : false;
 
           if (isEnvAdmin && dbUser.role !== "admin") {
