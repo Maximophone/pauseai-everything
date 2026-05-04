@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { signIn } from "next-auth/react";
 
 type WorkspaceOption = {
@@ -27,6 +27,12 @@ export function DevLoginForm({ workspaces }: { workspaces: WorkspaceOption[] }) 
   const [role, setRole] = useState<"admin" | "member" | "viewer">("member");
   const [workspaceId, setWorkspaceId] = useState(workspaces[0]?.id ?? "");
   const [loading, setLoading] = useState(false);
+
+  // Render client-only — password manager extensions inject extra DOM nodes
+  // into the input fields below, which causes a hydration mismatch on SSR.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  if (!mounted) return null;
 
   async function handleLogin(
     loginEmail: string,
